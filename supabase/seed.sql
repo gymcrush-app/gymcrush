@@ -1,0 +1,26 @@
+-- TODO: Seed Data
+-- Development seed data for testing
+--
+-- Insert sample gyms:
+--   - Use PostGIS ST_MakePoint for location (longitude, latitude)
+--   - Example: INSERT INTO gyms (name, address, city, state, country, location) VALUES (...)
+--
+-- Insert test user profiles (requires auth.users first):
+--   - Create auth users via Supabase dashboard or API
+--   - Then insert corresponding profiles
+--
+-- Insert sample likes and matches for testing:
+--   - Create mutual likes to trigger match creation
+--
+-- Note: Run this after migrations and after creating test auth users
+
+-- Example gym seed (uncomment and modify as needed):
+-- INSERT INTO gyms (name, address, city, state, country, location)
+-- VALUES (
+--   'Planet Fitness Downtown',
+--   '123 Main St',
+--   'San Francisco',
+--   'CA',
+--   'USA',
+--   ST_SetSRID(ST_MakePoint(-122.4194, 37.7749), 4326)
+-- );

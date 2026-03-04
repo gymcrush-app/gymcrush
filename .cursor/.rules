@@ -1,0 +1,439 @@
+# GymCrush — Cursor Rules
+
+You are an expert React Native / Expo developer building **GymCrush**, a mobile dating app for gym-goers. Follow these rules in every file you create or modify.
+
+---
+
+## Project Context
+
+GymCrush connects people at the same gym. Core MVP features:
+1. Account creation (name, age, gym, gender)
+2. Profile (photos + fitness disciplines + "Approach me" prompt)
+3. Visibility toggle ("open to connection")
+4. Crush signal system (1 per day, "You are my gym crush")
+5. Mutual match → chat unlock
+6. Gym-based filtering / discovery
+7. Basic moderation & reporting
+
+This is NOT a hookup app. The tone is fitness-first, respectful, and encourages real-life conversation.
+
+---
+
+## Tech Stack (do not deviate)
+
+- **Runtime**: Expo SDK 54+, managed workflow
+- **Routing**: Expo Router v4 (file-based routing in `app/` directory)
+- **Language**: TypeScript (strict mode). No `any` types. No `@ts-ignore`.
+- **Styling**: JSX object styles using StyleSheet.create and theme tokens from `@/theme`
+- **State**: Zustand for client state, TanStack Query v5 for server state
+- **Forms**: React Hook Form + Zod for validation
+- **Backend**: Supabase (Postgres + Auth + Realtime + Storage + Edge Functions)
+- **Animations**: react-native-reanimated 3 + react-native-gesture-handler
+- **Notifications**: expo-notifications
+- **Maps**: react-native-maps
+- **Gradients**: expo-linear-gradient
+- **Analytics**: Mixpanel React Native SDK
+- **Error tracking**: Sentry React Native SDK
+
+---
+
+## Design System & Theme
+
+GymCrush uses a **dark-first** design with **Peach/Coral primary** and **Baby Blue secondary** colors, extracted from the Lovable web prototype.
+
+### Theme file locations
+```
+theme/
+├── colors.ts          # palette, colors (semantic), gradients, shadows
+├── tokens.ts          # spacing, borderRadius, fontSize, fontWeight, duration, swipe, APP constants
+├── index.ts           # barrel export
+```
+
+### Styling Approach
+
+**Use StyleSheet.create for component-level styles:**
+```tsx
+import { StyleSheet } from 'react-native';
+import { colors, spacing, borderRadius, fontSize, fontWeight } from '@/theme';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: spacing[4],
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing[4],
+  },
+  title: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.foreground,
+  },
+});
+
+<View style={styles.container}>
+  <View style={styles.card}>
+    <Text style={styles.title}>Hello</Text>
+  </View>
+</View>
+```
+
+**Use common components (Text, Button) from `@/components/ui`:**
+```tsx
+import { Text } from '@/components/ui/Text';
+import { Button } from '@/components/ui/Button';
+
+<Text variant="h2">Heading</Text>
+<Text variant="body" color="muted">Body text</Text>
+<Button variant="primary" size="lg">Click me</Button>
+```
+
+**Use style utilities from `@/lib/styles` for common patterns:**
+```tsx
+import { layout, containers, textStyles } from '@/lib/styles';
+
+<View style={[layout.flex1, layout.itemsCenter, containers.card]}>
+  <Text style={textStyles.h1}>Title</Text>
+</View>
+```
+
+**For gradients, shadows, animations:**
+```tsx
+import { colors, gradients, shadows, spacing, duration } from '@/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// Gradient background
+<LinearGradient
+  colors={gradients.primary.colors}
+  start={gradients.primary.start}
+  end={gradients.primary.end}
+  style={{ borderRadius: 24, padding: spacing[6] }}
+>
+  <Text style={{ color: colors.primaryForeground, fontSize: 24, fontWeight: 'bold' }}>
+    GymCrush
+  </Text>
+</LinearGradient>
+
+// Shadow on a card
+<View style={[styles.card, shadows.card]}>
+  ...
+</View>
+
+// Animation timing
+withTiming(1, { duration: duration.normal })
+```
+
+### Key color mappings (reference)
+| Theme token | Hex | Usage |
+|---|---|---|
+| `colors.background` | `#0F1318` | App background (dark) |
+| `colors.card` | `#1C222D` | Card surfaces |
+| `colors.primary` | `#F5C4A9` | Peach/coral — primary buttons, active states |
+| `colors.secondary` | `#7EC8E3` | Baby blue — secondary actions, badges |
+| `colors.muted` | `#262D3A` | Inactive/subtle surfaces |
+| `colors.accent` | `#5C3020` | Dark peach — accent highlights |
+| `colors.foreground` | `#F5F7FA` | Primary text (light on dark) |
+| `colors.mutedForeground` | `#8891A0` | Secondary/subtle text |
+| `colors.primaryForeground` | `#171C24` | Text ON primary bg |
+| `border-border` | `#262D3A` | Default borders |
+| `bg-success` | `#2DB86A` | Bracelet wearing, success states |
+| `bg-warning` | `#F5A623` | Bracelet not wearing, warnings |
+| `bg-destructive` | `#B93333` | Report, block, errors |
+| `bg-bracelet-wearing` | `#2DB86A` | Green bracelet status |
+| `bg-bracelet-not-wearing` | `#F5A623` | Amber bracelet status |
+| `bg-bracelet-none` | `#8E99A8` | Gray no bracelet |
+
+### Design rules
+- Dark background everywhere. Never use white/light backgrounds unless inside a modal or input.
+- Peach/coral (`primary`) is for CTAs, active swipe indicators, and the crush signal.
+- Baby blue (`secondary`) is for secondary actions, fitness badges, and informational elements.
+- Cards use `bg-card` with `rounded-3xl` and `shadows.card` for the signature GymCrush look.
+- Profile cards use `gradients.cardOverlay` at the bottom for text readability over photos.
+- Bracelet status indicators use the three `bracelet-*` colors as dot/badge indicators.
+- The "Approach me" badge uses `bg-primary` with `text-primary-foreground`.
+- Use `gradients.primary` (peach) for hero sections and prominent CTAs.
+- Use `gradients.secondary` (blue) for informational headers.
+
+---
+
+## Directory Structure
+
+```
+gymcrush/
+├── app/                    # Expo Router file-based routes
+│   ├── (auth)/             # Auth group (login, signup, onboarding)
+│   │   ├── login.tsx
+│   │   ├── signup.tsx
+│   │   └── onboarding/
+│   │       ├── photos.tsx
+│   │       ├── fitness.tsx
+│   │       ├── gym-select.tsx
+│   │       └── preferences.tsx
+│   ├── (tabs)/             # Main app tab navigator
+│   │   ├── discover.tsx    # Swipe/discovery feed
+│   │   ├── matches.tsx     # Match list
+│   │   ├── chat/
+│   │   │   ├── index.tsx   # Chat list
+│   │   │   └── [matchId].tsx
+│   │   └── profile.tsx     # Own profile / settings
+│   ├── _layout.tsx         # Root layout
+│   └── index.tsx           # Entry redirect
+├── components/
+│   ├── ui/                 # Reusable primitives (Button, Input, Card, Avatar, Badge)
+│   ├── profile/            # ProfileCard, PhotoCarousel, ApproachBadge
+│   ├── discover/           # SwipeCard, SwipeDeck, CrushSignalButton
+│   ├── chat/               # MessageBubble, ChatInput, MatchHeader
+│   └── onboarding/         # OnboardingStep, GymSearchInput, FitnessPicker
+├── theme/                  # ← DESIGN SYSTEM (do not restructure)
+│   ├── colors.ts           # palette, colors, gradients, shadows
+│   ├── tokens.ts           # spacing, borderRadius, fontSize, duration, APP constants
+│   └── index.ts            # barrel export
+├── lib/
+│   ├── supabase.ts         # Supabase client init
+│   ├── api/                # TanStack Query hooks grouped by domain
+│   │   ├── auth.ts
+│   │   ├── profiles.ts
+│   │   ├── matches.ts
+│   │   ├── messages.ts
+│   │   └── gyms.ts
+│   ├── stores/             # Zustand stores
+│   │   ├── authStore.ts
+│   │   └── appStore.ts
+│   └── utils/              # Helpers, constants, formatters
+│       ├── validation.ts   # Zod schemas (shared with edge functions)
+│       └── analytics.ts    # Mixpanel wrapper
+├── types/
+│   ├── database.ts         # Supabase generated types
+│   ├── navigation.ts       # Route param types
+│   └── index.ts            # Shared app types
+├── assets/                 # Images, fonts, animations
+├── supabase/
+│   ├── migrations/         # SQL migrations
+│   ├── functions/          # Edge functions
+│   │   ├── handle-crush-signal/
+│   │   ├── check-match/
+│   │   └── moderate-image/
+│   └── seed.sql            # Dev seed data
+├── lib/styles/             # Style utilities and common patterns
+│   ├── createStyles.ts     # Style helpers and common patterns
+│   └── index.ts            # Barrel export
+└── config/
+    ├── sentry.ts
+    └── mixpanel.ts
+```
+
+---
+
+## Coding Standards
+
+### General
+- Use functional components only. No class components.
+- Use named exports for components, default exports only for route pages.
+- Every component file exports ONE component. No multi-component files.
+- Keep components under 150 lines. Extract sub-components when exceeding this.
+- Use `const` by default. Never use `var`.
+
+### TypeScript
+- Define interfaces for all props: `interface ProfileCardProps { ... }`
+- Use Zod schemas as the source of truth for data shapes, then infer types: `type Profile = z.infer<typeof profileSchema>`
+- Use discriminated unions for state: `type SwipeAction = { type: 'like'; targetId: string } | { type: 'pass'; targetId: string } | { type: 'crush'; targetId: string }`
+
+### React / React Native
+- Prefer `useMemo` and `useCallback` for expensive computations and callbacks passed to children.
+- Use `StyleSheet.create()` for component-level styles. Import theme tokens from `@/theme`.
+- Use inline `style` prop for: dynamic values, Reanimated `useAnimatedStyle`, and combining multiple style objects.
+- Use common components (`Text`, `Button`) from `@/components/ui` instead of raw React Native components when possible.
+- Use style utilities from `@/lib/styles` for common layout patterns.
+- Use `<Pressable>` over `<TouchableOpacity>`.
+- Wrap lists in `<FlashList>` (from @shopify/flash-list) instead of FlatList for performance.
+- Use `<Image>` from `expo-image` for all images (better caching than RN Image).
+- Use `<LinearGradient>` from `expo-linear-gradient` with configs from `theme/colors.ts` `gradients` object.
+- Use `<SafeAreaView>` from `react-native-safe-area-context` instead of Lovable's CSS `safe-top`/`safe-bottom` classes.
+
+### State Management
+- **Zustand**: Only for truly global client state (auth session, app theme, visibility toggle state).
+- **TanStack Query**: For ALL server data. Use query keys consistently:
+  ```ts
+  export const profileKeys = {
+    all: ['profiles'] as const,
+    byGym: (gymId: string) => [...profileKeys.all, 'gym', gymId] as const,
+    detail: (userId: string) => [...profileKeys.all, userId] as const,
+  }
+  ```
+- Never store server data in Zustand. If it comes from Supabase, it goes through TanStack Query.
+
+### Supabase
+- Always use the generated types from `supabase gen types typescript`.
+- Use RLS policies — never bypass with service role key on client.
+- Realtime subscriptions: subscribe in a `useEffect` with proper cleanup.
+- Use `supabase.storage.from('avatars').getPublicUrl()` for photo URLs.
+
+### Navigation
+- Use typed routes. Define params in `types/navigation.ts`.
+- Use `<Link>` from expo-router for navigation in JSX, `router.push()` in handlers.
+- Protect authenticated routes with a layout-level auth check in `app/(tabs)/_layout.tsx`.
+
+### Animations
+- Use Reanimated `useSharedValue` + `useAnimatedStyle` for swipe cards.
+- Use `withSpring` for natural-feeling snaps, `withTiming` for linear transitions.
+- Import timing constants from `theme/tokens.ts` `duration` object.
+- Swipe threshold from `theme/tokens.ts` `swipe` object (120px default).
+
+---
+
+## Naming Conventions
+
+| Thing | Convention | Example |
+|---|---|---|
+| Files/folders | kebab-case | `gym-select.tsx`, `crush-signal-button.tsx` |
+| Components | PascalCase | `ProfileCard`, `SwipeDeck` |
+| Hooks | camelCase with `use` prefix | `useDiscoverFeed`, `useSendCrush` |
+| Zustand stores | camelCase with `Store` suffix | `authStore`, `appStore` |
+| API hook files | camelCase matching domain | `profiles.ts`, `matches.ts` |
+| Zod schemas | camelCase with `Schema` suffix | `profileSchema`, `signupSchema` |
+| Types/interfaces | PascalCase | `Profile`, `Match`, `CrushSignal` |
+| Constants | SCREAMING_SNAKE_CASE | `MAX_PHOTOS`, `CRUSH_SIGNAL_COOLDOWN_HOURS` |
+| DB tables | snake_case | `crush_signals`, `user_profiles` |
+| Edge functions | kebab-case folders | `handle-crush-signal/` |
+| Theme imports | named imports from `@/theme` | `import { colors, gradients } from '@/theme'` |
+
+---
+
+## Data Model (core tables)
+
+```sql
+profiles (
+  id uuid PK references auth.users,
+  display_name text NOT NULL,
+  age int NOT NULL CHECK (age >= 18),
+  gender text NOT NULL,
+  bio text,
+  fitness_disciplines text[],
+  approach_prompt text,
+  is_visible boolean DEFAULT true,
+  home_gym_id uuid references gyms(id),
+  photo_urls text[],
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+)
+
+gyms (
+  id uuid PK DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  google_place_id text UNIQUE,
+  location geography(Point, 4326) NOT NULL,
+  address text,
+  created_at timestamptz DEFAULT now()
+)
+
+likes (
+  id uuid PK DEFAULT gen_random_uuid(),
+  from_user_id uuid references profiles(id),
+  to_user_id uuid references profiles(id),
+  is_crush boolean DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(from_user_id, to_user_id)
+)
+
+matches (
+  id uuid PK DEFAULT gen_random_uuid(),
+  user_a_id uuid references profiles(id),
+  user_b_id uuid references profiles(id),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_a_id, user_b_id)
+)
+
+messages (
+  id uuid PK DEFAULT gen_random_uuid(),
+  match_id uuid references matches(id),
+  sender_id uuid references profiles(id),
+  content text NOT NULL,
+  created_at timestamptz DEFAULT now()
+)
+
+reports (
+  id uuid PK DEFAULT gen_random_uuid(),
+  reporter_id uuid references profiles(id),
+  reported_user_id uuid references profiles(id),
+  reason text NOT NULL,
+  details text,
+  status text DEFAULT 'pending',
+  created_at timestamptz DEFAULT now()
+)
+```
+
+---
+
+## Business Rules (enforce in code and edge functions)
+
+1. **Crush signal limit**: Max 1 crush signal per user per 24 hours. Check `crush_signals` table before allowing.
+2. **Match creation**: Automatically create a match when mutual likes exist. Use a Postgres trigger or edge function on `likes` insert.
+3. **Chat access**: Users can only send messages to mutual matches. Enforce via RLS on `messages` table.
+4. **Photo limit**: Max 6 photos per profile. Use `APP.MAX_PHOTOS` from `@/theme`.
+5. **Age gate**: Minimum age 18. Validate on signup AND in RLS policies. Use `APP.MIN_AGE` from `@/theme`.
+6. **Visibility**: When `is_visible = false`, profile does not appear in discovery feed but existing matches/chats remain active.
+7. **Blocking**: Blocked users cannot see each other's profiles or send messages.
+8. **Gym radius**: Default discovery radius is same-gym. Future: configurable radius.
+
+---
+
+## Error Handling
+
+- Wrap all Supabase calls in try/catch. Show user-friendly error messages via toast (use `burnt`).
+- Use TanStack Query's `onError` callbacks for API error handling.
+- Log all errors to Sentry with context (user ID, screen, action).
+- Never show raw error messages to users.
+- Error toasts use `bg-destructive` styling.
+- Success toasts use `bg-success` styling.
+
+---
+
+## Performance
+
+- Use `expo-image` with `cachePolicy="memory-disk"` for profile photos.
+- Paginate discovery feed with cursor-based pagination (not offset).
+- Prefetch next 5 profiles in discovery feed.
+- Use `FlashList` for all scrollable lists.
+- Debounce gym search input (`APP.GYM_SEARCH_DEBOUNCE_MS` from `@/theme`).
+
+---
+
+## Security
+
+- Never expose Supabase service role key in client code.
+- Use Supabase RLS for all data access control.
+- Sanitize all user inputs (bio, approach prompt) before storage.
+- Rate-limit edge functions (crush signals, message sending).
+- Validate file types and sizes for photo uploads (JPEG/PNG, max 5MB).
+
+---
+
+## Lovable → React Native Translation Reference
+
+When referencing the Lovable web prototype, apply these conversions:
+| Lovable (web) | GymCrush (RN) |
+|---|---|
+| `<div>` | `<View>` |
+| `<span>`, `<p>`, `<h1>`–`<h6>` | `<Text>` |
+| `<button>` | `<Pressable>` |
+| `<img>` | `<Image>` from `expo-image` |
+| `<input>` | `<TextInput>` |
+| `<a>` | `<Link>` from expo-router or `<Pressable>` |
+| `<header>`, `<main>`, `<section>` | `<View>` |
+| `overflow-y-auto` | `<ScrollView>` |
+| `min-h-screen` | `style={{ flex: 1 }}` or `layout.flex1` |
+| `sticky top-0` | Fixed position via flex layout |
+| `backdrop-blur-sm` | `<BlurView>` from `expo-blur` or skip |
+| `onClick` | `onPress` |
+| `hover:` classes | Remove (no hover on mobile) |
+| `cursor-pointer` | Remove |
+| `safe-top` / `safe-bottom` | `<SafeAreaView>` |
+| `animate-fade-in` etc. | Reanimated `FadeIn`, `SlideInUp` entering animations |
+| `shadow-card` | `style={shadows.card}` from `@/theme` |
+| CSS `linear-gradient()` | `<LinearGradient>` from `expo-linear-gradient` with `gradients.*` from `@/theme` |
+| `lucide-react` | `lucide-react-native` |
+| shadcn `<Button>` | Custom `<Button>` in `components/ui/Button.tsx` |
+| shadcn `<Input>` | Custom `<Input>` in `components/ui/Input.tsx` |
