@@ -92,7 +92,7 @@ function ZoomableImage({
 
       if (overlayScale && isZooming.value === 1) {
         isZooming.value = 0
-        overlayScale.value = 1 // Will be animated by SwipeDeck via onZoomEnd
+        // Don't reset overlayScale here — parent animates it back via onZoomEnd
         if (onZoomEnd) {
           runOnJS(onZoomEnd)()
         }
