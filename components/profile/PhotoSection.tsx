@@ -5,7 +5,6 @@ import { borderRadius, colors, fontSize, palette, spacing } from '@/theme';
 import { MessageCircle } from 'lucide-react-native';
 import React from 'react';
 import { Dimensions, Pressable, StyleSheet, View } from 'react-native';
-import type { SharedValue } from 'react-native-reanimated';
 import Tooltip from 'react-native-walkthrough-tooltip';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -24,9 +23,6 @@ interface PhotoSectionProps {
   showImageCommentTooltip?: boolean;
   onPhotoSwipeTooltipClose?: () => void;
   onImageCommentTooltipClose?: () => void;
-  onZoomStart?: (data: { uri: string; layout: { x: number; y: number; width: number; height: number } }) => void;
-  onZoomEnd?: () => void;
-  overlayScale?: SharedValue<number>;
 }
 
 export const PhotoSection = React.memo<PhotoSectionProps>(({
@@ -38,9 +34,6 @@ export const PhotoSection = React.memo<PhotoSectionProps>(({
   showImageCommentTooltip = false,
   onPhotoSwipeTooltipClose,
   onImageCommentTooltipClose,
-  onZoomStart,
-  onZoomEnd,
-  overlayScale,
 }) => {
   const useInset = photoWidth < SCREEN_WIDTH;
   const containerStyle = useInset
@@ -66,14 +59,7 @@ export const PhotoSection = React.memo<PhotoSectionProps>(({
         backgroundColor="rgba(0,0,0,0.5)"
       >
         <View style={carouselWrapperStyle}>
-          <PhotoCarousel
-            photos={photos}
-            height={imageHeight}
-            width={photoWidth}
-            onZoomStart={onZoomStart}
-            onZoomEnd={onZoomEnd}
-            overlayScale={overlayScale}
-          />
+          <PhotoCarousel photos={photos} height={imageHeight} width={photoWidth} />
         </View>
       </Tooltip>
 

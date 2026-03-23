@@ -11,13 +11,9 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   cancelAnimation,
-  measure,
-  runOnJS,
-  useAnimatedRef,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  type SharedValue,
 } from "react-native-reanimated"
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
@@ -27,80 +23,34 @@ interface PhotoCarouselProps {
   height?: number
   /** Width of each photo page (default SCREEN_WIDTH). Use for inset discover layout. */
   width?: number
-  onZoomStart?: (data: { uri: string; layout: { x: number; y: number; width: number; height: number } }) => void
-  onZoomEnd?: () => void
-  overlayScale?: SharedValue<number>
 }
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
 
-interface ZoomableImageProps {
-  uri: string
-  width: number
-  height: number
-  onZoomStart?: (data: { uri: string; layout: { x: number; y: number; width: number; height: number } }) => void
-  onZoomEnd?: () => void
-  overlayScale?: SharedValue<number>
-}
-
 function ZoomableImage({
   uri,
   width,
   height,
-  onZoomStart,
-  onZoomEnd,
-  overlayScale,
-}: ZoomableImageProps) {
-  const containerRef = useAnimatedRef<Animated.View>()
+}: {
+  uri: string
+  width: number
+  height: number
+}) {
   const scaleSaved = useSharedValue(1)
   const scale = useSharedValue(1)
-  const isZooming = useSharedValue(0)
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
       cancelAnimation(scale)
       scaleSaved.value = scale.value
-
-      if (overlayScale && onZoomStart) {
-        const measured = measure(containerRef)
-        if (measured) {
-          isZooming.value = 1
-          runOnJS(onZoomStart)({
-            uri,
-            layout: {
-              x: measured.pageX,
-              y: measured.pageY,
-              width: measured.width,
-              height: measured.height,
-            },
-          })
-        }
-      }
     })
     .onUpdate((e) => {
       const next = scaleSaved.value * e.scale
-      const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
-
-      if (overlayScale && isZooming.value === 1) {
-        overlayScale.value = clamped
-        // Hold local scale at 1 so the clipped version doesn't show
-        scale.value = 1
-      } else {
-        scale.value = clamped
-      }
+      scale.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
     })
     .onFinalize(() => {
       scaleSaved.value = 1
-
-      if (overlayScale && isZooming.value === 1) {
-        isZooming.value = 0
-        // Don't reset overlayScale here — parent animates it back via onZoomEnd
-        if (onZoomEnd) {
-          runOnJS(onZoomEnd)()
-        }
-      }
-
       scale.value = withSpring(1, {
         damping: 40,
         stiffness: 300,
@@ -112,11 +62,7 @@ function ZoomableImage({
   }))
 
   return (
-    <Animated.View
-      ref={containerRef}
-      style={{ width, height, overflow: "hidden" }}
-      collapsable={false}
-    >
+    <View style={{ width, height, overflow: "hidden" }} collapsable={false}>
       <GestureDetector gesture={pinchGesture}>
         <Animated.View style={[{ width, height }, animatedStyle]}>
           <Image
@@ -127,7 +73,7 @@ function ZoomableImage({
           />
         </Animated.View>
       </GestureDetector>
-    </Animated.View>
+    </View>
   )
 }
 
@@ -167,12 +113,8 @@ export function PhotoCarousel({
   photos,
   height = 400,
   width = SCREEN_WIDTH,
-  onZoomStart,
-  onZoomEnd,
-  overlayScale,
 }: PhotoCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [zooming, setZooming] = useState(false)
   const scrollViewRef = useRef<ScrollView>(null)
 
   const handleScroll = (event: any) => {
@@ -190,19 +132,6 @@ export function PhotoCarousel({
     [photos.length, width],
   )
 
-  const handleZoomStart = useCallback(
-    (data: { uri: string; layout: { x: number; y: number; width: number; height: number } }) => {
-      setZooming(true)
-      onZoomStart?.(data)
-    },
-    [onZoomStart],
-  )
-
-  const handleZoomEnd = useCallback(() => {
-    setZooming(false)
-    onZoomEnd?.()
-  }, [onZoomEnd])
-
   if (photos.length === 0) {
     return null
   }
@@ -216,7 +145,6 @@ export function PhotoCarousel({
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        scrollEnabled={!zooming}
       >
         {photos.map((photo, index) => (
           <ZoomableImage
@@ -224,9 +152,6 @@ export function PhotoCarousel({
             uri={photo}
             width={width}
             height={height}
-            onZoomStart={handleZoomStart}
-            onZoomEnd={handleZoomEnd}
-            overlayScale={overlayScale}
           />
         ))}
       </ScrollView>
@@ -235,14 +160,10 @@ export function PhotoCarousel({
           <Pressable
             style={[styles.tapZone, styles.tapZoneLeft]}
             onPress={() => goToIndex(currentIndex - 1)}
-            pointerEvents={zooming ? "none" : "auto"}
-            disabled={zooming}
           />
           <Pressable
             style={[styles.tapZone, styles.tapZoneRight]}
             onPress={() => goToIndex(currentIndex + 1)}
-            pointerEvents={zooming ? "none" : "auto"}
-            disabled={zooming}
           />
         </>
       )}

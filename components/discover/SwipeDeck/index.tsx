@@ -62,7 +62,6 @@ import { PromptsList } from "@/components/profile/PromptsList"
 import { MessageBottomSheet } from "./MessageBottomSheet"
 import { CrushUnlockedOverlay } from "@/components/discover/CrushUnlockedOverlay"
 import { SwipeIndicator } from "./SwipeIndicator"
-import { Image as ExpoImage } from "expo-image"
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
@@ -75,9 +74,6 @@ const TICK_DISPLAY_MS = 500
 const BACK_CARD_SCALE = 0.96
 const BACK_CARD_TRANSLATE_Y = 12
 const BACK_CARD_OPACITY = 0.92
-const ZOOM_BACKDROP_MAX_OPACITY = 0.85
-const ZOOM_SPRING_CONFIG = { damping: 40, stiffness: 300 }
-const ZOOM_MAX = 4
 
 interface SwipeDeckProps {
   profiles: Profile[]
@@ -160,17 +156,6 @@ export function SwipeDeck({
   const devExpandOpacity = useSharedValue(0)
   const threshold = swipe.verticalThreshold
 
-  // --- Fullscreen zoom overlay ---
-  const overlayScale = useSharedValue(1)
-  const zoomLayoutX = useSharedValue(0)
-  const zoomLayoutY = useSharedValue(0)
-  const zoomLayoutW = useSharedValue(0)
-  const zoomLayoutH = useSharedValue(0)
-  const [zoomOverlay, setZoomOverlay] = useState<{
-    uri: string
-    layout: { x: number; y: number; width: number; height: number }
-  } | null>(null)
-
   const celebrationStartRef = useRef(0)
 
   // --- Swipe-up result handling ---
@@ -206,7 +191,6 @@ export function SwipeDeck({
     .activeOffsetY([-20, 20])
     .onUpdate((event) => {
       if (isDismissing.value) return
-      if (overlayScale.value > 1) return  // Block pan while zoom overlay is active
       if (Math.abs(event.translationY) > Math.abs(event.translationX)) {
         translateY.value = event.translationY
         // Gentle fade — card stays mostly visible during drag, only dims ~30% at threshold
@@ -226,7 +210,6 @@ export function SwipeDeck({
     })
     .onEnd((event) => {
       if (isDismissing.value) return
-      if (overlayScale.value > 1) return
       const velocity = event.velocityY
       const triggered =
         Math.abs(event.translationY) > threshold ||
@@ -312,13 +295,6 @@ export function SwipeDeck({
     photoScale.value = 1
     dropImageSize.value = 0
     isDismissing.value = false
-    // Zoom overlay reset
-    overlayScale.value = 1
-    zoomLayoutX.value = 0
-    zoomLayoutY.value = 0
-    zoomLayoutW.value = 0
-    zoomLayoutH.value = 0
-    setZoomOverlay(null)
     bottomSheetRef.current?.close()
     scrollViewRef.current?.scrollTo({ y: 0, animated: false })
   }, [topProfile?.id])
@@ -564,45 +540,6 @@ export function SwipeDeck({
     opacity: devExpandOpacity.value,
   }))
 
-  const zoomBackdropStyle = useAnimatedStyle(() => {
-    if (overlayScale.value <= 1) return { opacity: 0 }
-    const progress = Math.min(1, (overlayScale.value - 1) / (ZOOM_MAX - 1))
-    return { opacity: progress * ZOOM_BACKDROP_MAX_OPACITY }
-  })
-
-  const zoomImageStyle = useAnimatedStyle(() => {
-    const w = zoomLayoutW.value
-    const h = zoomLayoutH.value
-    if (w === 0 || h === 0) return {
-      position: "absolute" as const,
-      left: 0,
-      top: 0,
-      width: 0,
-      height: 0,
-      transform: [{ scale: 1 }],
-      opacity: 0,
-    }
-
-    const scaleVal = overlayScale.value
-    const progress = Math.min(1, (scaleVal - 1) / (ZOOM_MAX - 1))
-
-    // Interpolate from original position to screen center
-    const centerX = (SCREEN_WIDTH - w) / 2
-    const centerY = (SCREEN_HEIGHT - h) / 2
-    const currentX = zoomLayoutX.value + (centerX - zoomLayoutX.value) * progress
-    const currentY = zoomLayoutY.value + (centerY - zoomLayoutY.value) * progress
-
-    return {
-      position: "absolute" as const,
-      left: currentX,
-      top: currentY,
-      width: w,
-      height: h,
-      transform: [{ scale: scaleVal }],
-      opacity: scaleVal > 1 ? 1 : 0,
-    }
-  })
-
   const handleReportAndBlock = useCallback(() => {
     Alert.alert(
       "Report & Block",
@@ -617,25 +554,6 @@ export function SwipeDeck({
       ],
     )
   }, [onReportAndBlock, topProfile])
-
-  const handleZoomStart = useCallback(
-    (data: { uri: string; layout: { x: number; y: number; width: number; height: number } }) => {
-      zoomLayoutX.value = data.layout.x
-      zoomLayoutY.value = data.layout.y
-      zoomLayoutW.value = data.layout.width
-      zoomLayoutH.value = data.layout.height
-      setZoomOverlay(data)
-    },
-    [],
-  )
-
-  const handleZoomEnd = useCallback(() => {
-    overlayScale.value = withSpring(1, ZOOM_SPRING_CONFIG, (finished) => {
-      if (finished) {
-        runOnJS(setZoomOverlay)(null)
-      }
-    })
-  }, [])
 
   if (profiles.length === 0 || !topProfile) {
     return null
@@ -726,9 +644,6 @@ export function SwipeDeck({
                     showImageCommentTooltip={showImageCommentTooltip}
                     onPhotoSwipeTooltipClose={onPhotoSwipeTooltipClose}
                     onImageCommentTooltipClose={onImageCommentTooltipClose}
-                    onZoomStart={handleZoomStart}
-                    onZoomEnd={handleZoomEnd}
-                    overlayScale={overlayScale}
                   />
                 </Animated.View>
                 {/* Top overlay: Approachable (left) and Report & Block (right), vertically centered with each other */}
@@ -872,22 +787,6 @@ export function SwipeDeck({
         </Animated.View>
       )}
 
-      {/* Fullscreen zoom overlay */}
-      {zoomOverlay && (
-        <View style={styles.zoomOverlayContainer} pointerEvents="none">
-          <Animated.View
-            style={[StyleSheet.absoluteFill, { backgroundColor: "black" }, zoomBackdropStyle]}
-          />
-          <Animated.View style={zoomImageStyle}>
-            <ExpoImage
-              source={{ uri: zoomOverlay.uri }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          </Animated.View>
-        </View>
-      )}
 
       {/* Dev-mode expanding heart preview */}
       {__DEV__ && devExpandSizePx > 0 && !devConfettiActive && (
@@ -1049,9 +948,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-  },
-  zoomOverlayContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 12,
   },
 })
