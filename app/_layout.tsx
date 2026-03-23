@@ -1,15 +1,26 @@
+import { myriadProFonts } from '@/lib/fonts';
+import { useAppReadyStore } from '@/lib/stores/appReadyStore';
+import { useFonts } from 'expo-font';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect, useRef } from 'react';
+import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
-import { Slot, useRouter, useSegments } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { LogBox } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { layout } from '@/lib/styles';
 import { useSyncLastLocation } from '@/hooks/useSyncLastLocation';
+import { ZoomPortalProvider } from '@/lib/contexts/ZoomPortalContext';
+
+try {
+  SplashScreen.preventAutoHideAsync();
+} catch (e) {
+  // Splash API may not be available on all platforms
+}
 
 // Suppress harmless warnings from third-party libraries
 LogBox.ignoreLogs([
@@ -32,14 +43,22 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts(myriadProFonts);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <GestureHandlerRootView style={layout.flex1}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <StatusBar style="light" />
-          <AuthStateChangeHandler>
-            <Slot />
-          </AuthStateChangeHandler>
+          <ZoomPortalProvider>
+            <AuthStateChangeHandler>
+              <Slot />
+            </AuthStateChangeHandler>
+          </ZoomPortalProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -56,8 +75,15 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((s) => s.initialize);
   const clearOnboardingData = useOnboardingStore((s) => s.clearData);
   const prevUserIdRef = useRef<string | null>(null);
+  const isReady = useAppReadyStore((s) => s.isReady);
 
   useSyncLastLocation();
+
+  useEffect(() => {
+    if (isReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [isReady]);
 
   useEffect(() => {
     // Initialize auth state from persisted storage

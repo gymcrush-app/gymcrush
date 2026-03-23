@@ -1,3 +1,4 @@
+import { useZoomPortal } from "@/lib/contexts/ZoomPortalContext"
 import { borderRadius, colors, spacing } from "@/theme"
 import { Image } from "expo-image"
 import React, { useCallback, useRef, useState } from "react"
@@ -11,6 +12,9 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   cancelAnimation,
+  measure,
+  runOnJS,
+  useAnimatedRef,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -37,20 +41,53 @@ function ZoomableImage({
   width: number
   height: number
 }) {
+  const containerRef = useAnimatedRef<Animated.View>()
   const scaleSaved = useSharedValue(1)
   const scale = useSharedValue(1)
+  const isZooming = useSharedValue(0)
+
+  const { overlayScale, startZoom, endZoom } = useZoomPortal()
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
       cancelAnimation(scale)
       scaleSaved.value = scale.value
+
+      const measured = measure(containerRef)
+      if (measured) {
+        isZooming.value = 1
+        runOnJS(startZoom)({
+          uri,
+          layout: {
+            x: measured.pageX,
+            y: measured.pageY,
+            width: measured.width,
+            height: measured.height,
+          },
+        })
+      }
     })
     .onUpdate((e) => {
       const next = scaleSaved.value * e.scale
-      scale.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
+      const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
+
+      if (isZooming.value === 1) {
+        overlayScale.value = clamped
+        // Hold local scale at 1 — the portal image handles the visual zoom
+        scale.value = 1
+      } else {
+        scale.value = clamped
+      }
     })
     .onFinalize(() => {
       scaleSaved.value = 1
+
+      if (isZooming.value === 1) {
+        isZooming.value = 0
+        // Parent (portal) animates overlayScale back via endZoom
+        runOnJS(endZoom)()
+      }
+
       scale.value = withSpring(1, {
         damping: 40,
         stiffness: 300,
@@ -62,7 +99,11 @@ function ZoomableImage({
   }))
 
   return (
-    <View style={{ width, height, overflow: "hidden" }} collapsable={false}>
+    <Animated.View
+      ref={containerRef}
+      style={{ width, height, overflow: "hidden" }}
+      collapsable={false}
+    >
       <GestureDetector gesture={pinchGesture}>
         <Animated.View style={[{ width, height }, animatedStyle]}>
           <Image
@@ -73,7 +114,7 @@ function ZoomableImage({
           />
         </Animated.View>
       </GestureDetector>
-    </View>
+    </Animated.View>
   )
 }
 
