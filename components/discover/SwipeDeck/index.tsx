@@ -226,6 +226,7 @@ export function SwipeDeck({
     })
     .onEnd((event) => {
       if (isDismissing.value) return
+      if (overlayScale.value > 1) return
       const velocity = event.velocityY
       const triggered =
         Math.abs(event.translationY) > threshold ||
@@ -572,7 +573,15 @@ export function SwipeDeck({
   const zoomImageStyle = useAnimatedStyle(() => {
     const w = zoomLayoutW.value
     const h = zoomLayoutH.value
-    if (w === 0 || h === 0) return { opacity: 0 }
+    if (w === 0 || h === 0) return {
+      position: "absolute" as const,
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0,
+      transform: [{ scale: 1 }],
+      opacity: 0,
+    }
 
     const scaleVal = overlayScale.value
     const progress = Math.min(1, (scaleVal - 1) / (ZOOM_MAX - 1))
