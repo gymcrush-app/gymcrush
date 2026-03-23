@@ -27,6 +27,9 @@ interface PhotoCarouselProps {
   height?: number
   /** Width of each photo page (default SCREEN_WIDTH). Use for inset discover layout. */
   width?: number
+  onZoomStart?: (data: { uri: string; layout: { x: number; y: number; width: number; height: number } }) => void
+  onZoomEnd?: () => void
+  overlayScale?: SharedValue<number>
 }
 
 const MIN_ZOOM = 1
@@ -164,8 +167,12 @@ export function PhotoCarousel({
   photos,
   height = 400,
   width = SCREEN_WIDTH,
+  onZoomStart,
+  onZoomEnd,
+  overlayScale,
 }: PhotoCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [zooming, setZooming] = useState(false)
   const scrollViewRef = useRef<ScrollView>(null)
 
   const handleScroll = (event: any) => {
@@ -183,6 +190,19 @@ export function PhotoCarousel({
     [photos.length, width],
   )
 
+  const handleZoomStart = useCallback(
+    (data: { uri: string; layout: { x: number; y: number; width: number; height: number } }) => {
+      setZooming(true)
+      onZoomStart?.(data)
+    },
+    [onZoomStart],
+  )
+
+  const handleZoomEnd = useCallback(() => {
+    setZooming(false)
+    onZoomEnd?.()
+  }, [onZoomEnd])
+
   if (photos.length === 0) {
     return null
   }
@@ -196,6 +216,7 @@ export function PhotoCarousel({
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        scrollEnabled={!zooming}
       >
         {photos.map((photo, index) => (
           <ZoomableImage
@@ -203,6 +224,9 @@ export function PhotoCarousel({
             uri={photo}
             width={width}
             height={height}
+            onZoomStart={handleZoomStart}
+            onZoomEnd={handleZoomEnd}
+            overlayScale={overlayScale}
           />
         ))}
       </ScrollView>
@@ -211,10 +235,14 @@ export function PhotoCarousel({
           <Pressable
             style={[styles.tapZone, styles.tapZoneLeft]}
             onPress={() => goToIndex(currentIndex - 1)}
+            pointerEvents={zooming ? "none" : "auto"}
+            disabled={zooming}
           />
           <Pressable
             style={[styles.tapZone, styles.tapZoneRight]}
             onPress={() => goToIndex(currentIndex + 1)}
+            pointerEvents={zooming ? "none" : "auto"}
+            disabled={zooming}
           />
         </>
       )}
