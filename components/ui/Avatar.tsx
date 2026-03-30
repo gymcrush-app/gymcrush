@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
-import { colors, borderRadius, fontSize, fontWeight } from '@/theme';
+import { colors, borderRadius, fontWeight } from '@/theme';
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
 

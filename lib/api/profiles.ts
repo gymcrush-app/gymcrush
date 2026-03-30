@@ -4,6 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { filterBadWords } from '@/lib/utils/filterBadWords';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
 import type { Profile, DiscoveryPreferences } from '@/types';
@@ -85,14 +86,40 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
       if (!user) throw new Error('Not authenticated');
+      const filteredUpdates = { ...updates };
+      if (typeof filteredUpdates.display_name === 'string') {
+        filteredUpdates.display_name = filterBadWords(filteredUpdates.display_name);
+      }
+      if (typeof filteredUpdates.bio === 'string') {
+        filteredUpdates.bio = filterBadWords(filteredUpdates.bio);
+      }
+      if (typeof filteredUpdates.approach_prompt === 'string') {
+        filteredUpdates.approach_prompt = filterBadWords(filteredUpdates.approach_prompt);
+      }
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update(filteredUpdates)
         .eq('id', user.id)
         .select()
         .single();
       if (error) throw error;
       return data;
+    },
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries({ queryKey: ['profile', user?.id] });
+      const previousProfile = queryClient.getQueryData<Profile | null>(['profile', user?.id]);
+      if (user) {
+        queryClient.setQueryData<Profile>(['profile', user.id], {
+          ...(previousProfile ?? ({} as Profile)),
+          ...updates,
+        });
+      }
+      return { previousProfile };
+    },
+    onError: (err, updates, context) => {
+      if (context?.previousProfile != null && user) {
+        queryClient.setQueryData(['profile', user.id], context.previousProfile);
+      }
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
@@ -156,15 +183,15 @@ export function useNearbyProfiles(gymId: string, preferences?: DiscoveryPreferen
   });
 }
 
-/** Shared fetcher for prefetch and useProfileById. */
-export async function fetchProfileById(profileId: string) {
+/** Shared fetcher for prefetch and useProfileById. Uses RPC to bypass expensive RLS geo policy. */
+export async function fetchProfileById(profileId: string): Promise<Profile> {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', profileId)
+    .rpc('get_profile_by_id', { p_profile_id: profileId })
     .single();
-  if (error) throw error;
-  return data;
+  if (error) {
+    throw error;
+  }
+  return data as Profile;
 }
 
 export function useProfileById(profileId: string) {
@@ -172,6 +199,7 @@ export function useProfileById(profileId: string) {
     queryKey: ['profile', profileId],
     queryFn: () => fetchProfileById(profileId),
     enabled: !!profileId,
+    staleTime: 30_000, // prevent immediate refetch after prefetch
   });
 }
 

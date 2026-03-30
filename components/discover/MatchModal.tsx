@@ -1,7 +1,7 @@
 import { Text } from '@/components/ui/Text';
+import { HeartbeatHeart } from '@/components/ui/HeartbeatHeart';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { Profile } from '@/types';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import React from 'react';
 import { Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
@@ -17,8 +17,6 @@ interface MatchModalProps {
   onStartChatting: () => void;
   onKeepSwiping: () => void;
 }
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function MatchModal({
   visible,
@@ -43,9 +41,6 @@ export function MatchModal({
       onRequestClose={onKeepSwiping}
     >
       <View style={styles.container}>
-        {/* Confetti Animation */}
-        <ConfettiAnimation active={visible} />
-
         {/* Backdrop */}
         <Pressable style={styles.backdrop} onPress={onKeepSwiping} />
 
@@ -58,7 +53,7 @@ export function MatchModal({
           {/* Header */}
           <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
             <Text variant="h1" style={styles.title}>
-              It's a Match! 🎉
+              Crush Unlocked
             </Text>
             <Text variant="body" style={styles.subtitle}>
               You and {matchedUser.display_name} liked each other
@@ -93,9 +88,9 @@ export function MatchModal({
               </Text>
             </View>
 
-            {/* Heart Icon */}
+            {/* Gym Heart */}
             <View style={styles.heartContainer}>
-              <MaterialCommunityIcons name="heart" size={32} color={colors.destructive} />
+              <HeartbeatHeart size={48} active={visible} />
             </View>
 
             {/* Matched User Photo */}
@@ -138,11 +133,16 @@ export function MatchModal({
               onPress={onKeepSwiping}
             >
               <Text variant="body" weight="medium" style={styles.secondaryButtonText}>
-                Keep Swiping
+                Keep Crushing
               </Text>
             </Pressable>
           </Animated.View>
         </Animated.View>
+
+        {/* Confetti Animation (foreground layer) */}
+        <View style={styles.confettiOverlay} pointerEvents="none">
+          <ConfettiAnimation active={visible} />
+        </View>
       </View>
     </Modal>
   );
@@ -170,6 +170,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 24,
     elevation: 24,
+    zIndex: 2,
+  },
+  confettiOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 3,
+    elevation: 30,
   },
   header: {
     alignItems: 'center',
@@ -229,7 +235,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
   },
   heartContainer: {
-    marginHorizontal: spacing[2],
+    marginHorizontal: spacing[1],
     marginBottom: spacing[2],
   },
   buttonsContainer: {

@@ -75,7 +75,9 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
   const initialize = useAuthStore((s) => s.initialize);
   const clearOnboardingData = useOnboardingStore((s) => s.clearData);
   const prevUserIdRef = useRef<string | null>(null);
+  const setAppReady = useAppReadyStore((s) => s.setReady);
   const isReady = useAppReadyStore((s) => s.isReady);
+  const hasRouted = useRef(false);
 
   useSyncLastLocation();
 
@@ -84,6 +86,14 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
       SplashScreen.hideAsync();
     }
   }, [isReady]);
+
+  // Fallback: if auth takes too long, hide splash after 5 seconds
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setAppReady();
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [setAppReady]);
 
   useEffect(() => {
     // Initialize auth state from persisted storage
@@ -121,22 +131,25 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
     const inTabsGroup = segments[0] === '(tabs)';
 
     if (!session) {
-      // Not signed in, redirect to login
       if (!inAuthGroup) {
         router.replace('/(auth)/login');
       }
     } else if (session && !isOnboarded) {
-      // Signed in but not onboarded, redirect to onboarding
       if (!inAuthGroup || segments[1] !== 'onboarding') {
         router.replace('/(auth)/onboarding');
       }
     } else if (session && isOnboarded) {
-      // Signed in and onboarded, redirect to tabs
       if (!inTabsGroup) {
         router.replace('/(tabs)/discover');
       }
     }
-  }, [session, isOnboarded, isLoading, segments, router]);
+
+    // Auth is resolved and routing decision made — hide splash on next frame
+    if (!hasRouted.current) {
+      hasRouted.current = true;
+      requestAnimationFrame(() => setAppReady());
+    }
+  }, [session, isOnboarded, isLoading, segments, router, setAppReady]);
 
   return <>{children}</>;
 }

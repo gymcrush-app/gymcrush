@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/Button"
 import { Chip } from "@/components/ui/Chip"
-import { Input } from "@/components/ui/Input"
-import { Select } from "@/components/ui/Select"
 import { useSearchGyms, useGymById } from "@/lib/api/gyms"
 import { useProfile } from "@/lib/api/profiles"
-import { kmToMiles, usesMiles } from "@/lib/utils/locale"
+import { kmToMiles, milesToKm, usesMiles } from "@/lib/utils/locale"
 import {
   borderRadius,
   colors,
@@ -17,15 +15,15 @@ import {
 import {
   DEFAULT_DISTANCE_MILES,
   FITNESS_DISCIPLINES,
-  GENDER_OPTIONS,
   MAX_DISTANCE_MILES,
   MIN_DISTANCE_MILES,
 } from "@/constants"
 import type { Gym } from "@/types"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Settings2, X } from "lucide-react-native"
-import React, { useEffect, useState } from "react"
-import { Pressable, StyleSheet, Text, View } from "react-native"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native"
+import MultiSlider from "@ptomasroos/react-native-multi-slider"
 
 export interface DiscoveryPreferencesData {
   gender: "men" | "women" | "everyone"
@@ -48,6 +46,7 @@ const STORAGE_KEY = APP.STORAGE_KEYS.DISCOVERY_PREFERENCES;
 interface DiscoveryPreferencesProps {
   onPreferencesChange: (prefs: DiscoveryPreferencesData) => void
   onOpen: () => void
+  disabled?: boolean
 }
 
 interface DiscoveryPreferencesContentProps {
@@ -58,9 +57,13 @@ interface DiscoveryPreferencesContentProps {
 export function DiscoveryPreferences({
   onPreferencesChange,
   onOpen,
+  disabled = false,
 }: DiscoveryPreferencesProps) {
   return (
-    <Pressable onPress={onOpen} style={styles.preferencesButton}>
+    <Pressable
+      onPress={() => !disabled && onOpen()}
+      style={[styles.preferencesButton, disabled && styles.preferencesButtonDisabled]}
+    >
       <Settings2 size={20} color={palette.white} />
     </Pressable>
   )
@@ -73,14 +76,20 @@ export function DiscoveryPreferencesContent({
   const [preferences, setPreferences] =
     useState<DiscoveryPreferencesData>(DEFAULT_PREFERENCES)
   const [gymSearchQuery, setGymSearchQuery] = useState("")
-  const [selectedGym, setSelectedGym] = useState<Gym | null>(null)
+  const [_selectedGym, setSelectedGym] = useState<Gym | null>(null)
   const { data: currentProfile } = useProfile()
+
+  // Local slider state so drag doesn't reset when effect overwrites preferences
+  const [localDistance, setLocalDistance] = useState<number | null>(
+    DEFAULT_PREFERENCES.maxDistance
+  )
+  const isDraggingRef = useRef(false)
 
   // When preferences load with a saved gym ID, fetch the gym so selectedGym (name/address) shows in the UI
   const gymIdToResolve = preferences.selectedGym
   const { data: fetchedGym } = useGymById(gymIdToResolve ?? "")
 
-  const { data: gymResults, isLoading: isSearchingGyms } =
+  const { data: _gymResults, isLoading: _isSearchingGyms } =
     useSearchGyms(gymSearchQuery)
 
   // Load preferences from backend first, then fallback to AsyncStorage
@@ -129,6 +138,13 @@ export function DiscoveryPreferencesContent({
     loadPreferences()
   }, [currentProfile?.discovery_preferences])
 
+  // Sync local slider value from preferences when not dragging (e.g. after load or when effect overwrites)
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setLocalDistance(preferences.maxDistance)
+    }
+  }, [preferences.maxDistance])
+
   // When we have a stored gym ID and the fetch completed, populate selectedGym so name/address show
   useEffect(() => {
     if (
@@ -152,22 +168,28 @@ export function DiscoveryPreferencesContent({
     }
   }
 
-  const handleGenderChange = (gender: "men" | "women" | "everyone") => {
-    setPreferences((prev) => ({ ...prev, gender }))
-  }
+  const handleDistanceSliderChange = useCallback((values: number[]) => {
+    const raw = values[0] ?? DEFAULT_DISTANCE_MILES
+    const clamped = Math.min(MAX_DISTANCE_MILES, Math.max(MIN_DISTANCE_MILES, Math.round(raw)))
+    setLocalDistance(clamped)
+  }, [])
 
-  const handleDistanceChange = (distance: string) => {
-    const trimmed = distance.trim()
-    if (trimmed === "") {
-      setPreferences((prev) => ({ ...prev, maxDistance: null }))
-      return
-    }
-    const numDistance = parseInt(trimmed, 10)
-    if (!isNaN(numDistance)) {
-      const clamped = Math.min(MAX_DISTANCE_MILES, Math.max(MIN_DISTANCE_MILES, numDistance))
-      setPreferences((prev) => ({ ...prev, maxDistance: clamped }))
-    }
-  }
+  const handleDistanceSliderChangeStart = useCallback(() => {
+    isDraggingRef.current = true
+  }, [])
+
+  const handleDistanceSliderChangeFinish = useCallback((values: number[]) => {
+    const raw = values[0] ?? DEFAULT_DISTANCE_MILES
+    const clamped = Math.min(MAX_DISTANCE_MILES, Math.max(MIN_DISTANCE_MILES, Math.round(raw)))
+    setLocalDistance(clamped)
+    setPreferences((prev) => ({ ...prev, maxDistance: clamped }))
+    isDraggingRef.current = false
+  }, [])
+
+  const handleClearDistance = useCallback(() => {
+    setLocalDistance(null)
+    setPreferences((prev) => ({ ...prev, maxDistance: null }))
+  }, [])
 
   const toggleDiscipline = (discipline: string) => {
     setPreferences((prev) => {
@@ -181,13 +203,13 @@ export function DiscoveryPreferencesContent({
     })
   }
 
-  const handleGymSelect = (gym: Gym) => {
+  const _handleGymSelect = (gym: Gym) => {
     setSelectedGym(gym)
     setPreferences((prev) => ({ ...prev, selectedGym: gym.id }))
     setGymSearchQuery("")
   }
 
-  const handleSearchByGymToggle = (searchByGym: boolean) => {
+  const _handleSearchByGymToggle = (searchByGym: boolean) => {
     setPreferences((prev) => ({ ...prev, searchByGym }))
   }
 
@@ -201,35 +223,42 @@ export function DiscoveryPreferencesContent({
       </View>
 
       <View style={styles.scrollView}>
-        {/* Gender Preference */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Show me</Text>
-          <Select
-            value={preferences.gender}
-            onValueChange={(value) =>
-              handleGenderChange(value as "men" | "women")
-            }
-            options={GENDER_OPTIONS}
-            placeholder="Select gender preference"
-          />
-        </View>
-
-        {/* Max Distance - blank = no limit; default 30; min 2, max 100 miles */}
+        {/* Max Distance - slider; optional "No limit" to clear */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
             Maximum Distance ({usesMiles() ? "miles" : "km"})
           </Text>
-          <Text style={styles.sectionHint}>2–100 miles</Text>
-          <Input
-            value={
-              preferences.maxDistance !== null && preferences.maxDistance !== undefined
-                ? String(preferences.maxDistance)
-                : ""
-            }
-            onChangeText={handleDistanceChange}
-            keyboardType="numeric"
-            placeholder={String(DEFAULT_DISTANCE_MILES)}
-          />
+          <View style={styles.distanceSliderWrap}>
+            <Text style={styles.distanceSliderValue}>
+              {localDistance != null
+                ? usesMiles()
+                  ? `${localDistance} mi`
+                  : `${Math.round(milesToKm(localDistance))} km`
+                : "No limit"}
+            </Text>
+            <MultiSlider
+              values={[localDistance ?? DEFAULT_DISTANCE_MILES]}
+              onValuesChange={handleDistanceSliderChange}
+              onValuesChangeStart={handleDistanceSliderChangeStart}
+              onValuesChangeFinish={handleDistanceSliderChangeFinish}
+              min={MIN_DISTANCE_MILES}
+              max={MAX_DISTANCE_MILES}
+              step={1}
+              sliderLength={Dimensions.get("window").width - spacing[4] * 2 - spacing[2] * 2}
+              selectedStyle={styles.distanceSelectedTrack}
+              unselectedStyle={styles.distanceUnselectedTrack}
+              trackStyle={styles.distanceTrack}
+              markerStyle={styles.distanceMarker}
+              pressedMarkerStyle={styles.distancePressedMarker}
+            />
+            <View style={styles.distanceRangeLabels}>
+              <Text style={styles.rangeLabel}>{MIN_DISTANCE_MILES}</Text>
+              <Text style={styles.rangeLabel}>{MAX_DISTANCE_MILES}</Text>
+            </View>
+            <Pressable onPress={handleClearDistance} style={styles.noLimitLinkWrap}>
+              <Text style={styles.noLimitLink}>No limit</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Fitness Disciplines */}
@@ -359,6 +388,9 @@ const styles = StyleSheet.create({
   preferencesButton: {
     padding: spacing[2],
   },
+  preferencesButtonDisabled: {
+    opacity: 0.5,
+  },
   bottomSheetHeader: {
     padding: spacing[4],
     borderBottomWidth: 1,
@@ -384,10 +416,57 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     marginBottom: spacing[3],
   },
-  sectionHint: {
-    color: colors.mutedForeground,
+  distanceSliderWrap: {
+    marginTop: spacing[2],
+  },
+  distanceSliderValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.foreground,
+    textAlign: "center",
+    marginBottom: spacing[4],
+  },
+  distanceTrack: {
+    height: 2,
+    borderRadius: 2,
+  },
+  distanceSelectedTrack: {
+    backgroundColor: colors.primary,
+  },
+  distanceUnselectedTrack: {
+    backgroundColor: colors.muted,
+  },
+  distanceMarker: {
+    height: 24,
+    width: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  distancePressedMarker: {
+    height: 28,
+    width: 28,
+    borderRadius: 14,
+  },
+  distanceRangeLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: spacing[2],
+  },
+  rangeLabel: {
     fontSize: fontSize.sm,
-    marginBottom: spacing[2],
+    color: colors.mutedForeground,
+  },
+  noLimitLinkWrap: {
+    marginTop: spacing[2],
+    alignSelf: "center",
+  },
+  noLimitLink: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
   },
   chipsContainer: {
     flexDirection: "row",

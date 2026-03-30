@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, borderRadius } from '@/theme';
+import { colors } from '@/theme';
 
 export interface UnreadDotProps {
   /** When false, dot is not rendered. */

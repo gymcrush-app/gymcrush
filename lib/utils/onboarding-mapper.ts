@@ -6,6 +6,7 @@
  * to transform the data when saving to the database.
  */
 
+import { filterBadWords } from '@/lib/utils/filterBadWords';
 import type { OnboardingData } from '@/types';
 import type { Database } from '@/types/database';
 
@@ -40,22 +41,32 @@ export function mapOnboardingDataToProfile(
 
   // Map approach preference to approach_prompt
   // If approachPreference is 'yes' or 'sometimes', use promptAnswer
-  const approachPrompt = 
+  const approachPromptRaw =
     onboardingData.approachPreference && 
     onboardingData.approachPreference !== 'no' && 
     onboardingData.promptAnswer
       ? `${onboardingData.selectedPrompt} ${onboardingData.promptAnswer}`
       : null;
+  const approachPrompt = approachPromptRaw ? filterBadWords(approachPromptRaw) : null;
 
   // Store additional Lovable fields in discovery_preferences JSONB
+  const gendersFromInterest =
+    onboardingData.interestedInGender === 'everyone'
+      ? ['male', 'female', 'non-binary', 'prefer-not-to-say']
+      : onboardingData.interestedInGender === 'men'
+        ? ['male']
+        : onboardingData.interestedInGender === 'women'
+          ? ['female']
+          : [];
   const discoveryPreferences = {
     min_age: 18, // Default, can be updated later
     max_age: 100, // Default, can be updated later
-    genders: [], // Default, can be updated later
+    genders: gendersFromInterest,
     intents: onboardingData.intents,
     training_frequency: onboardingData.trainingFrequency,
     fitness_lifestyle: onboardingData.fitnessLifestyle,
     approach_preference: onboardingData.approachPreference,
+    height: onboardingData.height,
   };
 
   // Use first selected gym as home_gym_id (or null if none)
@@ -65,7 +76,7 @@ export function mapOnboardingDataToProfile(
 
   return {
     id: userId,
-    display_name: onboardingData.fullName,
+    display_name: filterBadWords(onboardingData.fullName),
     age,
     gender: onboardingData.gender || 'prefer-not-to-say', // Use gender from onboarding data, default to 'prefer-not-to-say' if not set
     bio: null, // Can be added later
@@ -76,6 +87,8 @@ export function mapOnboardingDataToProfile(
     is_visible: onboardingData.showStatusPublicly,
     is_onboarded: true,
     discovery_preferences: discoveryPreferences,
+    height: onboardingData.height ?? null,
+    occupation: onboardingData.occupation ?? null,
   };
 }
 
@@ -102,5 +115,15 @@ export function mapProfileToOnboardingData(
     promptAnswer: profile.approach_prompt || '',
     selectedPrompt: '', // Would need to parse from approach_prompt
     selectedGyms: profile.home_gym_id ? [profile.home_gym_id] : [],
+    height: profile.height ?? null,
+    occupation: profile.occupation ?? null,
+    interestedInGender: (() => {
+      const g = discoveryPrefs?.genders as string[] | undefined;
+      if (!Array.isArray(g) || g.length === 0) return null;
+      if (g.length >= 4 || (g.includes('male') && g.includes('female'))) return 'everyone';
+      if (g.includes('male')) return 'men';
+      if (g.includes('female')) return 'women';
+      return null;
+    })(),
   };
 }

@@ -1,6 +1,6 @@
 /**
  * Google Places API Utilities
- * 
+ *
  * Functions for interacting with Google Places API (New)
  */
 
@@ -17,19 +17,31 @@ interface PlaceDetailsResponse {
   };
 }
 
+export interface PlaceDetailsFull {
+  formattedAddress: string | null;
+  location: { lat: number; lng: number } | null;
+}
+
 /**
- * Fetch place details from Google Places API (New)
+ * Fetch full place details (address + coordinates) from Google Places API (New).
+ * Use this when you need both formattedAddress and location for create-gym / resolveHomeGym.
+ *
  * @param placeId Google Places place_id
- * @returns Place details including location coordinates, or null if error
+ * @returns formattedAddress and location, or null values if missing/error
  */
-export async function fetchPlaceDetails(
+export async function fetchPlaceDetailsFull(
   placeId: string
-): Promise<{ lat: number; lng: number } | null> {
+): Promise<PlaceDetailsFull> {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
 
+  const empty: PlaceDetailsFull = {
+    formattedAddress: null,
+    location: null,
+  };
+
   if (!apiKey) {
-    console.warn('Google Places API key not configured');
-    return null;
+    if (__DEV__) console.warn('[fetchPlaceDetailsFull] Google Places API key not configured');
+    return empty;
   }
 
   try {
@@ -47,26 +59,56 @@ export async function fetchPlaceDetails(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.warn(
-        `Google Places API error: ${response.status} ${response.statusText}`,
-        errorData
-      );
-      return null;
+      if (__DEV__) {
+        console.warn(
+          '[fetchPlaceDetailsFull] API error:',
+          response.status,
+          response.statusText,
+          errorData
+        );
+      }
+      return empty;
     }
 
     const data: PlaceDetailsResponse = await response.json();
 
-    if (data.location?.latitude && data.location?.longitude) {
-      return {
-        lat: data.location.latitude,
-        lng: data.location.longitude,
-      };
+    const formattedAddress =
+      typeof data.formattedAddress === 'string' && data.formattedAddress.trim().length > 0
+        ? data.formattedAddress.trim()
+        : null;
+
+    const location =
+      data.location?.latitude != null && data.location?.longitude != null
+        ? {
+            lat: data.location.latitude,
+            lng: data.location.longitude,
+          }
+        : null;
+
+    if (__DEV__) {
+      console.log('[fetchPlaceDetailsFull] Place Details response:', {
+        placeId,
+        formattedAddress: formattedAddress ?? '(empty)',
+        location: location ?? '(none)',
+        rawKeys: Object.keys(data),
+      });
     }
 
-    console.warn('Place details response missing location data');
-    return null;
-  } catch (error: any) {
-    console.warn('Error fetching place details:', error);
-    return null;
+    return { formattedAddress, location };
+  } catch (error: unknown) {
+    if (__DEV__) console.warn('[fetchPlaceDetailsFull] Error:', error);
+    return empty;
   }
+}
+
+/**
+ * Fetch place details from Google Places API (New) — location only (legacy).
+ * @param placeId Google Places place_id
+ * @returns Location coordinates, or null if error/missing
+ */
+export async function fetchPlaceDetails(
+  placeId: string
+): Promise<{ lat: number; lng: number } | null> {
+  const full = await fetchPlaceDetailsFull(placeId);
+  return full.location;
 }

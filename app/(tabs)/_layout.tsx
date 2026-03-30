@@ -1,12 +1,14 @@
 import { UserProfileModal } from '@/components/profile/UserProfileModal';
 import { UserProfileModalProvider } from '@/lib/contexts/UserProfileModalContext';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Tabs } from 'expo-router';
-import { Compass, Heart, MessageCircle, User } from 'lucide-react-native';
+import { Compass, Gem, MessageCircle, User } from 'lucide-react-native';
 import { colors } from '@/theme';
 
 export default function TabLayout() {
   return (
-    <UserProfileModalProvider>
+    <BottomSheetModalProvider>
+      <UserProfileModalProvider>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -29,14 +31,14 @@ export default function TabLayout() {
         <Tabs.Screen
           name="matches"
           options={{
-            title: 'Matches',
-            tabBarIcon: ({ color, size }) => <Heart size={size} color={color} />,
+            title: 'Gym Gems',
+            tabBarIcon: ({ color, size }) => <Gem size={size} color={color} />,
           }}
         />
         <Tabs.Screen
           name="chat"
           options={{
-            title: 'Chat',
+            title: 'Crushes',
             tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
           }}
         />
@@ -50,5 +52,6 @@ export default function TabLayout() {
       </Tabs>
       <UserProfileModal />
     </UserProfileModalProvider>
+    </BottomSheetModalProvider>
   );
 }

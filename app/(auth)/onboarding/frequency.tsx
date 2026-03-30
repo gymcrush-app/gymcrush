@@ -2,7 +2,6 @@ import { FloatingActionButton } from '@/components/onboarding/FloatingActionButt
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
-import type { FitnessLifestyle, TrainingFrequency } from '@/types/onboarding';
 import { useNavigation } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -23,7 +22,7 @@ export default function OnboardingFrequency() {
   };
 
   return (
-    <OnboardingContainer currentStep={4} totalSteps={6} showBack={true}>
+    <OnboardingContainer currentStep={5} totalSteps={9} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>

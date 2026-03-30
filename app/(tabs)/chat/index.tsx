@@ -1,20 +1,18 @@
-import { ConversationRow } from "@/components/chat/ConversationRow"
 import { NewMatchAvatarRow } from "@/components/chat/NewMatchAvatarRow"
 import { RequestRow } from "@/components/chat/RequestRow"
-import type { Conversation, MessageRequest } from "@/lib/api/messages"
+import { SwipeableConversationRow } from "@/components/chat/SwipeableConversationRow"
+import { EmptyState } from "@/components/ui/EmptyState"
+import { useUnmatch } from "@/lib/api/matches"
+import type { Conversation, ConversationMatch, MessageRequest } from "@/lib/api/messages"
 import { useConversations, useMessageRequests } from "@/lib/api/messages"
+import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
 import { useAuthStore } from "@/lib/stores/authStore"
 import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { FlashList } from "@shopify/flash-list"
 import { useRouter } from "expo-router"
 import React, { useCallback, useMemo, useState } from "react"
-import {
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 type TabType = "messages" | "requests"
@@ -22,7 +20,8 @@ type TabType = "messages" | "requests"
 export default function ChatListScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const user = useAuthStore((s) => s.user);
+  const user = useAuthStore((s) => s.user)
+  const { openUserProfile } = useUserProfileModal()
   const [activeTab, setActiveTab] = useState<TabType>("messages")
   const {
     data: conversations = [],
@@ -36,13 +35,18 @@ export default function ChatListScreen() {
     error: requestsError,
     refetch: refetchRequests,
   } = useMessageRequests()
+  const unmatchMutation = useUnmatch()
 
   // Split conversations into matches with messages and without messages
   const { matchesWithMessages, matchesWithoutMessages } = useMemo(() => {
     const withMessages: Conversation[] = []
-    const withoutMessages: Conversation[] = []
+    const withoutMessages: ConversationMatch[] = []
 
     conversations.forEach((conv) => {
+      if (conv.kind === "gem_inbox") {
+        withMessages.push(conv)
+        return
+      }
       if (conv.lastMessage) {
         withMessages.push(conv)
       } else {
@@ -56,29 +60,55 @@ export default function ChatListScreen() {
     }
   }, [conversations])
 
+  const onPressConversation = useCallback(
+    (item: Conversation) => {
+      if (item.kind === "gem_inbox") {
+        openUserProfile(item.otherUser.id)
+        return
+      }
+      router.push({ pathname: "/(tabs)/chat/[matchId]", params: { matchId: item.id } })
+    },
+    [router, openUserProfile],
+  )
+
   const onPressMatch = useCallback(
     (matchId: string) => {
-      router.push({ pathname: '/(tabs)/chat/[matchId]', params: { matchId } })
+      router.push({ pathname: "/(tabs)/chat/[matchId]", params: { matchId } })
     },
-    [router]
+    [router],
   )
 
   const onPressRequest = useCallback(
     (senderId: string) => {
-      router.push({ pathname: '/(tabs)/chat/request/[senderId]', params: { senderId } })
+      router.push({
+        pathname: "/(tabs)/chat/request/[senderId]",
+        params: { senderId },
+      })
     },
-    [router]
+    [router],
   )
 
-  const renderAvatarItem = ({ item }: { item: Conversation }) => (
+  const onUnmatch = useCallback(
+    async (matchId: string) => {
+      try {
+        await unmatchMutation.mutateAsync({ matchId })
+      } catch {
+        // Error already surfaced by mutation
+      }
+    },
+    [unmatchMutation],
+  )
+
+  const renderAvatarItem = ({ item }: { item: ConversationMatch }) => (
     <NewMatchAvatarRow item={item} onPress={onPressMatch} />
   )
 
   const renderItem = ({ item }: { item: Conversation }) => (
-    <ConversationRow
+    <SwipeableConversationRow
       item={item}
       currentUserId={user?.id}
-      onPress={onPressMatch}
+      onPress={onPressConversation}
+      onUnmatch={onUnmatch}
     />
   )
 
@@ -87,8 +117,6 @@ export default function ChatListScreen() {
   )
 
   const currentError = activeTab === "messages" ? error : requestsError
-  const currentLoading = activeTab === "messages" ? isLoading : requestsLoading
-  const currentRefetch = activeTab === "messages" ? refetch : refetchRequests
 
   if (currentError) {
     return (
@@ -120,7 +148,7 @@ export default function ChatListScreen() {
       {/* New Matches Section - Always visible at top */}
       {matchesWithoutMessages.length > 0 && (
         <View style={styles.newMatchesSection}>
-          <Text style={styles.sectionTitle}>New Matches</Text>
+          <Text style={styles.sectionTitle}>Gym Crushes</Text>
           <FlashList
             data={matchesWithoutMessages}
             renderItem={renderAvatarItem}
@@ -175,15 +203,18 @@ export default function ChatListScreen() {
       {activeTab === "messages" ? (
         <>
           {conversations.length === 0 && !isLoading ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIcon}>
-                <Text style={styles.emptyIconText}>💬</Text>
-              </View>
-              <Text style={styles.emptyTitle}>No messages yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Start swiping to find your gym crush!
-              </Text>
-            </View>
+            <EmptyState
+              icon={
+                <MaterialCommunityIcons
+                  name="message-text-outline"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
+              }
+              title="No messages yet"
+              description="Start swiping to find your gym crush!"
+              iconSize="sm"
+            />
           ) : (
             <>
               {/* Vertical list of matches with messages */}
@@ -192,7 +223,9 @@ export default function ChatListScreen() {
                   <FlashList
                     data={matchesWithMessages}
                     renderItem={renderItem}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item) =>
+                      item.kind === "gem_inbox" ? item.rowId : item.id
+                    }
                     refreshControl={
                       <RefreshControl
                         refreshing={isLoading}
@@ -200,9 +233,6 @@ export default function ChatListScreen() {
                         tintColor={colors.primary}
                       />
                     }
-                    ItemSeparatorComponent={() => (
-                      <View style={styles.separator} />
-                    )}
                   />
                 </View>
               )}
@@ -211,15 +241,18 @@ export default function ChatListScreen() {
               {matchesWithMessages.length === 0 &&
                 matchesWithoutMessages.length === 0 &&
                 !isLoading && (
-                  <View style={styles.emptyContainer}>
-                    <View style={styles.emptyIcon}>
-                      <Text style={styles.emptyIconText}>💬</Text>
-                    </View>
-                    <Text style={styles.emptyTitle}>No messages yet</Text>
-                    <Text style={styles.emptySubtitle}>
-                      Start swiping to find your gym crush!
-                    </Text>
-                  </View>
+                  <EmptyState
+                    icon={
+                      <MaterialCommunityIcons
+                        name="message-text-outline"
+                        size={40}
+                        color={colors.mutedForeground}
+                      />
+                    }
+                    title="No messages yet"
+                    description="Start swiping to find your gym crush!"
+                    iconSize="sm"
+                  />
                 )}
             </>
           )}
@@ -227,15 +260,18 @@ export default function ChatListScreen() {
       ) : (
         <>
           {requests.length === 0 && !requestsLoading ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIcon}>
-                <Text style={styles.emptyIconText}>📩</Text>
-              </View>
-              <Text style={styles.emptyTitle}>No requests yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Messages from users who swiped up on you will appear here
-              </Text>
-            </View>
+            <EmptyState
+              icon={
+                <MaterialCommunityIcons
+                  name="inbox"
+                  size={40}
+                  color={colors.mutedForeground}
+                />
+              }
+              title="No requests yet"
+              description="Messages from users who swiped up on you will appear here"
+              iconSize="sm"
+            />
           ) : (
             <View style={styles.messagesSection}>
               <FlashList
@@ -277,35 +313,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginLeft: spacing[16],
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing[8],
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.muted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing[4],
-  },
-  emptyIconText: {
-    fontSize: 36,
-  },
-  emptyTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
-    color: colors.foreground,
-    marginBottom: spacing[2],
-  },
-  emptySubtitle: {
-    fontSize: fontSize.base,
-    color: colors.mutedForeground,
-    textAlign: "center",
   },
   errorContainer: {
     flex: 1,

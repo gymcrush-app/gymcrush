@@ -30,6 +30,9 @@ interface ZoomPortalState {
 interface ZoomPortalContextValue {
   /** Shared value for the current pinch scale — written by ZoomableImage on UI thread */
   overlayScale: SharedValue<number>
+  /** Shared values for pan translation while zoomed */
+  overlayTranslateX: SharedValue<number>
+  overlayTranslateY: SharedValue<number>
   /** Call once on pinch start to show the portal image */
   startZoom: (state: ZoomPortalState) => void
   /** Call once on pinch end to animate back and dismiss */
@@ -46,6 +49,8 @@ export function useZoomPortal() {
 
 export function ZoomPortalProvider({ children }: { children: React.ReactNode }) {
   const overlayScale = useSharedValue(1)
+  const overlayTranslateX = useSharedValue(0)
+  const overlayTranslateY = useSharedValue(0)
   const layoutX = useSharedValue(0)
   const layoutY = useSharedValue(0)
   const layoutW = useSharedValue(0)
@@ -62,6 +67,8 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
   }, [])
 
   const endZoom = useCallback(() => {
+    overlayTranslateX.value = withSpring(0, ZOOM_SPRING_CONFIG)
+    overlayTranslateY.value = withSpring(0, ZOOM_SPRING_CONFIG)
     overlayScale.value = withSpring(1, ZOOM_SPRING_CONFIG, (finished) => {
       if (finished) {
         runOnJS(setPortal)(null)
@@ -99,9 +106,8 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
       width: w,
       height: h,
       transform: [
-        // Translate so the scale origin is the center of the image
-        { translateX: 0 },
-        { translateY: 0 },
+        { translateX: overlayTranslateX.value },
+        { translateY: overlayTranslateY.value },
         { scale: s },
       ],
       opacity: s > 1 ? 1 : 0,
@@ -110,6 +116,8 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
 
   const contextValue: ZoomPortalContextValue = {
     overlayScale,
+    overlayTranslateX,
+    overlayTranslateY,
     startZoom,
     endZoom,
   }

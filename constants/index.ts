@@ -1,4 +1,6 @@
 export { default as Colors } from './Colors';
+export * from './dev';
+export * from './discoverCopy';
 export * from './discovery';
 export * from './fitness';
 export * from './onboarding';

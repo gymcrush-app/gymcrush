@@ -179,6 +179,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string | null
+          gem_gift_id: string | null
           id: string
           match_id: string | null
           read_at: string | null
@@ -192,6 +193,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string | null
+          gem_gift_id?: string | null
           id?: string
           match_id?: string | null
           read_at?: string | null
@@ -205,6 +207,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string | null
+          gem_gift_id?: string | null
           id?: string
           match_id?: string | null
           read_at?: string | null
@@ -232,6 +235,42 @@ export type Database = {
           },
         ]
       }
+      gem_gifts: {
+        Row: {
+          id: string
+          from_user_id: string
+          to_user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          from_user_id: string
+          to_user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          from_user_id?: string
+          to_user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gem_gifts_from_user_id_fkey'
+            columns: ['from_user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gem_gifts_to_user_id_fkey'
+            columns: ['to_user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number
@@ -242,12 +281,16 @@ export type Database = {
           display_name: string
           fitness_disciplines: string[]
           gender: string
+          gems_received_count: number
+          height: string | null
           home_gym_id: string | null
           id: string
           is_onboarded: boolean | null
           is_visible: boolean | null
+          last_gem_given_at: string | null
           last_location: unknown | null
           last_location_updated_at: string | null
+          occupation: string | null
           photo_urls: string[]
           updated_at: string | null
         }
@@ -260,12 +303,16 @@ export type Database = {
           display_name: string
           fitness_disciplines?: string[]
           gender: string
+          gems_received_count?: number
+          height?: string | null
           home_gym_id?: string | null
           id: string
           is_onboarded?: boolean | null
           is_visible?: boolean | null
+          last_gem_given_at?: string | null
           last_location?: unknown | null
           last_location_updated_at?: string | null
+          occupation?: string | null
           photo_urls: string[]
           updated_at?: string | null
         }
@@ -278,12 +325,16 @@ export type Database = {
           display_name?: string
           fitness_disciplines?: string[]
           gender?: string
+          gems_received_count?: number
+          height?: string | null
           home_gym_id?: string | null
           id?: string
           is_onboarded?: boolean | null
           is_visible?: boolean | null
+          last_gem_given_at?: string | null
           last_location?: unknown | null
           last_location_updated_at?: string | null
+          occupation?: string | null
           photo_urls?: string[]
           updated_at?: string | null
         }
@@ -704,6 +755,9 @@ export type Database = {
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
       gettransactionid: { Args: never; Returns: unknown }
+      get_gym_gems: { Args: { p_max_distance_km: number }; Returns: unknown[] }
+      get_profile_by_id: { Args: { p_profile_id: string }; Returns: Database['public']['Tables']['profiles']['Row'] }
+      give_gym_gem: { Args: { p_to_user_id: string; p_giver_today_start: string }; Returns: unknown }
       longtransactionsenabled: { Args: never; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }

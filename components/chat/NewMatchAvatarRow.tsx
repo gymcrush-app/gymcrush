@@ -2,11 +2,11 @@ import React, { memo } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import { Avatar } from "@/components/ui/Avatar"
 import { UnreadDot } from "@/components/ui/UnreadDot"
-import type { Conversation } from "@/lib/api/messages"
+import type { ConversationMatch } from "@/lib/api/messages"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 
 export interface NewMatchAvatarRowProps {
-  item: Conversation
+  item: ConversationMatch
   onPress: (matchId: string) => void
 }
 

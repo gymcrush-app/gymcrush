@@ -1,19 +1,21 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { useAuthStore } from "@/lib/stores/authStore"
-import { supabase } from "@/lib/supabase"
+import { supabase, supabaseUrl } from "@/lib/supabase"
 import { loginSchema } from "@/lib/utils/validation"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "burnt"
+import { toast } from "@/lib/toast"
 import { Image } from "expo-image"
-import { Link, useRouter } from "expo-router"
+import { Link } from "expo-router"
 import { Eye, EyeOff } from "lucide-react-native"
 import React, { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -29,10 +31,10 @@ type LoginFormData = {
 }
 
 export default function LoginScreen() {
-  const router = useRouter()
-  const setSession = useAuthStore((s) => s.setSession);
+  const setSession = useAuthStore((s) => s.setSession)
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [resetSending, setResetSending] = useState(false)
 
   const {
     control,
@@ -58,11 +60,10 @@ export default function LoginScreen() {
 
       if (authData.session) {
         setSession(authData.session)
-        toast({ preset: "done", title: "Welcome back!" })
         // Navigation will be handled by root layout based on auth state
       }
     } catch (error: any) {
-      toast({ preset: "error", title: "Login failed", message: error.message })
+      Alert.alert("Login failed", error?.message ?? "Something went wrong.")
     } finally {
       setIsLoading(false)
     }
@@ -76,6 +77,24 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     // TODO: Implement Google OAuth
     toast({ preset: "none", title: "Google Sign In", message: "Coming soon" })
+  }
+
+  const handleForgotPassword = async () => {
+    const email = control._formValues.email?.trim()
+    if (!email) {
+      Alert.alert("Enter your email", "Type your email above, then tap Forgot Password.")
+      return
+    }
+    setResetSending(true)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      if (error) throw error
+      Alert.alert("Check your inbox", "We sent a password reset link to " + email + ".")
+    } catch (error: any) {
+      Alert.alert("Reset failed", error?.message ?? "Something went wrong.")
+    } finally {
+      setResetSending(false)
+    }
   }
 
   return (
@@ -127,6 +146,7 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
+                  spellCheck={false}
                 />
               )}
             />
@@ -157,6 +177,13 @@ export default function LoginScreen() {
               )}
             />
           </View>
+
+          {/* Forgot Password */}
+          <Pressable onPress={handleForgotPassword} disabled={resetSending} style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>
+              {resetSending ? "Sending..." : "Forgot password?"}
+            </Text>
+          </Pressable>
 
           {/* Sign In Button */}
           <Button
@@ -189,11 +216,19 @@ export default function LoginScreen() {
 
           {/* Sign Up Link */}
           <View style={styles.signupLinkContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
+            <Text style={styles.signupText}>Don{"'"}t have an account? </Text>
             <Link href="/(auth)/signup" asChild>
               <Text style={styles.signupLink}>Sign Up</Text>
             </Link>
           </View>
+
+          <Text
+            style={styles.supabaseUrl}
+            numberOfLines={1}
+            ellipsizeMode="middle"
+          >
+            {supabaseUrl}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -254,6 +289,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing[6],
     gap: spacing[4],
   },
+  forgotPassword: {
+    alignSelf: "flex-end",
+    marginBottom: spacing[4],
+  },
+  forgotPasswordText: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
+  },
   signInButton: {
     marginBottom: spacing[4],
   },
@@ -275,5 +318,11 @@ const styles = StyleSheet.create({
   signupLink: {
     color: colors.primary,
     fontWeight: fontWeight.semibold,
+  },
+  supabaseUrl: {
+    marginTop: spacing[6],
+    color: colors.mutedForeground,
+    fontSize: fontSize.xs,
+    textAlign: "center",
   },
 })

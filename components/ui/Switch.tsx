@@ -1,12 +1,12 @@
-import { borderRadius, colors } from '@/theme';
-import React from 'react';
-import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
+import { borderRadius, colors } from "@/theme"
+import React from "react"
+import { Pressable, StyleSheet, View, ViewStyle } from "react-native"
 
 interface SwitchProps {
-  value: boolean;
-  onValueChange: (value: boolean) => void;
-  disabled?: boolean;
-  style?: ViewStyle | ViewStyle[];
+  value: boolean
+  onValueChange: (value: boolean) => void
+  disabled?: boolean
+  style?: ViewStyle | ViewStyle[]
 }
 
 export function Switch({
@@ -29,22 +29,19 @@ export function Switch({
         ]}
       >
         <View
-          style={[
-            styles.thumb,
-            value ? styles.thumbOn : styles.thumbOff,
-          ]}
+          style={[styles.thumb, value ? styles.thumbOn : styles.thumbOff]}
         />
       </View>
     </Pressable>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   track: {
-    width: 44, // w-11 = 44px
-    height: 24, // h-6 = 24px
+    width: 56, // w-11 = 44px
+    height: 28, // h-6 = 24px
     borderRadius: borderRadius.full,
-    position: 'relative',
+    position: "relative",
   },
   trackOn: {
     backgroundColor: colors.primary,
@@ -56,10 +53,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   thumb: {
-    position: 'absolute',
+    position: "absolute",
     top: 2,
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     borderRadius: borderRadius.full,
     backgroundColor: colors.foreground,
     shadowColor: colors.background,
@@ -74,4 +71,4 @@ const styles = StyleSheet.create({
   thumbOff: {
     left: 2,
   },
-});
+})

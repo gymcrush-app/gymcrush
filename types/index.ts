@@ -40,3 +40,12 @@ export interface MatchWithProfile extends Match {
   lastMessage?: Message;
   unreadCount?: number;
 }
+
+/** Profile with engagement metrics from Gym Gems RPC */
+export interface ProfileWithScore extends Profile {
+  engagement_score: number;
+  likes_received: number;
+  crush_received: number;
+  matches_count: number;
+  first_messages_received: number;
+}

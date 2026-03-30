@@ -1,15 +1,15 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
-import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
-import { Textarea } from '@/components/ui/Textarea';
+import { OnboardingContainer, OnboardingScrollContext } from '@/components/onboarding/OnboardingContainer';
+import { FilteredTextarea } from '@/components/ui/FilteredTextarea';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { PromptAnswer } from '@/types/onboarding';
 import { FITNESS_PROMPTS } from '@/types/onboarding';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useNavigation } from 'expo-router';
-import { ChevronDown, X } from 'lucide-react-native';
+import { ChevronDown } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const MAX_PROMPTS = 3;
 
@@ -17,15 +17,14 @@ export default function OnboardingPrompts() {
   const navigation = useNavigation();
   const data = useOnboardingStore((s) => s.data);
   const updateData = useOnboardingStore((s) => s.updateData);
-  const [prompts, setPrompts] = useState<PromptAnswer[]>(
-    data.prompts && data.prompts.length > 0 
-      ? data.prompts 
-      : [
-          { prompt: '', answer: '' },
-          { prompt: '', answer: '' },
-          { prompt: '', answer: '' },
-        ]
-  );
+  const [prompts, setPrompts] = useState<PromptAnswer[]>(() => {
+    const fromData = data.prompts && data.prompts.length > 0 ? data.prompts : [];
+    const result = [...fromData];
+    while (result.length < MAX_PROMPTS) {
+      result.push({ prompt: '', answer: '' });
+    }
+    return result.slice(0, MAX_PROMPTS);
+  });
   
   // Bottom sheet for prompt selection
   const [selectedPromptIndex, setSelectedPromptIndex] = useState<number | null>(null);
@@ -34,6 +33,10 @@ export default function OnboardingPrompts() {
   
   // Refs for textarea inputs to focus them when prompt is selected
   const textareaRefs = useRef<(TextInput | null)[]>([]);
+  const scrollViewRef = React.useContext(OnboardingScrollContext);
+  const headerHeightRef = useRef(0);
+  const cardYRef = useRef<number[]>([]);
+  const SCROLL_MARGIN = 80;
 
   // Get available prompts (exclude already selected ones)
   const getAvailablePrompts = (currentIndex: number) => {
@@ -57,10 +60,10 @@ export default function OnboardingPrompts() {
     if (selectedPromptIndex !== null) {
       updatePrompt(selectedPromptIndex, 'prompt', prompt);
       handleClosePromptSheet();
-      // Focus the corresponding textarea after a short delay to ensure it's rendered
+      // Focus the corresponding textarea after sheet close animation and layout settle
       setTimeout(() => {
         textareaRefs.current[selectedPromptIndex]?.focus();
-      }, 100);
+      }, 250);
     }
   };
 
@@ -86,20 +89,6 @@ export default function OnboardingPrompts() {
     updateData({ prompts: newPrompts });
   };
 
-  const addPrompt = () => {
-    if (prompts.length < MAX_PROMPTS) {
-      const newPrompts = [...prompts, { prompt: '', answer: '' }];
-      setPrompts(newPrompts);
-      updateData({ prompts: newPrompts });
-    }
-  };
-
-  const removePrompt = (index: number) => {
-    const newPrompts = prompts.filter((_, i) => i !== index);
-    setPrompts(newPrompts);
-    updateData({ prompts: newPrompts });
-  };
-
   const canContinue = prompts.length > 0 && prompts.every(
     (p) => p.prompt !== '' && p.answer.trim().length > 0
   );
@@ -114,31 +103,44 @@ export default function OnboardingPrompts() {
     ? getAvailablePrompts(selectedPromptIndex)
     : [];
 
+  const scrollToCard = useCallback((index: number) => {
+    setTimeout(() => {
+      const headerH = headerHeightRef.current;
+      const cardY = cardYRef.current[index];
+      if (cardY === undefined) return;
+      const targetY = Math.max(0, headerH + cardY - SCROLL_MARGIN);
+      scrollViewRef?.current?.scrollTo({ y: targetY, animated: true });
+    }, 100);
+  }, []);
+
   return (
-    <OnboardingContainer currentStep={6} totalSteps={7} showBack={true}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
+    <OnboardingContainer currentStep={7} totalSteps={9} showBack={true}>
+      <View style={styles.content}>
+        <View
+          style={styles.header}
+          onLayout={(e: LayoutChangeEvent) => {
+            headerHeightRef.current = e.nativeEvent.layout.height;
+          }}
+        >
           <Text style={styles.title}>
             Answer prompts
           </Text>
           <Text style={styles.subtitle}>
-            Share your fitness personality (up to {MAX_PROMPTS} prompts)
+          Share your fitness personality ({MAX_PROMPTS} prompts)
           </Text>
         </View>
 
         <View style={styles.promptsContainer}>
           {prompts.map((prompt, index) => (
-            <View key={index} style={styles.promptCard}>
+            <View
+              key={index}
+              style={styles.promptCard}
+              onLayout={(e: LayoutChangeEvent) => {
+                cardYRef.current[index] = e.nativeEvent.layout.y;
+              }}
+            >
               <View style={styles.promptHeader}>
                 <Text style={styles.promptNumber}>Prompt {index + 1}</Text>
-                {prompts.length > 1 && (
-                  <Pressable
-                    onPress={() => removePrompt(index)}
-                    style={styles.removeButton}
-                  >
-                    <X size={16} color={colors.mutedForeground} />
-                  </Pressable>
-                )}
               </View>
 
               <Pressable
@@ -161,7 +163,7 @@ export default function OnboardingPrompts() {
               </Pressable>
 
               {prompt.prompt && (
-                <Textarea
+                <FilteredTextarea
                   ref={(ref) => {
                     if (ref) {
                       textareaRefs.current[index] = ref;
@@ -169,22 +171,17 @@ export default function OnboardingPrompts() {
                   }}
                   placeholder="Your answer..."
                   value={prompt.answer}
-                  onChangeText={(text) => updatePrompt(index, 'answer', text)}
-                  maxLength={APP.MAX_APPROACH_PROMPT_LENGTH}
+                  onChangeText={(text: string) => updatePrompt(index, 'answer', text)}
+                  maxLength={APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH}
                   showCharCount
                   style={styles.textarea}
+                  onFocus={() => scrollToCard(index)}
                 />
               )}
             </View>
           ))}
-
-          {prompts.length < MAX_PROMPTS && (
-            <Pressable onPress={addPrompt} style={styles.addPromptButton}>
-              <Text style={styles.addPromptText}>+ Add another prompt</Text>
-            </Pressable>
-          )}
         </View>
-      </ScrollView>
+      </View>
 
       <FloatingActionButton onPress={handleNext} disabled={!canContinue}>
         Continue
@@ -199,6 +196,9 @@ export default function OnboardingPrompts() {
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.bottomSheetIndicator}
         enablePanDownToClose
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="none"
+        android_keyboardInputMode="adjustResize"
       >
         <BottomSheetScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.bottomSheetContent}>
@@ -222,12 +222,9 @@ export default function OnboardingPrompts() {
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
+  content: {
     gap: spacing[8],
-    paddingBottom: spacing[32],
+    paddingBottom: spacing[16],
   },
   header: {
     gap: spacing[2],
@@ -265,25 +262,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.mutedForeground,
   },
-  removeButton: {
-    padding: spacing[1],
-  },
   textarea: {
     // minHeight: 96,
-  },
-  addPromptButton: {
-    padding: spacing[4],
-    borderRadius: borderRadius.xl,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-  },
-  addPromptText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    color: colors.foreground,
   },
   promptSelectButton: {
     flexDirection: 'row',

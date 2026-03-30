@@ -2,15 +2,31 @@ import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tansta
 import { useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
+import { filterBadWords } from '@/lib/utils/filterBadWords';
 import { useLike } from './matches';
 import type { Message, MatchWithProfile, Profile } from '@/types';
 
-export type Conversation = MatchWithProfile & {
+/** Match-based thread in Chat (existing behavior). */
+export type ConversationMatch = MatchWithProfile & {
+  kind?: 'match';
   lastMessage?: Message;
   unreadCount: number;
   /** True when match has no messages and current user has not yet viewed the match (show "new" dot). */
   isNewMatch?: boolean;
 };
+
+/**
+ * Gym Gem received when there is no mutual match yet: backed by messages.gem_gift_id + to_user_id.
+ */
+export type ConversationGemInbox = {
+  kind: 'gem_inbox';
+  rowId: string;
+  otherUser: Profile;
+  lastMessage: Message;
+  unreadCount: number;
+};
+
+export type Conversation = ConversationMatch | ConversationGemInbox;
 
 /**
  * Fetch all conversations for the current user with last message and unread count
@@ -39,10 +55,9 @@ export function useConversations() {
           console.error('Error fetching matches:', matchesError);
           throw matchesError;
         }
-        if (!matches || matches.length === 0) return [];
 
         // Filter out matches with missing user profiles
-        const validMatches = matches.filter((match: any) => {
+        const validMatches = (matches || []).filter((match: any) => {
           const hasUser1 = match.user1 && match.user1.id;
           const hasUser2 = match.user2 && match.user2.id;
           if (!hasUser1 || !hasUser2) {
@@ -52,7 +67,9 @@ export function useConversations() {
           return true;
         });
 
-        if (validMatches.length === 0) return [];
+        const matchPartnerIds = new Set(
+          validMatches.map((m: any) => (m.user1_id === user.id ? m.user2_id : m.user1_id) as string),
+        );
 
         // Fetch which matches the current user has viewed (for "new match" dot)
         const { data: viewedRows } = await supabase
@@ -61,63 +78,108 @@ export function useConversations() {
           .eq('user_id', user.id);
         const viewedMatchIds = new Set((viewedRows || []).map((r: { match_id: string }) => r.match_id));
 
-        // For each match, get last message and unread count
-        const conversations: Conversation[] = await Promise.all(
-          validMatches.map(async (match: any) => {
-            const otherUser = match.user1_id === user.id ? match.user2 : match.user1;
+        const matchConversations: ConversationMatch[] =
+          validMatches.length === 0
+            ? []
+            : await Promise.all(
+                validMatches.map(async (match: any) => {
+                  const otherUser = match.user1_id === user.id ? match.user2 : match.user1;
 
-            // Validate otherUser exists (should be guaranteed by filter above, but double-check)
-            if (!otherUser) {
-              console.error(`Match ${match.id} is missing otherUser. user1_id: ${match.user1_id}, user2_id: ${match.user2_id}`);
-              throw new Error(`Match ${match.id} is missing user profile data`);
-            }
+                  if (!otherUser) {
+                    console.error(
+                      `Match ${match.id} is missing otherUser. user1_id: ${match.user1_id}, user2_id: ${match.user2_id}`,
+                    );
+                    throw new Error(`Match ${match.id} is missing user profile data`);
+                  }
 
-          // Ensure photo_urls is an array (defensive check)
-          if (!Array.isArray(otherUser.photo_urls)) {
-            otherUser.photo_urls = [];
-          }
+                  if (!Array.isArray(otherUser.photo_urls)) {
+                    otherUser.photo_urls = [];
+                  }
 
-          // Get last message
-          const { data: lastMessages, error: lastMessageError } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('match_id', match.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          
-          // Ignore error if no messages exist (PGRST116 is "no rows returned")
-          if (lastMessageError && lastMessageError.code !== 'PGRST116') {
-            throw lastMessageError;
-          }
+                  const { data: lastMessages, error: lastMessageError } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .eq('match_id', match.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
 
-          // Get unread count (messages from other user that haven't been read)
-          const { count, error: countError } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('match_id', match.id)
-            .eq('sender_id', otherUser.id)
-            .is('read_at', null);
+                  if (lastMessageError && lastMessageError.code !== 'PGRST116') {
+                    throw lastMessageError;
+                  }
 
-          if (countError) {
-            console.error(`Error getting unread count for match ${match.id}:`, countError);
-            // Don't throw, just use 0 as fallback
-          }
+                  const { count, error: countError } = await supabase
+                    .from('messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('match_id', match.id)
+                    .eq('sender_id', otherUser.id)
+                    .is('read_at', null);
 
-          return {
-            ...match,
-            otherUser,
-            lastMessage: lastMessages || undefined,
-            unreadCount: count || 0,
-            isNewMatch: !lastMessages && !viewedMatchIds.has(match.id),
-          } as Conversation;
-        })
-      );
+                  if (countError) {
+                    console.error(`Error getting unread count for match ${match.id}:`, countError);
+                  }
 
-        // Sort by last message timestamp (most recent first)
-        return conversations.sort((a, b) => {
-          const aTime = a.lastMessage?.created_at ? new Date(a.lastMessage.created_at).getTime() : 0;
-          const bTime = b.lastMessage?.created_at ? new Date(b.lastMessage.created_at).getTime() : 0;
+                  return {
+                    ...match,
+                    otherUser,
+                    lastMessage: lastMessages || undefined,
+                    unreadCount: count || 0,
+                    isNewMatch: !lastMessages && !viewedMatchIds.has(match.id),
+                  } as ConversationMatch;
+                }),
+              );
+
+        const { data: gemMsgRows, error: gemMsgError } = await supabase
+          .from('messages')
+          .select(
+            `
+            *,
+            sender:profiles!messages_sender_id_fkey(*)
+          `,
+          )
+          .eq('to_user_id', user.id)
+          .is('match_id', null)
+          .not('gem_gift_id', 'is', null)
+          .order('created_at', { ascending: false });
+
+        if (gemMsgError) {
+          console.error('Error fetching gem inbox messages:', gemMsgError);
+          throw gemMsgError;
+        }
+
+        const gemSendersSeen = new Set<string>();
+        const gemInbox: ConversationGemInbox[] = [];
+        for (const row of gemMsgRows || []) {
+          const sender = row.sender as Profile | null;
+          if (!sender?.id) continue;
+          if (matchPartnerIds.has(sender.id)) continue;
+          if (gemSendersSeen.has(sender.id)) continue;
+          gemSendersSeen.add(sender.id);
+          if (!Array.isArray(sender.photo_urls)) sender.photo_urls = [];
+          const msg = row as Message;
+          gemInbox.push({
+            kind: 'gem_inbox',
+            rowId: `gem-inbox-${sender.id}`,
+            otherUser: sender,
+            lastMessage: msg,
+            unreadCount: msg.read_at ? 0 : 1,
+          });
+        }
+
+        const merged: Conversation[] = [...matchConversations, ...gemInbox];
+        return merged.sort((a, b) => {
+          const aTime =
+            a.kind === 'gem_inbox'
+              ? new Date(a.lastMessage.created_at || 0).getTime()
+              : a.lastMessage?.created_at
+                ? new Date(a.lastMessage.created_at).getTime()
+                : 0;
+          const bTime =
+            b.kind === 'gem_inbox'
+              ? new Date(b.lastMessage.created_at || 0).getTime()
+              : b.lastMessage?.created_at
+                ? new Date(b.lastMessage.created_at).getTime()
+                : 0;
           return bTime - aTime;
         });
       } catch (error) {
@@ -228,8 +290,8 @@ export function useChat(matchId: string) {
               reaction_type: reactionType,
               ...(reactionType === 'prompt' && reactionPromptTitle !== undefined
                 ? {
-                    reaction_prompt_title: reactionPromptTitle,
-                    reaction_prompt_answer: reactionPromptAnswer ?? null,
+                    reaction_prompt_title: filterBadWords(reactionPromptTitle),
+                    reaction_prompt_answer: reactionPromptAnswer != null ? filterBadWords(reactionPromptAnswer) : null,
                   }
                 : reactionType === 'image' && reactionImageUrl !== undefined
                   ? { reaction_image_url: reactionImageUrl }
@@ -241,7 +303,7 @@ export function useChat(matchId: string) {
         .insert({
           match_id: matchId,
           sender_id: user.id,
-          content: content.trim(),
+          content: filterBadWords(content).trim(),
           ...reactionPayload,
         })
         .select()
@@ -262,9 +324,10 @@ export function useChat(matchId: string) {
         match_id: matchId,
         sender_id: user!.id,
         to_user_id: null,
-        content: content.trim(),
+        content: filterBadWords(content).trim(),
         created_at: new Date().toISOString(),
         read_at: null,
+        gem_gift_id: null,
         reaction_type: payload.reactionType ?? null,
         reaction_prompt_title: payload.reactionPromptTitle ?? null,
         reaction_prompt_answer: payload.reactionPromptAnswer ?? null,
@@ -322,7 +385,7 @@ export function useChat(matchId: string) {
       queryClient.setQueryData<Conversation[]>(['conversations', user?.id], (old) => {
         if (!old) return old;
         return old.map((c) =>
-          c.id === matchId ? { ...c, unreadCount: 0 } : c
+          c.kind === 'gem_inbox' ? c : c.id === matchId ? { ...c, unreadCount: 0 } : c,
         );
       });
       return { previous };
@@ -436,7 +499,7 @@ export function useSendMessage() {
         .insert({
           match_id: matchId,
           sender_id: user.id,
-          content: content.trim(),
+          content: filterBadWords(content).trim(),
         })
         .select()
         .single();
@@ -748,8 +811,8 @@ export function useSendMessageRequest() {
               reaction_type: reactionType,
               ...(reactionType === 'prompt' && reactionPromptTitle !== undefined
                 ? {
-                    reaction_prompt_title: reactionPromptTitle,
-                    reaction_prompt_answer: reactionPromptAnswer ?? null,
+                    reaction_prompt_title: filterBadWords(reactionPromptTitle),
+                    reaction_prompt_answer: reactionPromptAnswer != null ? filterBadWords(reactionPromptAnswer) : null,
                   }
                 : reactionType === 'image' && reactionImageUrl !== undefined
                   ? { reaction_image_url: reactionImageUrl }
@@ -765,7 +828,7 @@ export function useSendMessageRequest() {
           .insert({
             match_id: match.id,
             sender_id: user.id,
-            content: content.trim(),
+            content: filterBadWords(content).trim(),
             ...reactionPayload,
           })
           .select()
@@ -780,7 +843,7 @@ export function useSendMessageRequest() {
           .insert({
             to_user_id: toUserId,
             sender_id: user.id,
-            content: content.trim(),
+            content: filterBadWords(content).trim(),
             ...reactionPayload,
           })
           .select()

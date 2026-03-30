@@ -1,7 +1,8 @@
+import { FilterTriggerButton } from '@/components/ui/FilterTriggerButton';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
-import Slider from '@react-native-community/slider';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 interface FilterRangeSliderProps {
   value: [number, number] | null;
@@ -30,24 +31,12 @@ export function FilterRangeSlider({
   }, [onOpen]);
 
   return (
-    <Pressable
+    <FilterTriggerButton
+      label={displayValue}
+      active={hasValue}
       onPress={handlePress}
-      style={[
-        styles.triggerButton,
-        hasValue && styles.triggerButtonActive,
-        style,
-      ]}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-    >
-      <Text
-        style={[
-          styles.triggerText,
-          hasValue ? styles.triggerTextActive : styles.triggerTextPlaceholder,
-        ]}
-      >
-        {displayValue}
-      </Text>
-    </Pressable>
+      style={style}
+    />
   );
 }
 
@@ -58,6 +47,7 @@ export interface FilterRangeSliderContentProps {
   max: number;
   onValueChange: (value: [number, number]) => void;
   onClear: () => void;
+  onRequestClose?: () => void;
 }
 
 export function FilterRangeSliderContent({
@@ -67,10 +57,14 @@ export function FilterRangeSliderContent({
   max,
   onValueChange,
   onClear,
+  onRequestClose,
 }: FilterRangeSliderContentProps) {
   const [minValue, setMinValue] = useState(value[0]);
   const [maxValue, setMaxValue] = useState(value[1]);
   const isDraggingRef = useRef(false);
+
+  const sliderLength =
+    Dimensions.get('window').width - (spacing[4] * 2 + spacing[2] * 2 + spacing[8] * 2);
 
   useEffect(() => {
     if (!isDraggingRef.current) {
@@ -79,27 +73,47 @@ export function FilterRangeSliderContent({
     }
   }, [value]);
 
-  const handleMinChange = useCallback((newMin: number) => {
-    isDraggingRef.current = true;
-    const clampedMin = Math.min(newMin, maxValue - 1);
-    setMinValue(clampedMin);
-    const newValue: [number, number] = [clampedMin, maxValue];
-    onValueChange(newValue);
-    setTimeout(() => {
-      isDraggingRef.current = false;
-    }, 100);
-  }, [maxValue, onValueChange]);
+  const handleValuesChange = useCallback(
+    (values: number[]) => {
+      isDraggingRef.current = true;
+      const low = Math.min(values[0], values[1] ?? values[0]);
+      const high = Math.max(values[0], values[1] ?? values[0]);
+      const clampedLow = Math.max(min, Math.min(low, high - 1));
+      const clampedHigh = Math.min(max, Math.max(high, clampedLow + 1));
+      setMinValue(clampedLow);
+      setMaxValue(clampedHigh);
+      // Don't update parent during drag – only on release to avoid refresh flicker
+    },
+    [min, max]
+  );
 
-  const handleMaxChange = useCallback((newMax: number) => {
+  const handleValuesChangeStart = useCallback(() => {
     isDraggingRef.current = true;
-    const clampedMax = Math.max(newMax, minValue + 1);
-    setMaxValue(clampedMax);
-    onValueChange([minValue, clampedMax]);
-    // Reset dragging flag after a short delay
-    setTimeout(() => {
+  }, []);
+
+  const handleValuesChangeFinish = useCallback(
+    (values: number[]) => {
+      const low = Math.min(values[0], values[1] ?? values[0]);
+      const high = Math.max(values[0], values[1] ?? values[0]);
+      const clampedLow = Math.max(min, Math.min(low, high - 1));
+      const clampedHigh = Math.min(max, Math.max(high, clampedLow + 1));
+      setMinValue(clampedLow);
+      setMaxValue(clampedHigh);
       isDraggingRef.current = false;
-    }, 100);
-  }, [minValue, onValueChange]);
+      // Don't update parent on release – only when Update is pressed
+    },
+    [min, max]
+  );
+
+  const handleUpdate = useCallback(() => {
+    onValueChange([minValue, maxValue]);
+    onRequestClose?.();
+  }, [minValue, maxValue, onValueChange, onRequestClose]);
+
+  const _handleClear = useCallback(() => {
+    onClear();
+    onRequestClose?.();
+  }, [onClear, onRequestClose]);
 
   const displayMax = maxValue === max ? `${max}+` : maxValue;
 
@@ -107,46 +121,30 @@ export function FilterRangeSliderContent({
     <View style={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>{label}</Text>
-        <Pressable onPress={onClear}>
-          <Text style={styles.clearButton}>Clear</Text>
+        <Pressable onPress={handleUpdate} style={styles.updateButton}>
+          <Text style={styles.updateButtonText}>Update</Text>
         </Pressable>
       </View>
 
       <View style={styles.sliderContent}>
         <Text style={styles.currentValue}>{minValue} - {displayMax}</Text>
 
-        <View style={styles.slidersContainer}>
-          {/* Min Slider */}
-          <View style={styles.sliderWrapper}>
-            <Text style={styles.sliderLabel}>Min: {minValue}</Text>
-            <Slider
-              style={styles.slider}
-              minimumValue={min}
-              maximumValue={max - 1}
-              value={minValue}
-              onValueChange={handleMinChange}
-              minimumTrackTintColor={colors.primary}
-              maximumTrackTintColor={colors.muted}
-              thumbTintColor={colors.primary}
-              step={1}
-            />
-          </View>
-
-          {/* Max Slider */}
-          <View style={styles.sliderWrapper}>
-            <Text style={styles.sliderLabel}>Max: {displayMax}</Text>
-            <Slider
-              style={styles.slider}
-              minimumValue={min + 1}
-              maximumValue={max}
-              value={maxValue}
-              onValueChange={handleMaxChange}
-              minimumTrackTintColor={colors.muted}
-              maximumTrackTintColor={colors.primary}
-              thumbTintColor={colors.primary}
-              step={1}
-            />
-          </View>
+        <View style={styles.multiSliderContainer}>
+          <MultiSlider
+            values={[minValue, maxValue]}
+            onValuesChange={handleValuesChange}
+            onValuesChangeStart={handleValuesChangeStart}
+            onValuesChangeFinish={handleValuesChangeFinish}
+            min={min}
+            max={max}
+            step={1}
+            sliderLength={sliderLength}
+            selectedStyle={styles.selectedTrack}
+            unselectedStyle={styles.unselectedTrack}
+            trackStyle={styles.track}
+            markerStyle={styles.marker}
+            pressedMarkerStyle={styles.pressedMarker}
+          />
         </View>
 
         <View style={styles.rangeLabels}>
@@ -159,29 +157,6 @@ export function FilterRangeSliderContent({
 }
 
 const styles = StyleSheet.create({
-  triggerButton: {
-    backgroundColor: colors.input,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[1],
-    borderWidth: 1,
-    borderColor: colors.border,
-    // minHeight: 44,
-    justifyContent: 'center',
-  },
-  triggerButtonActive: {
-    borderColor: colors.primary,
-  },
-  triggerText: {
-    fontSize: fontSize.base,
-    textAlign: 'center',
-  },
-  triggerTextActive: {
-    color: colors.foreground,
-  },
-  triggerTextPlaceholder: {
-    color: colors.mutedForeground,
-  },
   content: {
     paddingHorizontal: spacing[4],
     paddingTop: spacing[4],
@@ -198,10 +173,16 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.foreground,
   },
-  clearButton: {
+  updateButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4],
+    borderRadius: borderRadius.lg,
+  },
+  updateButtonText: {
     fontSize: fontSize.base,
-    color: colors.primary,
-    fontWeight: fontWeight.medium,
+    color: colors.primaryForeground,
+    fontWeight: fontWeight.semibold,
   },
   sliderContent: {
     paddingHorizontal: spacing[2],
@@ -213,20 +194,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing[6],
   },
-  slidersContainer: {
+  multiSliderContainer: {
     marginBottom: spacing[4],
   },
-  sliderWrapper: {
-    marginBottom: spacing[4],
+  track: {
+    height: 2,
+    borderRadius: 2,
   },
-  sliderLabel: {
-    fontSize: fontSize.sm,
-    color: colors.mutedForeground,
-    marginBottom: spacing[2],
+  selectedTrack: {
+    backgroundColor: colors.primary,
   },
-  slider: {
-    width: '100%',
-    height: 40,
+  unselectedTrack: {
+    backgroundColor: colors.muted,
+  },
+  marker: {
+    height: 24,
+    width: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  pressedMarker: {
+    height: 28,
+    width: 28,
+    borderRadius: 14,
   },
   rangeLabels: {
     flexDirection: 'row',

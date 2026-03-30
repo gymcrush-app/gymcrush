@@ -25,11 +25,14 @@ export function UserProfileModalProvider({
 
   const openUserProfile = useCallback(
     (id: string) => {
+      // Show modal immediately (with loading spinner) — don't block on fetch
+      setUserId(id)
+      // Fire prefetch in background so data is ready for useProfileById
       queryClient.prefetchQuery({
         queryKey: ["profile", id],
         queryFn: () => fetchProfileById(id),
+        staleTime: 30_000,
       })
-      setUserId(id)
     },
     [queryClient]
   )

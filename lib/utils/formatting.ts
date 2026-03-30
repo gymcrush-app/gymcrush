@@ -11,8 +11,7 @@ import type { Intent, FitnessDiscipline } from '@/types/onboarding';
  */
 export function formatIntent(intent: Intent): string {
   const intentLabels: Record<Intent, string> = {
-    meet_trainer: 'Looking for trainer',
-    casual: 'Casual',
+    shortterm: 'Short-term',
     longterm: 'Long-term',
     open: 'Open',
   };

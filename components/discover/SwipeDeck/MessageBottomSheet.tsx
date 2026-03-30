@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { Textarea } from '@/components/ui/Textarea';
+import { FilteredTextarea } from '@/components/ui/FilteredTextarea';
+import { useFilteredInput } from '@/hooks/useFilteredInput';
 import { colors, fontSize, spacing } from '@/theme';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import React, { RefObject } from 'react';
@@ -21,7 +22,8 @@ interface MessageBottomSheetProps {
   bottomSheetIndex: number;
   onMessageTextChange: (text: string) => void;
   onClose: () => void;
-  onSend: () => void;
+  /** Called with the filtered (censored) message content when user taps Send. */
+  onSend: (filteredContent: string) => void;
   onChange: (index: number) => void;
 }
 
@@ -47,6 +49,13 @@ export function MessageBottomSheet({
   onSend,
   onChange,
 }: MessageBottomSheetProps) {
+  const filtered = useFilteredInput({ value: messageText, onChangeText: onMessageTextChange });
+
+  const handleSend = () => {
+    const content = filtered.getFilteredValue().trim();
+    if (content) onSend(content);
+  };
+
   return (
     <BottomSheet
       ref={bottomSheetRef}
@@ -73,7 +82,7 @@ export function MessageBottomSheet({
               {/* Prompt Section - Only show if it's a prompt-based chat */}
               {selectedPrompt && (
                 <View style={styles.promptSection}>
-                  <Text variant="bodySmall" weight="semibold" style={styles.promptTitle}>
+                  <Text variant="mutedXSmall" weight="semibold" style={styles.promptTitle}>
                     {selectedPrompt.title}
                   </Text>
                   <Text variant="bodySmall" style={styles.promptAnswer}>
@@ -83,10 +92,10 @@ export function MessageBottomSheet({
               )}
 
               {/* Message Input */}
-              <Textarea
+              <FilteredTextarea
                 placeholder={selectedPrompt ? "Write a message about their answer" : "Write a message"}
-                value={messageText}
-                onChangeText={onMessageTextChange}
+                value={filtered.value}
+                onChangeText={filtered.onChangeText}
                 style={styles.textarea}
                 multiline
               />
@@ -104,8 +113,8 @@ export function MessageBottomSheet({
                 <Button
                   variant="primary"
                   size="md"
-                  onPress={onSend}
-                  disabled={!messageText.trim()}
+                  onPress={handleSend}
+                  disabled={!filtered.value.trim()}
                   style={styles.sendButton}
                 >
                   Send
@@ -138,6 +147,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[1],
   },
   promptTitle: {
+    fontSize: 8,
     marginBottom: spacing[1],
   },
   promptAnswer: {

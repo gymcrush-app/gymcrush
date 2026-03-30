@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/Button';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import { MapPin } from 'lucide-react-native';
 import React from 'react';
-import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, StyleSheet, Text, View } from 'react-native';
 
 interface LocationPermissionModalProps {
   visible: boolean;

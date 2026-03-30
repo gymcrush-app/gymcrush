@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { PermissionStatus } from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { APP } from '@/theme';
 
 interface LocationCoords {
   lat: number;
@@ -33,6 +35,27 @@ export function useLocation(): UseLocationResult {
     try {
       setIsLoading(true);
       setError(null);
+
+      if (__DEV__) {
+        const stored = await AsyncStorage.getItem(APP.STORAGE_KEYS.DEV_LOCATION_OVERRIDE);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored) as { lat?: number; lng?: number };
+            if (
+              typeof parsed?.lat === 'number' &&
+              typeof parsed?.lng === 'number' &&
+              Math.abs(parsed.lat) <= 90 &&
+              Math.abs(parsed.lng) <= 180
+            ) {
+              setLocation({ lat: parsed.lat, lng: parsed.lng });
+              setIsLoading(false);
+              return;
+            }
+          } catch {
+            // invalid JSON, fall through to real location
+          }
+        }
+      }
 
       // Check current permission status
       const { status } = await Location.getForegroundPermissionsAsync();

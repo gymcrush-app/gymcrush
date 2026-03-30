@@ -130,6 +130,21 @@ export function calculateGymDistance(
   return calculateDistanceMiles(gym1Location, gym2Location);
 }
 
+const MILES_TO_KM = 1.60934;
+
+/**
+ * Convert distance in miles to km, rounded up to nearest integer.
+ * Used for swipe deck display (number + "km" with smaller unit).
+ *
+ * @param distanceMiles Distance in miles, or null
+ * @returns Rounded-up km integer, or null
+ */
+export function formatDistanceKmRounded(distanceMiles: number | null): number | null {
+  if (distanceMiles === null) return null;
+  const km = distanceMiles * MILES_TO_KM;
+  return Math.ceil(km);
+}
+
 /**
  * Format distance for display
  * @param distance Distance in miles

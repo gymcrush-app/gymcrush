@@ -1,17 +1,16 @@
-import { AboutSection } from "@/components/discover/SwipeDeck/AboutSection"
-import { PhotoSection } from "@/components/discover/SwipeDeck/PhotoSection"
-import { ProfileHeader } from "@/components/discover/SwipeDeck/ProfileHeader"
-import { ProfileInfoBox } from "@/components/discover/SwipeDeck/ProfileInfoBox"
+import { PhotoSection } from "@/components/profile/PhotoSection"
+import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { FitnessBadges } from "@/components/profile/FitnessBadges"
+import { ProfileDetailContent } from "@/components/profile/ProfileDetailContent"
 import { Text } from "@/components/ui/Text"
-import { useGymById } from "@/lib/api/gyms"
+import { useGymsByIds } from "@/lib/api/gyms"
 import { useProfile, useProfileById } from "@/lib/api/profiles"
-import { calculateGymDistance, formatDistance } from "@/lib/utils/distance"
-import { formatFitnessDisciplines, formatIntents } from "@/lib/utils/formatting"
-import { colors, spacing } from "@/theme"
+import { calculateGymDistance, formatDistanceKmRounded } from "@/lib/utils/distance"
+import { formatIntents } from "@/lib/utils/formatting"
+import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
 import type { FitnessDiscipline, Intent } from "@/types/onboarding"
-import { X } from "lucide-react-native"
-import React, { useCallback } from "react"
+import { Gem, X } from "lucide-react-native"
+import React, { useCallback, useMemo } from "react"
 import {
   ActivityIndicator,
   Dimensions,
@@ -37,11 +36,25 @@ export function OtherUserProfileContent({
 }: OtherUserProfileContentProps) {
   const insets = useSafeAreaInsets()
   const { data: profile, isLoading, error } = useProfileById(userId)
-  const { data: profileGym } = useGymById(profile?.home_gym_id || "")
   const { data: currentUserProfile } = useProfile()
-  const { data: currentUserGym } = useGymById(
-    currentUserProfile?.home_gym_id || "",
+
+  const gymIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          [profile?.home_gym_id, currentUserProfile?.home_gym_id].filter(
+            Boolean
+          ) as string[]
+        ),
+      ].sort(),
+    [profile?.home_gym_id, currentUserProfile?.home_gym_id]
   )
+  const { data: gymsMap } = useGymsByIds(gymIds)
+  const profileGym = profile && gymsMap && profile.home_gym_id != null ? gymsMap.get(profile.home_gym_id) : undefined
+  const currentUserGym =
+    currentUserProfile && gymsMap && currentUserProfile.home_gym_id != null
+      ? gymsMap.get(currentUserProfile.home_gym_id)
+      : undefined
 
   const handleOpenImageChat = useCallback(() => {
     (onOpenImageChat ?? onBack)()
@@ -96,8 +109,7 @@ export function OtherUserProfileContent({
   const disciplines = profile.fitness_disciplines as FitnessDiscipline[]
 
   const formattedIntents = formatIntents(intents)
-  const formattedDisciplines = formatFitnessDisciplines(disciplines)
-  const formattedDistance = formatDistance(distance)
+  const distanceKm = formatDistanceKmRounded(distance)
 
   const imageHeight = SCREEN_WIDTH * 0.75
 
@@ -119,21 +131,34 @@ export function OtherUserProfileContent({
         />
 
         <View style={styles.contentSection}>
-          <ProfileHeader displayName={profile.display_name} age={profile.age} />
-
-          <ProfileInfoBox
-            intents={formattedIntents}
-            disciplines={formattedDisciplines}
-            distance={formattedDistance}
+          <ProfileHeader
+            displayName={profile.display_name}
+            age={profile.age}
+            distanceKm={distanceKm}
+            variant="compact"
           />
 
-          <AboutSection bio={profile.bio || null} />
-
-          {disciplines.length > 0 && (
-            <View style={styles.badgesSection}>
-              <FitnessBadges disciplines={disciplines} />
+          {/* Gym Gem badge (e.g. when browsing Gym Gems) */}
+          <View style={styles.gymGemRow}>
+            <View style={styles.gymGemBadge}>
+              <Gem size={16} color={colors.primary} />
+              <Text style={styles.gymGemBadgeText}>Gym Gem</Text>
             </View>
-          )}
+          </View>
+
+          <ProfileDetailContent
+            height={profile.height ?? null}
+            intent={formattedIntents}
+            occupation={profile.occupation ?? null}
+            city={profileGym?.city ?? null}
+            bio={profile.bio || null}
+          >
+            {disciplines.length > 0 && (
+              <View style={styles.badgesSection}>
+                <FitnessBadges disciplines={disciplines} />
+              </View>
+            )}
+          </ProfileDetailContent>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -166,6 +191,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingHorizontal: spacing[6],
     paddingVertical: spacing[6],
+  },
+  gymGemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[3],
+    marginBottom: spacing[4],
+  },
+  gymGemBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[1.5],
+    backgroundColor: colors.muted,
+    paddingVertical: spacing[1.5],
+    paddingHorizontal: spacing[3],
+    borderRadius: borderRadius.full,
+  },
+  gymGemBadgeText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.foreground,
   },
   badgesSection: {
     marginTop: spacing[4],

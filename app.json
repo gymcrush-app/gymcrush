@@ -1,24 +1,26 @@
 {
   "expo": {
+    "owner": "gymcrush-app",
     "name": "GymCrush",
     "slug": "gymcrush",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/App-Icon.png",
+    "icon": "./assets/images/GymCrush-Icon-Final.png",
     "scheme": "gymcrush",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/App-Icon.png",
+      "image": "./assets/images/GymCrush-Load-Screen.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gymcrushdating.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location to find gyms near you.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location to find gyms near you."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location to find gyms near you.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,11 +32,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.toptalchris.gymcrush"
+      "package": "com.gymcrush.app"
     },
     "web": {
       "bundler": "metro",
@@ -59,6 +59,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4b975cb8-e751-482a-8b1b-75d316cd7613"
+      }
     }
   }
 }

@@ -411,6 +411,18 @@ reports (
 
 ---
 
+## Public-facing text & profanity filter
+
+Any **text input whose value is stored in the DB and shown to other users** must use the profanity filter so users see a censored preview and can replace wording before submitting.
+
+- **Use `useFilteredInput`** (from `@/hooks/useFilteredInput`) for public-facing text: bind the input to `value` and `onChangeText` from the hook.
+- **Show censored preview:** When `hasBadWords` is true, show the user *"This will appear as: {filteredPreview}"* (use `<CensoredPreview>` from `@/components/ui/CensoredPreview`).
+- **On submit:** Send the filtered value (e.g. `getFilteredValue()`) to the API, or rely on the API/mapper safety net that filters before persist.
+- **Public fields:** Display name, bio, approach prompt, prompt answers (onboarding), message content, reaction_prompt_title, reaction_prompt_answer.
+- **Do not** add new free-text fields that are stored publicly without wiring them through `useFilteredInput` and the censored preview. Use `<FilteredTextarea>` from `@/components/ui/FilteredTextarea` for multi-line public text, or wrap `<Input>` with the hook + `<CensoredPreview>`.
+
+---
+
 ## Lovable → React Native Translation Reference
 
 When referencing the Lovable web prototype, apply these conversions:

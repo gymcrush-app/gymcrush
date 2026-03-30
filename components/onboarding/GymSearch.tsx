@@ -95,7 +95,7 @@ export function GymSearch({
           {!isLoading && results.length === 0 && !error && (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                No gyms found for "{searchQuery}"
+                No gyms found for &quot;{searchQuery}&quot;
               </Text>
               <Text style={styles.emptySubtext}>
                 Try searching for a city or gym name

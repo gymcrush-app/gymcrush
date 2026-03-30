@@ -46,7 +46,10 @@ function ZoomableImage({
   const scale = useSharedValue(1)
   const isZooming = useSharedValue(0)
 
-  const { overlayScale, startZoom, endZoom } = useZoomPortal()
+  const { overlayScale, overlayTranslateX, overlayTranslateY, startZoom, endZoom } = useZoomPortal()
+
+  const panTranslateXSaved = useSharedValue(0)
+  const panTranslateYSaved = useSharedValue(0)
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
@@ -73,7 +76,6 @@ function ZoomableImage({
 
       if (isZooming.value === 1) {
         overlayScale.value = clamped
-        // Hold local scale at 1 — the portal image handles the visual zoom
         scale.value = 1
       } else {
         scale.value = clamped
@@ -84,15 +86,35 @@ function ZoomableImage({
 
       if (isZooming.value === 1) {
         isZooming.value = 0
-        // Parent (portal) animates overlayScale back via endZoom
         runOnJS(endZoom)()
       }
 
-      scale.value = withSpring(1, {
-        damping: 40,
-        stiffness: 300,
-      })
+      scale.value = withSpring(1, { damping: 40, stiffness: 300 })
     })
+
+  const panGesture = Gesture.Pan()
+    .minPointers(1)
+    .maxPointers(2)
+    .onStart(() => {
+      panTranslateXSaved.value = overlayTranslateX.value
+      panTranslateYSaved.value = overlayTranslateY.value
+    })
+    .onUpdate((e) => {
+      // Only allow panning while zoomed in
+      if (overlayScale.value > 1) {
+        overlayTranslateX.value = panTranslateXSaved.value + e.translationX
+        overlayTranslateY.value = panTranslateYSaved.value + e.translationY
+      }
+    })
+    .onFinalize(() => {
+      // If no longer zoomed, snap translations back
+      if (overlayScale.value <= 1.05) {
+        overlayTranslateX.value = withSpring(0, { damping: 40, stiffness: 300 })
+        overlayTranslateY.value = withSpring(0, { damping: 40, stiffness: 300 })
+      }
+    })
+
+  const composed = Gesture.Simultaneous(pinchGesture, panGesture)
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -104,7 +126,7 @@ function ZoomableImage({
       style={{ width, height, overflow: "hidden" }}
       collapsable={false}
     >
-      <GestureDetector gesture={pinchGesture}>
+      <GestureDetector gesture={composed}>
         <Animated.View style={[{ width, height }, animatedStyle]}>
           <Image
             source={{ uri }}

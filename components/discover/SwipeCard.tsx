@@ -13,10 +13,7 @@
 
 import React from 'react';
 import { View } from 'react-native';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
-import type { Profile } from '@/types';
-import type { SwipeAction } from '@/types';
+import type { Profile, SwipeAction } from '@/types';
 
 interface SwipeCardProps {
   profile: Profile;

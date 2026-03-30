@@ -16,7 +16,7 @@ import type { Message } from '@/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MessageSquare } from 'lucide-react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'burnt';
+import { toast } from '@/lib/toast';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -53,8 +53,6 @@ export default function RequestDetailScreen() {
 
   const messages = acceptedMatchId ? (chat.messages ?? []) : requestMessagesData;
   const showRequestActions = !acceptedMatchId && !acceptingInProgress;
-  const showInputArea = acceptedMatchId || acceptingInProgress;
-
   const handleAccept = useCallback(() => {
     if (!user || !senderId) return;
     setAcceptingInProgress(true);

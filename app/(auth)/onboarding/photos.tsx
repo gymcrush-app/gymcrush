@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from 'expo-router';
 import { Plus, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 const MIN_PHOTOS = 3;
@@ -57,7 +57,7 @@ export default function OnboardingPhotos() {
         const newPhotos = [...data.photos, result.assets[0].uri];
         updateData({ photos: newPhotos });
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     } finally {
       setIsPicking(false);
@@ -79,7 +79,7 @@ export default function OnboardingPhotos() {
   };
 
   return (
-    <OnboardingContainer currentStep={7} totalSteps={7} showBack={true}>
+    <OnboardingContainer currentStep={8} totalSteps={9} showBack={true}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>

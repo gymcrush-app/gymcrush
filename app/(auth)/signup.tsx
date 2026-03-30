@@ -2,17 +2,18 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { useAuthStore } from "@/lib/stores/authStore"
 import { useOnboardingStore } from "@/lib/stores/onboardingStore"
-import { supabase } from "@/lib/supabase"
+import { supabase, supabaseUrl } from "@/lib/supabase"
 import { signupSchema } from "@/lib/utils/validation"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "burnt"
+import { toast } from "@/lib/toast"
 import { Image } from "expo-image"
 import { Link, useRouter } from "expo-router"
 import { Eye, EyeOff } from "lucide-react-native"
 import React, { useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -67,8 +68,7 @@ export default function SignupScreen() {
 
       if (authData.session) {
         setSession(authData.session)
-        toast({ preset: "done", title: "Account created!" })
-        router.replace("/(auth)/onboarding")
+        // Navigation handled by AuthStateChangeHandler routing effect
       } else {
         toast({
           title: "Check your email",
@@ -76,7 +76,7 @@ export default function SignupScreen() {
         })
       }
     } catch (error: any) {
-      toast({ preset: "error", title: "Signup failed", message: error.message })
+      Alert.alert("Signup failed", error?.message ?? "Something went wrong.")
     } finally {
       setIsLoading(false)
     }
@@ -212,6 +212,14 @@ export default function SignupScreen() {
               <Text style={styles.signinLink}>Sign In</Text>
             </Link>
           </View>
+
+          <Text
+            style={styles.supabaseUrl}
+            numberOfLines={1}
+            ellipsizeMode="middle"
+          >
+            {supabaseUrl}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -286,5 +294,11 @@ const styles = StyleSheet.create({
   signinLink: {
     color: colors.primary,
     fontWeight: fontWeight.semibold,
+  },
+  supabaseUrl: {
+    marginTop: spacing[6],
+    color: colors.mutedForeground,
+    fontSize: fontSize.xs,
+    textAlign: "center",
   },
 })

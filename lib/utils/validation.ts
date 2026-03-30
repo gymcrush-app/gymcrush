@@ -32,11 +32,11 @@ export const onboardingSchema = z.object({
   photos: z.array(z.string().url('Invalid photo URL')).min(1, 'At least one photo is required').max(APP.MAX_PHOTOS, `Maximum ${APP.MAX_PHOTOS} photos allowed`),
   prompts: z.array(z.object({
     prompt: z.string().min(1, 'Prompt is required'),
-    answer: z.string().min(1, 'Answer is required').max(APP.MAX_APPROACH_PROMPT_LENGTH, `Answer must be at most ${APP.MAX_APPROACH_PROMPT_LENGTH} characters`),
+    answer: z.string().min(1, 'Answer is required').max(APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH, `Answer must be at most ${APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH} characters`),
   })).min(1, 'At least one prompt is required').max(3, 'Maximum 3 prompts allowed'),
   selectedGyms: z.array(z.string()).min(1, 'Select at least one gym'),
   // Legacy fields (optional for backward compatibility)
-  promptAnswer: z.string().max(APP.MAX_APPROACH_PROMPT_LENGTH, `Prompt answer must be at most ${APP.MAX_APPROACH_PROMPT_LENGTH} characters`).optional(),
+  promptAnswer: z.string().max(APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH, `Prompt answer must be at most ${APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH} characters`).optional(),
   selectedPrompt: z.string().optional(),
 });
 

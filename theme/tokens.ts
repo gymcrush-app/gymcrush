@@ -82,6 +82,12 @@ export const fontWeight = {
   extrabold: '800' as const,
 } as const;
 
+// Font family for swipe deck header (Myriad Pro). Loaded from assets/fonts/myriad-pro in app _layout.
+export const fontFamily = {
+  myriad: 'Myriad Pro',
+  myriadBold: 'Myriad Pro Bold',
+} as const;
+
 // Display font style (matches .font-display from Lovable CSS)
 export const fontDisplay = {
   fontWeight: fontWeight.bold,
@@ -105,9 +111,10 @@ export const duration = {
 
 export const swipe = {
   threshold: 120,          // px to trigger like/pass
+  verticalThreshold: 280,  // px to trigger vertical swipe (pull up/down)
   rotationFactor: 0.1,    // degrees per px of drag
   maxRotation: 20,         // matches swipe-right/left keyframe
-  velocityThreshold: 800,  // snap on fast fling
+  velocityThreshold: 600,  // snap on fast fling
 } as const;
 
 
@@ -118,13 +125,17 @@ export const APP = {
   CRUSH_COOLDOWN_MS: 86_400_000, // 24 hours
   MAX_BIO_LENGTH: 300,
   MAX_APPROACH_PROMPT_LENGTH: 100,
+  MAX_ONBOARDING_PROMPT_ANSWER_LENGTH: 225,
   GYM_SEARCH_DEBOUNCE_MS: 300,
   MIN_AGE: 18,
   MAX_AGE: 100,
   STORAGE_KEYS: {
     DISCOVERY_PREFERENCES: 'gymcrush_discovery_preferences',
     SWIPED_PROFILES: 'gymcrush_swiped_profiles',
+    SKIPPED_PROFILES: 'gymcrush_skipped_profiles',
+    DISCOVER_TOOLTIPS_SEEN: 'gymcrush_discover_tooltips_seen',
     LAST_LOCATION_SYNC: 'gymcrush_last_location_sync_v1',
+    DEV_LOCATION_OVERRIDE: 'gymcrush_dev_location_override',
     AUTH: 'auth-storage',
     APP: 'app-storage',
     ONBOARDING: 'onboarding-storage',

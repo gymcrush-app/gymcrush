@@ -4,6 +4,8 @@ import { MessageCircle } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+const PROMPT_TITLE_FONT_SIZE = 10;
+
 interface PromptItemProps {
   title: string;
   answer: string;
@@ -14,7 +16,7 @@ export const PromptItem = React.memo<PromptItemProps>(({ title, answer, onPress 
   return (
     <View>
       <View style={styles.header}>
-        <Text variant="label" weight="semibold">
+        <Text variant="mutedXSmall" weight="semibold" style={styles.promptTitle}>
           {title}
         </Text>
         <Pressable onPress={onPress}>
@@ -36,5 +38,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing[2],
+  },
+  promptTitle: {
+    fontSize: PROMPT_TITLE_FONT_SIZE,
   },
 });

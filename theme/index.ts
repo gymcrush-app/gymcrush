@@ -7,6 +7,4 @@
  */
 
 export { colors, gradients, palette, shadows } from './colors';
-export {
-  APP, borderRadius, duration, fontDisplay, fontSize, fontWeight, lineHeight, spacing, swipe
-} from './tokens';
+export { APP, borderRadius, duration, fontDisplay, fontFamily, fontSize, fontWeight, lineHeight, spacing, swipe } from './tokens';

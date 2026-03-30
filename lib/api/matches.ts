@@ -25,12 +25,16 @@ export function useLike() {
         })
         .select()
         .single();
+      // Already liked (unique constraint) — treat as success so we still run match check
+      if (error?.code === '23505') {
+        return { from_user_id: user.id, to_user_id: toUserId, toUserId };
+      }
       if (error) throw error;
       return { ...data, toUserId };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['matches'] });
-      // Invalidate the specific match check query for this user pair
+      queryClient.invalidateQueries({ queryKey: ['likedProfileIds', user?.id] });
       if (data.from_user_id && data.toUserId) {
         queryClient.invalidateQueries({ 
           queryKey: ['match', data.from_user_id, data.toUserId] 
@@ -64,13 +68,18 @@ export function useCrushSignal() {
         })
         .select()
         .single();
+      // Already sent crush (unique constraint) — treat as success so we still run match check
+      if (error?.code === '23505') {
+        recordCrushSignal();
+        return { from_user_id: user.id, to_user_id: toUserId, toUserId };
+      }
       if (error) throw error;
       recordCrushSignal();
       return { ...data, toUserId };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['matches'] });
-      // Invalidate the specific match check query for this user pair
+      queryClient.invalidateQueries({ queryKey: ['likedProfileIds', user?.id] });
       if (data.from_user_id && data.toUserId) {
         queryClient.invalidateQueries({ 
           queryKey: ['match', data.from_user_id, data.toUserId] 
@@ -80,6 +89,28 @@ export function useCrushSignal() {
         });
       }
     },
+  });
+}
+
+/**
+ * Profile IDs the current user has liked (sent a like or crush to).
+ * Used by discover to exclude already-liked profiles from the feed.
+ */
+export function useLikedProfileIds() {
+  const user = useAuthStore((s) => s.user);
+
+  return useQuery({
+    queryKey: ['likedProfileIds', user?.id],
+    queryFn: async (): Promise<string[]> => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('likes')
+        .select('to_user_id')
+        .eq('from_user_id', user.id);
+      if (error) throw error;
+      return (data ?? []).map((row) => row.to_user_id);
+    },
+    enabled: !!user,
   });
 }
 
@@ -217,6 +248,28 @@ export function useMarkMatchViewed() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['conversations', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['match', variables.matchId] });
+    },
+  });
+}
+
+/**
+ * Unmatch: delete the match (messages cascade-delete via FK).
+ * Requires RLS policy allowing DELETE for user1_id = auth.uid() OR user2_id = auth.uid().
+ */
+export function useUnmatch() {
+  const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ matchId }: { matchId: string }) => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase.from('matches').delete().eq('id', matchId);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['matches', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['match', variables.matchId] });
     },
   });

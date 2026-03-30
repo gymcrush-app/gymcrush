@@ -14,7 +14,7 @@ export const AboutSection = React.memo<AboutSectionProps>(({ bio }) => {
 
   return (
     <View style={styles.container}>
-      <Text variant="h4" style={styles.title}>ABOUT</Text>
+      <Text variant="h4" style={styles.title}>When I{"'"}m Not At The Gym</Text>
       <Text variant="body" style={{ lineHeight: fontSize.base * 1.5 }}>
         {bio}
       </Text>

@@ -2,7 +2,7 @@ import { colors, spacing } from '@/theme';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, X } from 'lucide-react-native';
-import React from 'react';
+import React, { createContext, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OnboardingProgress } from './OnboardingProgress';
@@ -14,6 +14,9 @@ import { OnboardingProgress } from './OnboardingProgress';
 // 2. Or rename the file to remove the space (e.g., "GymCrushBackground.jpg")
 // 3. Or use a different background file without spaces
 const backgroundImage = require('@/assets/images/GymCrushBackground.jpg');
+
+type ScrollViewRef = React.ElementRef<typeof ScrollView>;
+export const OnboardingScrollContext = createContext<React.RefObject<ScrollViewRef | null> | null>(null);
 
 interface OnboardingContainerProps {
   currentStep: number;
@@ -35,6 +38,7 @@ export function OnboardingContainer({
   children,
 }: OnboardingContainerProps) {
   const router = useRouter();
+  const scrollViewRef = useRef<ScrollViewRef>(null);
 
   const handleBack = () => {
     if (onBack) {
@@ -55,6 +59,7 @@ export function OnboardingContainer({
   // Use single background image for all onboarding screens
 
   return (
+    <OnboardingScrollContext.Provider value={scrollViewRef}>
     <View style={styles.wrapper}>
       {/* Background image - full screen, no safe area constraints */}
       <Image
@@ -71,6 +76,7 @@ export function OnboardingContainer({
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardAvoidingView}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
         >
           <View style={styles.container}>
             {/* Header with back button and progress */}
@@ -100,6 +106,7 @@ export function OnboardingContainer({
 
           {/* Content */}
           <ScrollView
+            ref={scrollViewRef}
             style={styles.scrollView}
             contentContainerStyle={styles.scrollViewContent}
             keyboardShouldPersistTaps="handled"
@@ -110,6 +117,7 @@ export function OnboardingContainer({
       </KeyboardAvoidingView>
     </SafeAreaView>
     </View>
+    </OnboardingScrollContext.Provider>
   );
 }
 
@@ -178,5 +186,6 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     flexGrow: 1,
     paddingHorizontal: spacing[6],
+    paddingBottom: spacing[32],
   },
 });

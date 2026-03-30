@@ -1,3 +1,5 @@
+import { CensoredPreview } from '@/components/ui/CensoredPreview';
+import { useFilteredInput } from '@/hooks/useFilteredInput';
 import { borderRadius, colors, fontSize, spacing } from '@/theme';
 import { Send } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -13,21 +15,21 @@ const MAX_INPUT_HEIGHT = 100;
 const MIN_INPUT_HEIGHT = 40;
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
-  const [message, setMessage] = useState('');
+  const messageInput = useFilteredInput('');
   const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
 
   const handleSend = () => {
-    const trimmed = message.trim();
+    const trimmed = messageInput.getFilteredValue().trim();
     if (trimmed.length > 0 && !disabled) {
       onSend(trimmed);
-      setMessage('');
+      messageInput.setValue('');
       setInputHeight(MIN_INPUT_HEIGHT);
     }
   };
 
   const handleChangeText = (text: string) => {
     if (text.length <= MAX_MESSAGE_LENGTH) {
-      setMessage(text);
+      messageInput.onChangeText(text);
     }
   };
 
@@ -39,7 +41,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     setInputHeight(height);
   };
 
-  const canSend = message.trim().length > 0 && !disabled;
+  const canSend = messageInput.value.trim().length > 0 && !disabled;
 
   return (
     <View style={styles.container}>
@@ -52,7 +54,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           placeholder="Type a message..."
           placeholderTextColor={colors.mutedForeground}
           multiline
-          value={message}
+          value={messageInput.value}
           onChangeText={handleChangeText}
           onContentSizeChange={handleContentSizeChange}
           editable={!disabled}
@@ -73,6 +75,10 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           />
         </Pressable>
       </View>
+      <CensoredPreview
+        filtered={messageInput.filteredPreview}
+        show={messageInput.hasBadWords}
+      />
     </View>
   );
 }

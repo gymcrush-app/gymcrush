@@ -1,22 +1,41 @@
 /**
- * Row of fitness discipline badges. Horizontal chips with secondary styling.
+ * Row of fitness discipline badges. Horizontal chips with primary (peach) styling.
  */
 
 import React from 'react';
-import { View, Text } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
+import { colors, fontSize, fontWeight, spacing } from '@/theme';
 
 interface FitnessBadgesProps {
   disciplines: string[];
 }
 
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  chip: {
+    backgroundColor: colors.primary,
+    borderRadius: 9999,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+  },
+  chipText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.primaryForeground,
+  },
+});
+
 export function FitnessBadges({ disciplines }: FitnessBadgesProps) {
   return (
-    <View className="flex-row flex-wrap gap-2">
+    <View style={styles.row}>
       {disciplines.map((discipline, index) => (
-        <View key={index} className="bg-secondary rounded-full px-3 py-1">
-          <Text className="text-secondary-foreground font-medium text-xs">
-            {discipline}
-          </Text>
+        <View key={index} style={styles.chip}>
+          <Text style={styles.chipText}>{discipline}</Text>
         </View>
       ))}
     </View>

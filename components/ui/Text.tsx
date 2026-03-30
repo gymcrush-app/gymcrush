@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text as RNText, TextStyle, StyleSheet } from 'react-native';
-import { colors, fontSize, fontWeight, lineHeight } from '@/theme';
+import { Text as RNText, TextStyle } from 'react-native';
+import { colors, fontWeight } from '@/theme';
 import { textStyles } from '@/lib/styles';
 
 type TextVariant =

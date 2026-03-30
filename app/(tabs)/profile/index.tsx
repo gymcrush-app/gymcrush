@@ -4,8 +4,8 @@ import { useSignOut } from '@/lib/api/auth';
 import { useGymById } from '@/lib/api/gyms';
 import { useProfile, useUpdateProfile } from '@/lib/api/profiles';
 import { colors, spacing } from '@/theme';
+import { toast } from '@/lib/toast';
 import type { Profile } from '@/types';
-import { toast } from 'burnt';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +21,6 @@ export default function ProfileScreen() {
   const handleUpdateProfile = async (updates: Partial<Profile>) => {
     try {
       await updateProfile.mutateAsync(updates);
-      toast({ preset: 'done', title: 'Profile updated' });
     } catch (error) {
       console.error('Failed to update profile:', error);
       toast({ 

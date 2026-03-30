@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PermissionStatus } from 'expo-location';
 import { useLocation } from '@/hooks/useLocation';
+import { registerDevLocationRefresh } from '@/lib/devLocationRefresh';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppState } from 'react-native';
 import { supabase } from '@/lib/supabase';
@@ -40,7 +41,10 @@ export function useSyncLastLocation() {
   const inFlightRef = useRef(false);
 
   const canSync = useMemo(
-    () => !!user?.id && permissionStatus === PermissionStatus.GRANTED && !!location,
+    () =>
+      !!user?.id &&
+      !!location &&
+      (permissionStatus === PermissionStatus.GRANTED || __DEV__),
     [user?.id, permissionStatus, location]
   );
 
@@ -107,6 +111,14 @@ export function useSyncLastLocation() {
       }
     });
     return () => sub.remove();
+  }, [refreshLocation]);
+
+  // Dev: allow Profile dev button to trigger refresh so we sync override immediately.
+  useEffect(() => {
+    if (__DEV__) {
+      registerDevLocationRefresh(refreshLocation);
+      return () => registerDevLocationRefresh(null);
+    }
   }, [refreshLocation]);
 }
 

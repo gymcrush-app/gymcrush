@@ -62,18 +62,18 @@ export function ConfettiAnimation({ active }: ConfettiAnimationProps) {
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
       <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFillObject}>
         {particles.map((particle) => (
-          <ConfettiParticle key={particle.id} particle={particle} />
+          <ConfettiParticleItem key={particle.id} particle={particle} />
         ))}
       </Svg>
     </View>
   );
 }
 
-interface ConfettiParticleProps {
+interface ConfettiParticleItemProps {
   particle: ConfettiParticle;
 }
 
-function ConfettiParticle({ particle }: ConfettiParticleProps) {
+function ConfettiParticleItem({ particle }: ConfettiParticleItemProps) {
   const translateY = useSharedValue(particle.y);
   const translateX = useSharedValue(particle.x);
   const rotation = useSharedValue(0);

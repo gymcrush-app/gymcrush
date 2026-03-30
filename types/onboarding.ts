@@ -1,9 +1,9 @@
 /**
  * Onboarding Types - Aligned with Lovable Prototype
- * 
+ *
  * This file contains the onboarding-specific types that match the Lovable prototype.
  * The onboarding flow maps to these steps:
- * 
+ *
  * 1. account (index.tsx) - Full name, date of birth, email, password
  * 2. intent (intent.tsx) - What are you looking for? (meet_trainer, casual, longterm, open)
  * 3. discipline (discipline.tsx) - Fitness disciplines selection
@@ -13,82 +13,84 @@
  * 7. complete - Final step, create profile
  */
 
-export type OnboardingStep = 
-  | 'account'
-  | 'intent'
-  | 'discipline'
-  | 'frequency'
-  | 'gymPreferences'
-  | 'profile'
-  | 'complete';
+export type OnboardingStep =
+  | "account"
+  | "intent"
+  | "discipline"
+  | "frequency"
+  | "gymPreferences"
+  | "profile"
+  | "complete"
 
-export type Intent = 
-  | 'meet_trainer'
-  | 'casual'
-  | 'longterm'
-  | 'open';
+export type Intent = "shortterm" | "longterm" | "open"
 
-export type FitnessDiscipline = 
-  | 'bodybuilding'
-  | 'powerlifting'
-  | 'crossfit'
-  | 'olympic'
-  | 'functional'
-  | 'yoga'
-  | 'running'
-  | 'sports'
-  | 'general';
+export type FitnessDiscipline =
+  | "bodybuilding"
+  | "powerlifting"
+  | "crossfit"
+  | "olympic"
+  | "functional"
+  | "yoga"
+  | "running"
+  | "sports"
+  | "general"
 
-export type TrainingFrequency = '1-2' | '3-4' | '5+';
+export type TrainingFrequency = "1-2" | "3-4" | "5+"
 
-export type FitnessLifestyle = 
-  | 'gym_life'
-  | 'balanced'
-  | 'starting'
-  | 'on_off';
+/** Preferred time of day for gym (stored in discovery_preferences) */
+export type PreferredTimeOfDay =
+  | "morning"
+  | "afternoon"
+  | "evening"
+  | "when_i_can"
 
-export type ApproachPreference = 'yes' | 'sometimes' | 'no';
+export type FitnessLifestyle = "gym_life" | "balanced" | "starting" | "on_off"
+
+export type ApproachPreference = "yes" | "sometimes" | "no"
 
 export interface GooglePlaceGym {
-  place_id: string;
-  name: string;
-  formatted_address: string;
-  location?: { lat: number; lng: number };
+  place_id: string
+  name: string
+  formatted_address: string
+  location?: { lat: number; lng: number }
 }
 
 export interface PromptAnswer {
-  prompt: string;
-  answer: string;
+  prompt: string
+  answer: string
 }
 
 export interface OnboardingData {
-  fullName: string;
-  dateOfBirth: Date | null;
-  gender: 'male' | 'female' | null;
-  height: string | null; // Format: "5'10""
-  email: string;
-  password: string;
-  intents: Intent[];
-  disciplines: FitnessDiscipline[];
-  trainingFrequency: TrainingFrequency | null;
-  fitnessLifestyle: FitnessLifestyle | null;
-  approachPreference: ApproachPreference | null;
-  showStatusPublicly: boolean;
-  photos: string[];
-  prompts: PromptAnswer[]; // Array of up to 3 prompts
-  selectedGyms: string[];
+  fullName: string
+  dateOfBirth: Date | null
+  gender: "male" | "female" | null
+  height: string | null // Format: "5'10""
+  occupation: string | null
+  email: string
+  password: string
+  intents: Intent[]
+  disciplines: FitnessDiscipline[]
+  trainingFrequency: TrainingFrequency | null
+  fitnessLifestyle: FitnessLifestyle | null
+  approachPreference: ApproachPreference | null
+  showStatusPublicly: boolean
+  photos: string[]
+  prompts: PromptAnswer[] // Array of up to 3 prompts
+  selectedGyms: string[]
+  interestedInGender: "men" | "women" | "everyone" | null
   // Legacy fields for backward compatibility (will be removed)
-  promptAnswer: string;
-  selectedPrompt: string;
+  promptAnswer: string
+  selectedPrompt: string
 }
 
 export const INITIAL_ONBOARDING_DATA: OnboardingData = {
-  fullName: '',
+  fullName: "",
   dateOfBirth: null,
   gender: null,
   height: null,
-  email: '',
-  password: '',
+  occupation: null,
+  email: "",
+  password: "",
   intents: [],
   disciplines: [],
   trainingFrequency: null,
@@ -98,10 +100,11 @@ export const INITIAL_ONBOARDING_DATA: OnboardingData = {
   photos: [],
   prompts: [],
   selectedGyms: [],
+  interestedInGender: null,
   // Legacy fields
-  promptAnswer: '',
-  selectedPrompt: '',
-};
+  promptAnswer: "",
+  selectedPrompt: "",
+}
 
 export const FITNESS_PROMPTS = [
   "My gym hot take is...",
@@ -112,4 +115,4 @@ export const FITNESS_PROMPTS = [
   "The exercise I love to hate is...",
   "My gym playlist always includes...",
   "After leg day, I'm usually...",
-] as const;
+] as const

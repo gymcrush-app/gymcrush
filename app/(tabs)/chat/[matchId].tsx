@@ -132,7 +132,7 @@ export default function ChatScreen() {
           <MessageSquare size={48} color={colors.mutedForeground} />
           <Text style={styles.errorTitle}>Conversation not found</Text>
           <Text style={styles.errorSubtitle}>
-            This chat may have been removed or you don't have access to it.
+            This chat may have been removed or you don{"'"}t have access to it.
           </Text>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backButtonText}>Go back</Text>

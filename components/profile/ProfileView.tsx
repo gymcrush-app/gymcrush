@@ -1,16 +1,25 @@
-import { BraceletBadge } from '@/components/profile/BraceletBadge';
+import { AboutSection } from '@/components/profile/AboutSection';
+import { ProfileInfoBox } from '@/components/profile/ProfileInfoBox';
+import { FitnessBadges } from '@/components/profile/FitnessBadges';
+import { PhotoCarousel } from '@/components/profile/PhotoCarousel';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
 import { Switch } from '@/components/ui/Switch';
 import { Text } from '@/components/ui/Text';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
-import type { BraceletStatus, Gym, Profile, Visibility } from '@/types';
-import { Image as ExpoImage } from 'expo-image';
+import { MERIDIAN_ID_COORDS, VISIBILITY_OPTIONS } from '@/constants';
+import { triggerDevLocationRefresh } from '@/lib/devLocationRefresh';
+import { formatIntents } from '@/lib/utils/formatting';
+import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import type { Gym, Profile, Visibility } from '@/types';
+import type { FitnessDiscipline, Intent } from '@/types/onboarding';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { ChevronRight, LogOut, Settings } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React from 'react';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { toast } from '@/lib/toast';
 
-import { BRACELET_OPTIONS, VISIBILITY_OPTIONS } from '@/constants';
+const DEFAULT_APPROACH_PROMPT = "I'm open to being approached at the gym";
 
 interface ProfileViewProps {
   profile: Profile;
@@ -27,15 +36,6 @@ const styles = StyleSheet.create({
   photoContainer: {
     position: 'relative',
   },
-  photoIndicatorsContainer: {
-    position: 'absolute',
-    bottom: spacing[4],
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   editButtonContainer: {
     position: 'absolute',
     bottom: spacing[4],
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize['2xl'],
     fontWeight: fontWeight.bold,
   },
-  gymTextContainer: {
+  gymSubtext: {
     marginTop: spacing[1],
   },
   visibilitySection: {
@@ -76,37 +76,6 @@ const styles = StyleSheet.create({
   },
   visibilityOptionDescription: {
     marginTop: spacing[1],
-  },
-  braceletSection: {
-    gap: spacing[3],
-  },
-  braceletHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'nowrap',
-  },
-  braceletOptionsContainer: {
-    flexDirection: 'row',
-    gap: spacing[2],
-  },
-  braceletOption: {
-    flex: 1,
-    paddingVertical: spacing[3],
-    paddingHorizontal: spacing[2],
-    borderRadius: borderRadius.xl,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  braceletOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '1A', // 10% opacity
-  },
-  braceletOptionText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    textAlign: 'center',
   },
   approachSection: {
     gap: spacing[3],
@@ -153,23 +122,38 @@ const styles = StyleSheet.create({
     color: colors.destructive,
     fontWeight: fontWeight.semibold,
   },
+  devSection: {
+    marginTop: spacing[6],
+    paddingTop: spacing[4],
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing[2],
+  },
+  devSectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.mutedForeground,
+    marginBottom: spacing[2],
+  },
 });
 
 export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: ProfileViewProps) {
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [braceletStatus, setBraceletStatus] = useState<BraceletStatus>('wearing'); // Local state until added to DB
+  const router = useRouter();
+
+  const { width: SCREEN_WIDTH } = Dimensions.get('window');
+  const photoHeight = SCREEN_WIDTH * (3 / 4);
 
   // Map Profile to display format
   const photos = profile.photo_urls || [];
-  const photoUri =
-    photos.length > 0
-      ? (photos[currentPhotoIndex] ?? photos[0])
-      : null;
-  const hasValidPhoto = Boolean(photoUri && String(photoUri).trim());
   const name = profile.display_name;
   const age = profile.age;
   const visibility: Visibility = profile.is_visible ? 'visible' : 'paused';
   const openToApproach = !!profile.approach_prompt;
+
+  const discoveryPrefs = profile.discovery_preferences as { intents?: Intent[] } | null | undefined;
+  const intents = (discoveryPrefs?.intents ?? []) as Intent[];
+  const formattedIntents = formatIntents(intents);
+  const disciplines = (profile.fitness_disciplines ?? []) as FitnessDiscipline[];
 
   const handleVisibilityChange = (newVisibility: Visibility) => {
     // Map visibility back to is_visible boolean
@@ -177,17 +161,34 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
     onUpdateProfile({ is_visible: isVisible });
   };
 
-  const handleBraceletStatusChange = (newStatus: BraceletStatus) => {
-    // For now, bracelet status is stored in local state
-    // TODO: Add bracelet_status field to database and persist
-    setBraceletStatus(newStatus);
+  const handleOpenToApproachChange = (checked: boolean) => {
+    if (checked) {
+      onUpdateProfile({ approach_prompt: DEFAULT_APPROACH_PROMPT });
+    } else {
+      onUpdateProfile({ approach_prompt: null });
+    }
   };
 
-  const handleOpenToApproachChange = (checked: boolean) => {
-    // If unchecked, clear approach_prompt; if checked, we'd need a prompt value
-    // For now, just log it - this might need a separate prompt input
-    if (!checked) {
-      onUpdateProfile({ approach_prompt: null });
+  const handleSetLocationMeridian = async () => {
+    try {
+      await AsyncStorage.setItem(
+        APP.STORAGE_KEYS.DEV_LOCATION_OVERRIDE,
+        JSON.stringify(MERIDIAN_ID_COORDS)
+      );
+      triggerDevLocationRefresh();
+    } catch (e) {
+      console.warn('Failed to set dev location override:', e);
+      toast({ preset: 'error', title: 'Failed to set location' });
+    }
+  };
+
+  const handleClearLocationOverride = async () => {
+    try {
+      await AsyncStorage.removeItem(APP.STORAGE_KEYS.DEV_LOCATION_OVERRIDE);
+      triggerDevLocationRefresh();
+    } catch (e) {
+      console.warn('Failed to clear dev location override:', e);
+      toast({ preset: 'error', title: 'Failed to clear location' });
     }
   };
 
@@ -197,37 +198,11 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
       contentContainerStyle={{ paddingBottom: spacing[24] }}
     >
       {/* Photo carousel */}
-      <View style={[styles.photoContainer, { aspectRatio: 4 / 3, backgroundColor: colors.muted }]}>
-        {hasValidPhoto ? (
-          <ExpoImage
-            source={{ uri: photoUri! }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            placeholder={colors.muted}
-          />
-        ) : (
+      <View style={[styles.photoContainer, { height: photoHeight, backgroundColor: colors.muted }]}>
+        {photos.length === 0 ? (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.muted }]} />
-        )}
-        
-        {/* Photo indicators */}
-        {photos.length > 1 && (
-          <View 
-            style={[styles.photoIndicatorsContainer, { gap: spacing[1.5] }]}
-          >
-            {photos.map((_, index) => (
-              <Pressable
-                key={index}
-                onPress={() => setCurrentPhotoIndex(index)}
-                style={{
-                  width: index === currentPhotoIndex ? 8 : 6,
-                  height: index === currentPhotoIndex ? 8 : 6,
-                  borderRadius: 4,
-                  backgroundColor: index === currentPhotoIndex ? colors.card : `${colors.card}80`,
-                }}
-              />
-            ))}
-          </View>
+        ) : (
+          <PhotoCarousel photos={photos} height={photoHeight} width={SCREEN_WIDTH} />
         )}
 
         {/* Edit button */}
@@ -238,6 +213,7 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
             style={{
               backgroundColor: `${colors.card}E6`, // ~90% opacity
             }}
+            onPress={() => router.push('/(tabs)/profile/edit')}
           >
             Edit Profile
           </Button>
@@ -251,11 +227,26 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
             {name}, {age}
           </Text>
           {gym && (
-            <Text variant="muted" style={styles.gymTextContainer}>
-              📍 {gym.name}
+            <Text variant="mutedSmall" color="muted" style={styles.gymSubtext}>
+              {gym.name}
             </Text>
           )}
         </View>
+
+        <ProfileInfoBox
+          height={profile.height ?? null}
+          intent={formattedIntents}
+          occupation={profile.occupation ?? null}
+          city={gym?.city ?? null}
+        />
+
+        <AboutSection bio={profile.bio ?? null} />
+
+        {disciplines.length > 0 && (
+          <View>
+            <FitnessBadges disciplines={disciplines} />
+          </View>
+        )}
 
         {/* Visibility */}
         <View style={styles.visibilitySection}>
@@ -279,35 +270,13 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
           </View>
         </View>
 
-        {/* Bracelet Status */}
-        <View style={styles.braceletSection}>
-          <View style={styles.braceletHeader}>
-            <Label>Gym Status</Label>
-            <BraceletBadge status={braceletStatus} />
-          </View>
-          <View style={styles.braceletOptionsContainer}>
-            {BRACELET_OPTIONS.map((option) => (
-              <Pressable
-                key={option.value}
-                onPress={() => handleBraceletStatusChange(option.value)}
-                style={[
-                  styles.braceletOption,
-                  braceletStatus === option.value && styles.braceletOptionSelected,
-                ]}
-              >
-                <Text style={styles.braceletOptionText}>{option.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
         {/* Open to Approach */}
         <View style={styles.approachSection}>
           <View style={styles.approachHeader}>
             <View style={styles.approachTextContainer}>
               <Label>Open to being approached</Label>
               <Text variant="mutedSmall" style={styles.approachDescription}>
-                Let others know you're comfortable being approached in person at the gym
+                Let others know you{"'"}re comfortable being approached in person at the gym
               </Text>
             </View>
             <Switch
@@ -319,7 +288,10 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
 
         {/* Settings section */}
         <View style={styles.settingsSection}>
-          <Pressable style={styles.settingsItem}>
+          <Pressable
+            style={styles.settingsItem}
+            onPress={() => router.push('/(tabs)/profile/settings')}
+          >
             <View style={[styles.settingsItemContent, { gap: spacing[3] }]}>
               <Settings size={20} color={colors.mutedForeground} />
               <Text weight="medium">Settings</Text>
@@ -334,6 +306,18 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
             <LogOut size={20} color={colors.destructive} style={{ marginRight: spacing[3] }} />
             <Text style={styles.logoutText}>Log Out</Text>
           </Pressable>
+
+          {__DEV__ && (
+            <View style={styles.devSection}>
+              <Text style={styles.devSectionTitle}>Developer</Text>
+              <Button variant="outline" size="sm" onPress={handleSetLocationMeridian}>
+                Set location to Meridian, ID
+              </Button>
+              <Button variant="outline" size="sm" onPress={handleClearLocationOverride}>
+                Clear location override
+              </Button>
+            </View>
+          )}
         </View>
       </View>
     </ScrollView>

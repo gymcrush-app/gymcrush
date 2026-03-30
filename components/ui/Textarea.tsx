@@ -1,5 +1,5 @@
 import React, { forwardRef, useState } from 'react';
-import { TextInput, Text, View, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { TextInput, Text, View, StyleSheet, ViewStyle } from 'react-native';
 import { colors, spacing, borderRadius, fontSize, fontWeight } from '@/theme';
 import type { TextInputProps } from 'react-native';
 

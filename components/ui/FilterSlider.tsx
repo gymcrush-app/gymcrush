@@ -1,8 +1,9 @@
+import { FilterTriggerButton } from '@/components/ui/FilterTriggerButton';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import { usesMiles, kmToMiles, milesToKm, formatDistance } from '@/lib/utils/locale';
-import Slider from '@react-native-community/slider';
-import React, { useCallback, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Dimensions, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 interface FilterSliderProps {
   value: number | null;
@@ -38,24 +39,12 @@ export function FilterSlider({
   }, [onOpen]);
 
   return (
-    <Pressable
+    <FilterTriggerButton
+      label={displayValue}
+      active={hasValue}
       onPress={handlePress}
-      style={[
-        styles.triggerButton,
-        hasValue && styles.triggerButtonActive,
-        style,
-      ]}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-    >
-      <Text
-        style={[
-          styles.triggerText,
-          hasValue ? styles.triggerTextActive : styles.triggerTextPlaceholder,
-        ]}
-      >
-        {displayValue}
-      </Text>
-    </Pressable>
+      style={style}
+    />
   );
 }
 
@@ -67,6 +56,7 @@ export interface FilterSliderContentProps {
   unit: string;
   onValueChange: (value: number) => void;
   onClear: () => void;
+  onRequestClose?: () => void;
 }
 
 export function FilterSliderContent({
@@ -77,45 +67,92 @@ export function FilterSliderContent({
   unit,
   onValueChange,
   onClear,
+  onRequestClose,
 }: FilterSliderContentProps) {
   // Value is always in km internally, convert for display if needed
   const useMiles = unit === 'km' ? usesMiles() : unit === 'mi';
-  
-  // Convert km values to miles for display if needed (round up)
-  const displayValue = useMiles ? Math.ceil(kmToMiles(value)) : Math.ceil(value);
+  const isDraggingRef = useRef(false);
+
+  const displayValueFromProp = useMemo(() => (useMiles ? Math.ceil(kmToMiles(value)) : Math.ceil(value)), [value, useMiles]);
   const displayMin = useMiles ? Math.ceil(kmToMiles(min)) : Math.ceil(min);
   const displayMax = useMiles ? Math.ceil(kmToMiles(max)) : Math.ceil(max);
   const displayUnit = useMiles ? 'miles' : 'km';
-  
-  // Convert miles back to km when value changes
-  const handleValueChange = useCallback((newValue: number) => {
-    const valueInKm = useMiles ? Math.round(milesToKm(newValue)) : newValue;
+
+  const [localDisplayValue, setLocalDisplayValue] = useState(displayValueFromProp);
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setLocalDisplayValue(displayValueFromProp);
+    }
+  }, [displayValueFromProp]);
+
+  const sliderLength = Dimensions.get('window').width - (spacing[4] * 2 + spacing[2] * 2);
+
+  const handleValuesChange = useCallback(
+    (values: number[]) => {
+      isDraggingRef.current = true;
+      const raw = values[0] ?? localDisplayValue;
+      const clamped = Math.max(displayMin, Math.min(displayMax, raw));
+      setLocalDisplayValue(clamped);
+      // Don't update parent during drag – only on release to avoid refresh flicker
+    },
+    [displayMin, displayMax, localDisplayValue]
+  );
+
+  const handleValuesChangeStart = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
+  const handleValuesChangeFinish = useCallback(
+    (values: number[]) => {
+      const raw = values[0] ?? localDisplayValue;
+      const clamped = Math.max(displayMin, Math.min(displayMax, raw));
+      setLocalDisplayValue(clamped);
+      isDraggingRef.current = false;
+      // Don't update parent on release – only when Update is pressed
+    },
+    [displayMin, displayMax, localDisplayValue]
+  );
+
+  const handleUpdate = useCallback(() => {
+    const valueInKm = useMiles ? Math.round(milesToKm(localDisplayValue)) : localDisplayValue;
     onValueChange(valueInKm);
-  }, [useMiles, onValueChange]);
+    onRequestClose?.();
+  }, [localDisplayValue, useMiles, onValueChange, onRequestClose]);
+
+  const _handleClear = useCallback(() => {
+    onClear();
+    onRequestClose?.();
+  }, [onClear, onRequestClose]);
 
   return (
     <View style={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>{label}</Text>
-        <Pressable onPress={onClear}>
-          <Text style={styles.clearButton}>Clear</Text>
+        <Pressable onPress={handleUpdate} style={styles.updateButton}>
+          <Text style={styles.updateButtonText}>Update</Text>
         </Pressable>
       </View>
 
       <View style={styles.sliderContent}>
-        <Text style={styles.currentValue}>{displayValue} {displayUnit}</Text>
+        <Text style={styles.currentValue}>{localDisplayValue} {displayUnit}</Text>
 
-        <Slider
-          style={styles.slider}
-          minimumValue={displayMin}
-          maximumValue={displayMax}
-          value={displayValue}
-          onValueChange={handleValueChange}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.secondary}
-          thumbTintColor={colors.primary}
-          step={1}
-        />
+        <View style={styles.multiSliderContainer}>
+          <MultiSlider
+            values={[localDisplayValue]}
+            onValuesChange={handleValuesChange}
+            onValuesChangeStart={handleValuesChangeStart}
+            onValuesChangeFinish={handleValuesChangeFinish}
+            min={displayMin}
+            max={displayMax}
+            step={1}
+            sliderLength={sliderLength}
+            selectedStyle={styles.selectedTrack}
+            unselectedStyle={styles.unselectedTrack}
+            trackStyle={styles.track}
+            markerStyle={styles.marker}
+            pressedMarkerStyle={styles.pressedMarker}
+          />
+        </View>
 
         <View style={styles.rangeLabels}>
           <Text style={styles.rangeLabel}>{displayMin} {displayUnit}</Text>
@@ -128,19 +165,6 @@ export function FilterSliderContent({
 
 
 const styles = StyleSheet.create({
-  triggerButton: {
-    backgroundColor: colors.input,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[1],
-    borderWidth: 1,
-    borderColor: colors.border,
-    // minHeight: 44,
-    justifyContent: 'center',
-  },
-  triggerButtonActive: {
-    borderColor: colors.primary,
-  },
   triggerButtonOpen: {
     borderColor: colors.primary,
     borderBottomWidth: 0,
@@ -196,20 +220,16 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
     paddingBottom: spacing[6],
   },
-  triggerText: {
+  updateButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4],
+    borderRadius: borderRadius.lg,
+  },
+  updateButtonText: {
     fontSize: fontSize.base,
-    textAlign: 'center',
-  },
-  triggerTextActive: {
-    color: colors.foreground,
-  },
-  triggerTextPlaceholder: {
-    color: colors.mutedForeground,
-  },
-  clearButton: {
-    fontSize: fontSize.base,
-    color: colors.primary,
-    fontWeight: fontWeight.medium,
+    color: colors.primaryForeground,
+    fontWeight: fontWeight.semibold,
   },
   currentValue: {
     fontSize: fontSize['2xl'],
@@ -218,10 +238,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing[6],
   },
-  slider: {
-    width: '100%',
-    height: 40,
+  multiSliderContainer: {
     marginBottom: spacing[4],
+  },
+  track: {
+    height: 2,
+    borderRadius: 2,
+  },
+  selectedTrack: {
+    backgroundColor: colors.primary,
+  },
+  unselectedTrack: {
+    backgroundColor: colors.muted,
+  },
+  marker: {
+    height: 24,
+    width: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  pressedMarker: {
+    height: 28,
+    width: 28,
+    borderRadius: 14,
   },
   rangeLabels: {
     flexDirection: 'row',
@@ -229,7 +270,7 @@ const styles = StyleSheet.create({
   },
   rangeLabel: {
     fontSize: fontSize.sm,
-    color: colors.foreground,
+    color: colors.mutedForeground,
   },
   // Styles for FilterSliderContent (kept for backward compatibility)
   content: {

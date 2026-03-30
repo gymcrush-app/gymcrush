@@ -3,7 +3,6 @@ import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer
 import { Switch } from '@/components/ui/Switch';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
-import type { ApproachPreference } from '@/types/onboarding';
 import { useNavigation } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -24,7 +23,7 @@ export default function OnboardingGymPreferences() {
   };
 
   return (
-    <OnboardingContainer currentStep={5} totalSteps={7} showBack={true}>
+    <OnboardingContainer currentStep={6} totalSteps={9} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>

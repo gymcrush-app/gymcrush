@@ -1,35 +1,20 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
-import { GymSearch } from '@/components/onboarding/GymSearch';
-import { LocationPermissionModal } from '@/components/onboarding/LocationPermissionModal';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
+import { CensoredPreview } from '@/components/ui/CensoredPreview';
 import { Input } from '@/components/ui/Input';
 import { InfoCard } from '@/components/ui/InfoCard';
 import { Select } from '@/components/ui/Select';
-import { useGymSearch } from '@/hooks/useGymSearch';
-import { useLocation } from '@/hooks/useLocation';
+import { useFilteredInput } from '@/hooks/useFilteredInput';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { supabase } from '@/lib/supabase';
-import { parseLocation } from '@/lib/utils/distance';
-import { fetchPlaceDetails } from '@/lib/utils/google-places';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
-import type { GooglePlaceGym } from '@/types/onboarding';
-import { useFocusEffect } from '@react-navigation/native';
-import { toast } from 'burnt';
-import { PermissionStatus } from 'expo-location';
 import { useNavigation, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MONTH_OPTIONS } from '@/constants';
-
-
-interface SelectedGym {
-  id: string; // This is the Google Places place_id
-  name: string;
-  address: string;
-  location?: { lat: number; lng: number };
-}
+import { toast } from '@/lib/toast';
 
 export default function OnboardingBasicInfo() {
   const router = useRouter();
@@ -38,18 +23,11 @@ export default function OnboardingBasicInfo() {
   const updateData = useOnboardingStore((s) => s.updateData);
   const user = useAuthStore((s) => s.user);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
-  // Gym search state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGyms, setSelectedGyms] = useState<SelectedGym[]>([]);
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [hasRequestedPermission, setHasRequestedPermission] = useState(false);
-  const { results, isLoading, error, search } = useGymSearch();
-  const {
-    permissionStatus,
-    requestPermission,
-    refreshLocation,
-  } = useLocation();
+
+  const fullNameInput = useFilteredInput({
+    value: data.fullName,
+    onChangeText: (text) => updateData({ fullName: text }),
+  });
 
   // Pre-fill email from auth store if available
   useEffect(() => {
@@ -57,40 +35,6 @@ export default function OnboardingBasicInfo() {
       updateData({ email: user.email });
     }
   }, [user?.email]);
-
-  // Initialize selected gyms from data
-  useEffect(() => {
-    const parsed = data.selectedGyms
-      .map((gymJson) => {
-        try {
-          return JSON.parse(gymJson) as SelectedGym;
-        } catch {
-          return null;
-        }
-      })
-      .filter((g): g is SelectedGym => g !== null);
-    setSelectedGyms(parsed);
-  }, []);
-
-  // Re-check permission when screen comes into focus (user may have changed settings)
-  useFocusEffect(
-    useCallback(() => {
-      refreshLocation();
-    }, [refreshLocation])
-  );
-
-  // Listen for app state changes to re-check permission when user returns from settings
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        refreshLocation();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [refreshLocation]);
 
   // Date parts state
   const [month, setMonth] = useState<string>(
@@ -172,7 +116,6 @@ export default function OnboardingBasicInfo() {
         parseInt(newDay)
       );
       
-      // Check age immediately
       const age = Math.floor(
         (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000)
       );
@@ -182,7 +125,6 @@ export default function OnboardingBasicInfo() {
         setErrors((prev) => ({ ...prev, dateOfBirth: 'You must be at least 18 years old to use this app.' }));
         updateData({ dateOfBirth: null });
       } else {
-        // Clear error if age is valid
         setErrors((prev) => {
           const newErrors = { ...prev };
           delete newErrors.dateOfBirth;
@@ -206,109 +148,6 @@ export default function OnboardingBasicInfo() {
     } else {
       updateData({ height: null });
     }
-  };
-
-  // Gym search handlers
-  const handleSearchChange = async (value: string) => {
-    setSearchQuery(value);
-
-    // If user starts searching and we haven't requested permission yet
-    if (value.length >= 2 && !hasRequestedPermission) {
-      setHasRequestedPermission(true);
-
-      // If permission is undetermined, request it
-      if (permissionStatus === PermissionStatus.UNDETERMINED) {
-        const granted = await requestPermission();
-        if (!granted) {
-          // Permission denied, show modal
-          setShowPermissionModal(true);
-        }
-      } else if (permissionStatus === PermissionStatus.DENIED) {
-        // Permission was previously denied, show modal
-        setShowPermissionModal(true);
-      }
-    }
-
-    // Perform search (will use location if available, otherwise default)
-    search(value);
-  };
-
-  const handleOpenSettings = () => {
-    setShowPermissionModal(false);
-    // refreshLocation will be called when app comes back to foreground
-  };
-
-  const handleCloseModal = () => {
-    setShowPermissionModal(false);
-  };
-
-  const toggleGym = async (gym: GooglePlaceGym) => {
-    const isSelected = selectedGyms.some((g) => g.id === gym.place_id);
-
-    let updated: SelectedGym[];
-    if (isSelected) {
-      updated = selectedGyms.filter((g) => g.id !== gym.place_id);
-    } else {
-      // Check database first to see if gym exists and has coordinates
-      let location: { lat: number; lng: number } | undefined = undefined;
-
-      try {
-        const { data: existingGym, error: lookupError } = await supabase
-          .from('gyms')
-          .select('location')
-          .eq('google_place_id', gym.place_id)
-          .single();
-
-        if (existingGym && existingGym.location) {
-          // Parse coordinates from PostGIS format
-          const parsed = parseLocation(existingGym.location);
-          if (parsed) {
-            location = parsed;
-          }
-        } else if (lookupError && lookupError.code === 'PGRST116') {
-          // Gym doesn't exist, fetch coordinates from Places API
-          const coordinates = await fetchPlaceDetails(gym.place_id);
-          if (coordinates) {
-            location = coordinates;
-          }
-        } else if (lookupError) {
-          // Other error, try Places API as fallback
-          console.warn('Error looking up gym in database:', lookupError);
-          const coordinates = await fetchPlaceDetails(gym.place_id);
-          if (coordinates) {
-            location = coordinates;
-          }
-        }
-      } catch (error) {
-        // Error checking database, try Places API as fallback
-        console.warn('Error checking gym in database:', error);
-        const coordinates = await fetchPlaceDetails(gym.place_id);
-        if (coordinates) {
-          location = coordinates;
-        }
-      }
-
-      const gymData: SelectedGym = {
-        id: gym.place_id, // Google Places place_id
-        name: gym.name,
-        address: gym.formatted_address,
-        location, // Include location if available
-      };
-
-      updated = [...selectedGyms, gymData];
-      // Clear search query to hide results after selecting a gym
-      setSearchQuery('');
-    }
-
-    setSelectedGyms(updated);
-    // Store as JSON strings to preserve gym info
-    updateData({ selectedGyms: updated.map((g) => JSON.stringify(g)) });
-  };
-
-  const removeSelectedGym = (gymId: string) => {
-    const updated = selectedGyms.filter((g) => g.id !== gymId);
-    setSelectedGyms(updated);
-    updateData({ selectedGyms: updated.map((g) => JSON.stringify(g)) });
   };
 
   const validate = (): boolean => {
@@ -365,7 +204,7 @@ export default function OnboardingBasicInfo() {
   return (
     <OnboardingContainer 
       currentStep={1} 
-      totalSteps={6} 
+      totalSteps={9} 
       showBack={false}
       showClose={true}
       onClose={async () => {
@@ -383,7 +222,7 @@ export default function OnboardingBasicInfo() {
             Create your account
           </Text>
           <Text style={styles.subtitle}>
-            Let's get you set up to find your gym crush
+            Let{"'"}s get you set up to find your gym crush
           </Text>
         </View>
 
@@ -394,23 +233,13 @@ export default function OnboardingBasicInfo() {
               <Input
                 label="First name"
                 placeholder="Your name"
-                value={data.fullName}
-                onChangeText={(text) => updateData({ fullName: text })}
+                value={fullNameInput.value}
+                onChangeText={fullNameInput.onChangeText}
                 error={errors.fullName}
               />
-            </View>
-
-            {/* Gym Search */}
-            <View style={styles.field}>
-              <GymSearch
-                selectedGyms={selectedGyms}
-                searchQuery={searchQuery}
-                results={results}
-                isLoading={isLoading}
-                error={error}
-                onSearchChange={handleSearchChange}
-                onToggleGym={toggleGym}
-                onRemoveGym={removeSelectedGym}
+              <CensoredPreview
+                filtered={fullNameInput.filteredPreview}
+                show={fullNameInput.hasBadWords}
               />
             </View>
 
@@ -539,6 +368,16 @@ export default function OnboardingBasicInfo() {
               )}
             </View>
 
+            {/* Occupation (optional) */}
+            <View style={styles.field}>
+              <Input
+                label="Occupation (optional)"
+                placeholder="e.g. Software Engineer"
+                value={data.occupation ?? ''}
+                onChangeText={(text) => updateData({ occupation: text.trim() || null })}
+              />
+            </View>
+
             {/* Email */}
             {/* <View style={styles.field}>
               <Input
@@ -559,12 +398,6 @@ export default function OnboardingBasicInfo() {
           Continue
         </FloatingActionButton>
       </View>
-
-      <LocationPermissionModal
-        visible={showPermissionModal}
-        onClose={handleCloseModal}
-        onOpenSettings={handleOpenSettings}
-      />
     </OnboardingContainer>
   );
 }
