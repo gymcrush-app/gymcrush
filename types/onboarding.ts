@@ -56,7 +56,8 @@ export interface GooglePlaceGym {
 }
 
 export interface PromptAnswer {
-  prompt: string
+  promptId: string
+  sectionId: string
   answer: string
 }
 
@@ -78,9 +79,6 @@ export interface OnboardingData {
   prompts: PromptAnswer[] // Array of up to 3 prompts
   selectedGyms: string[]
   interestedInGender: "men" | "women" | "everyone" | null
-  // Legacy fields for backward compatibility (will be removed)
-  promptAnswer: string
-  selectedPrompt: string
 }
 
 export const INITIAL_ONBOARDING_DATA: OnboardingData = {
@@ -101,18 +99,30 @@ export const INITIAL_ONBOARDING_DATA: OnboardingData = {
   prompts: [],
   selectedGyms: [],
   interestedInGender: null,
-  // Legacy fields
-  promptAnswer: "",
-  selectedPrompt: "",
 }
 
-export const FITNESS_PROMPTS = [
-  "My gym hot take is...",
-  "The way to my heart is through...",
-  "My ideal post-workout meal is...",
-  "You'll find me at the gym when...",
-  "My fitness journey started because...",
-  "The exercise I love to hate is...",
-  "My gym playlist always includes...",
-  "After leg day, I'm usually...",
-] as const
+/** A prompt section with its prompts, as fetched from the DB */
+export interface PromptSectionWithPrompts {
+  id: string
+  name: string
+  subtitle: string
+  display_order: number
+  prompts: Array<{
+    id: string
+    prompt_text: string
+    display_order: number
+    is_active: boolean
+  }>
+}
+
+/** A profile's prompt answer with prompt text and section info */
+export interface ProfilePromptWithDetails {
+  id: string
+  prompt_id: string
+  section_id: string
+  answer: string
+  engagement_count: number
+  prompt_text: string
+  section_name: string
+  section_display_order: number
+}

@@ -271,10 +271,152 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          user_id: string
+          match_notifications: boolean
+          message_notifications: boolean
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          match_notifications?: boolean
+          message_notifications?: boolean
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          match_notifications?: boolean
+          message_notifications?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_sections: {
+        Row: {
+          id: string
+          name: string
+          subtitle: string
+          display_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          subtitle: string
+          display_order: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          subtitle?: string
+          display_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      prompts: {
+        Row: {
+          id: string
+          section_id: string
+          prompt_text: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          section_id: string
+          prompt_text: string
+          display_order: number
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          section_id?: string
+          prompt_text?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompts_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_prompts: {
+        Row: {
+          id: string
+          profile_id: string
+          prompt_id: string
+          section_id: string
+          answer: string
+          engagement_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          prompt_id: string
+          section_id: string
+          answer: string
+          engagement_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          prompt_id?: string
+          section_id?: string
+          answer?: string
+          engagement_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_prompts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_prompts_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_prompts_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number
-          approach_prompt: string | null
           bio: string | null
           created_at: string | null
           discovery_preferences: Json | null
@@ -296,7 +438,6 @@ export type Database = {
         }
         Insert: {
           age: number
-          approach_prompt?: string | null
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
@@ -318,7 +459,6 @@ export type Database = {
         }
         Update: {
           age?: number
-          approach_prompt?: string | null
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
@@ -344,6 +484,50 @@ export type Database = {
             columns: ["home_gym_id"]
             isOneToOne: false
             referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          expo_push_token: string
+          device_id: string | null
+          platform: string
+          is_active: boolean
+          last_used_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          expo_push_token: string
+          device_id?: string | null
+          platform: string
+          is_active?: boolean
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          expo_push_token?: string
+          device_id?: string | null
+          platform?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
