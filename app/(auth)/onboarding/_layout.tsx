@@ -13,10 +13,8 @@ export default function OnboardingLayout() {
       <Stack.Screen name="fitness" />
       <Stack.Screen name="frequency" />
       <Stack.Screen name="gym-preferences" />
-      <Stack.Screen name="prompts" />
+      <Stack.Screen name="prompt-section" />
       <Stack.Screen name="photos" />
-      <Stack.Screen name="approach-prompt" />
-      <Stack.Screen name="preferences" />
       <Stack.Screen name="complete" />
     </Stack>
   );

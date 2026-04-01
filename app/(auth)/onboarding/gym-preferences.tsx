@@ -18,12 +18,12 @@ export default function OnboardingGymPreferences() {
 
   const handleNext = () => {
     if (canContinue) {
-      (navigation as any).navigate('prompts');
+      (navigation as any).navigate('prompt-section', { sectionIndex: '0' });
     }
   };
 
   return (
-    <OnboardingContainer currentStep={6} totalSteps={9} showBack={true}>
+    <OnboardingContainer currentStep={6} totalSteps={14} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>

@@ -203,8 +203,8 @@ export default function OnboardingBasicInfo() {
 
   return (
     <OnboardingContainer 
-      currentStep={1} 
-      totalSteps={9} 
+      currentStep={1}
+      totalSteps={14}
       showBack={false}
       showClose={true}
       onClose={async () => {

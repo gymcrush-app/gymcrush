@@ -31,7 +31,7 @@ export default function OnboardingIntent() {
   }
 
   return (
-    <OnboardingContainer currentStep={2} totalSteps={9} showBack={true}>
+    <OnboardingContainer currentStep={2} totalSteps={14} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Interested in:</Text>
