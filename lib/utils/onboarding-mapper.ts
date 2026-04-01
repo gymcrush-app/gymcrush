@@ -39,16 +39,6 @@ export function mapOnboardingDataToProfile(
     throw new Error('Invalid date of birth. Must be 18-100 years old.');
   }
 
-  // Map approach preference to approach_prompt
-  // If approachPreference is 'yes' or 'sometimes', use promptAnswer
-  const approachPromptRaw =
-    onboardingData.approachPreference && 
-    onboardingData.approachPreference !== 'no' && 
-    onboardingData.promptAnswer
-      ? `${onboardingData.selectedPrompt} ${onboardingData.promptAnswer}`
-      : null;
-  const approachPrompt = approachPromptRaw ? filterBadWords(approachPromptRaw) : null;
-
   // Store additional Lovable fields in discovery_preferences JSONB
   const gendersFromInterest =
     onboardingData.interestedInGender === 'everyone'
@@ -80,7 +70,6 @@ export function mapOnboardingDataToProfile(
     age,
     gender: onboardingData.gender || 'prefer-not-to-say', // Use gender from onboarding data, default to 'prefer-not-to-say' if not set
     bio: null, // Can be added later
-    approach_prompt: approachPrompt,
     fitness_disciplines: onboardingData.disciplines,
     photo_urls: onboardingData.photos,
     home_gym_id: homeGymId,
@@ -112,8 +101,6 @@ export function mapProfileToOnboardingData(
     approachPreference: discoveryPrefs?.approach_preference || null,
     showStatusPublicly: profile.is_visible ?? undefined,
     photos: profile.photo_urls,
-    promptAnswer: profile.approach_prompt || '',
-    selectedPrompt: '', // Would need to parse from approach_prompt
     selectedGyms: profile.home_gym_id ? [profile.home_gym_id] : [],
     height: profile.height ?? null,
     occupation: profile.occupation ?? null,

@@ -31,13 +31,11 @@ export const onboardingSchema = z.object({
   showStatusPublicly: z.boolean().default(true),
   photos: z.array(z.string().url('Invalid photo URL')).min(1, 'At least one photo is required').max(APP.MAX_PHOTOS, `Maximum ${APP.MAX_PHOTOS} photos allowed`),
   prompts: z.array(z.object({
-    prompt: z.string().min(1, 'Prompt is required'),
+    promptId: z.string().uuid('Invalid prompt ID'),
+    sectionId: z.string().uuid('Invalid section ID'),
     answer: z.string().min(1, 'Answer is required').max(APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH, `Answer must be at most ${APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH} characters`),
-  })).min(1, 'At least one prompt is required').max(3, 'Maximum 3 prompts allowed'),
+  })).min(7, 'All 7 prompts are required').max(7, 'Exactly 7 prompts required'),
   selectedGyms: z.array(z.string()).min(1, 'Select at least one gym'),
-  // Legacy fields (optional for backward compatibility)
-  promptAnswer: z.string().max(APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH, `Prompt answer must be at most ${APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH} characters`).optional(),
-  selectedPrompt: z.string().optional(),
 });
 
 // Legacy profile schema (for backward compatibility)
@@ -50,10 +48,6 @@ export const profileSchema = z.object({
     .max(APP.MAX_AGE, `Age must be at most ${APP.MAX_AGE}`),
   gender: z.enum(['male', 'female', 'non-binary', 'prefer-not-to-say']),
   bio: z.string().max(APP.MAX_BIO_LENGTH, `Bio must be at most ${APP.MAX_BIO_LENGTH} characters`).optional(),
-  approachPrompt: z
-    .string()
-    .max(APP.MAX_APPROACH_PROMPT_LENGTH, `Approach prompt must be at most ${APP.MAX_APPROACH_PROMPT_LENGTH} characters`)
-    .optional(),
   fitnessDisciplines: z.array(z.string()).min(1, 'Select at least one fitness discipline'),
   photoUrls: z
     .array(z.string().url('Invalid photo URL'))
