@@ -3,6 +3,7 @@ import {
   PHOTO_INSET,
   PhotoSection,
 } from "@/components/profile/PhotoSection"
+import { PhotoCarouselRef } from "@/components/profile/PhotoCarousel"
 import { ProfileDetailContent } from "@/components/profile/ProfileDetailContent"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { PromptsList } from "@/components/profile/PromptsList"
@@ -14,7 +15,9 @@ import {
   TOOLTIP_SWIPE_UP,
 } from "@/constants"
 import { useGymById } from "@/lib/api/gyms"
+import { useProfilePrompts } from "@/lib/api/prompts"
 import { useSendMessageRequest } from "@/lib/api/messages"
+import { useZoomPortal } from "@/lib/contexts/ZoomPortalContext"
 import { toast } from "@/lib/toast"
 import { formatDistanceKmRounded } from "@/lib/utils/distance"
 import { formatIntents } from "@/lib/utils/formatting"
@@ -30,7 +33,7 @@ import type { Profile, SwipeAction } from "@/types"
 import type { Intent } from "@/types/onboarding"
 import BottomSheet from "@gorhom/bottom-sheet"
 import { useRouter } from "expo-router"
-import { Check, MoreHorizontal } from "lucide-react-native"
+import { Check, ChevronUp, MoreHorizontal } from "lucide-react-native"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
@@ -38,16 +41,23 @@ import {
   Image,
   Keyboard,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native"
-import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import {
+  Gesture,
+  GestureDetector,
+  ScrollView as GHScrollView,
+} from "react-native-gesture-handler"
 import Animated, {
+  cancelAnimation,
   Easing,
   FadeIn,
   FadeOut,
+  measure,
   runOnJS,
+  useAnimatedRef,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -55,30 +65,38 @@ import Animated, {
 } from "react-native-reanimated"
 import Tooltip from "react-native-walkthrough-tooltip"
 import { MessageBottomSheet } from "./MessageBottomSheet"
+import { ProfileDetailSheet } from "./ProfileDetailSheet"
 import { SwipeIndicator } from "./SwipeIndicator"
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
+
+/** RNGH ScrollView wrapped with Reanimated for gesture coordination */
+const AnimatedGHScrollView = Animated.createAnimatedComponent(GHScrollView)
 
 /** Duration of the card exit animation before advancing */
 const CARD_EXIT_MS = 180
 /** Brief pause after tick before advancing to next profile */
 const TICK_DISPLAY_MS = 500
-const BACK_CARD_SCALE = 0.96
-const BACK_CARD_TRANSLATE_Y = 26
-const BACK_CARD_OPACITY = 0.92
-/** Pull-past-top distance (px) to trigger drop/pass */
-const DROP_TRIGGER = 90
-/** Scroll-past-bottom distance (px) to trigger crush/like */
-const CRUSH_TRIGGER = 100
-/** Logo starting opacity — fades to 1.0 as it grows */
+const BACK_CARD_SCALE = 0.97
+const BACK_CARD_PEEK = 14
+const BACK_CARD_OPACITY = 0.7
+/** Logo starting opacity -- fades to 1.0 as it grows */
 const START_OPACITY = 0.3
+/** Swipe distance (px) required to trigger like/pass */
+const SWIPE_THRESHOLD = 140
+/** Velocity (px/s) for a fast fling to trigger */
+const VELOCITY_THRESHOLD = 600
+/** Dead zone (px) before crush effect starts on swipe-up — lets user see details area first */
+const CRUSH_DEAD_ZONE = 80
+
+const ZOOM_SPRING = { damping: 40, stiffness: 300 }
+const MIN_ZOOM = 1
+const MAX_ZOOM = 4
 
 interface SwipeDeckProps {
   profiles: Profile[]
   onSwipe: (profileId: string, action: SwipeAction) => void
-  /** Set by parent after a like/crush: 'match' triggers celebration, 'no-match' shows tick. null = waiting. */
   swipeResult?: "match" | "no-match" | null
-  /** Called after all exit animations complete and SwipeDeck is ready for the next profile. */
   onSwipeComplete?: () => void
   showPhotoSwipeTooltip?: boolean
   showImageCommentTooltip?: boolean
@@ -88,11 +106,8 @@ interface SwipeDeckProps {
   onImageCommentTooltipClose?: () => void
   onSwipeDownTooltipClose?: () => void
   onSwipeUpTooltipClose?: () => void
-  /** Called when user scrolls inside the deck. Use to show/hide header pills and show first name. */
   onScrollStateChange?: (state: { scrollY: number; isAtTop: boolean }) => void
-  /** Called when user taps Report & Block on the profile. */
   onReportAndBlock?: (profileId: string) => void
-  /** Pre-computed distances (miles) keyed by profile ID — avoids redundant gym lookups */
   distances?: Map<string, number | null>
 }
 
@@ -116,50 +131,183 @@ export function SwipeDeck({
   const topProfile = profiles[0]
   const nextProfile = profiles[1]
   const { data: profileGym } = useGymById(topProfile?.home_gym_id || "")
+  const { data: profilePrompts } = useProfilePrompts(topProfile?.id)
 
-  // Scroll position tracking
-  const scrollViewRef = useRef<ScrollView>(null)
-  const lastIsAtTopRef = useRef(true)
-  const [hasTriggeredInterested, setHasTriggeredInterested] = useState(false)
-  const [hasTriggeredSkip, setHasTriggeredSkip] = useState(false)
-  const [swipeUpTooltipVisible, setSwipeUpTooltipVisible] = useState(false)
-  /** Tracks whether we're waiting for match result after swipe-up */
+  const prompts = useMemo(() => {
+    if (!profilePrompts) return []
+    return profilePrompts.map((pp) => ({
+      id: pp.id,
+      title: pp.prompt_text.toUpperCase(),
+      answer: pp.answer,
+    }))
+  }, [profilePrompts])
+
   const [awaitingResult, setAwaitingResult] = useState(false)
-  /** Shows the tick overlay for no-match */
   const [showTick, setShowTick] = useState(false)
-  /** Size of the expanding image overlays (0 = hidden) */
+  // Logo overlay sizes
   const dropImageSize = useSharedValue(0)
   const crushImageSize = useSharedValue(0)
 
-  const bottomSheetRef = useRef<BottomSheet>(null)
+  // Message bottom sheet
+  const messageSheetRef = useRef<BottomSheet>(null)
   const [selectedPrompt, setSelectedPrompt] = useState<{
     title: string
     answer: string
   } | null>(null)
   const [isImageChat, setIsImageChat] = useState(false)
   const [messageText, setMessageText] = useState("")
-  const [bottomSheetIndex, setBottomSheetIndex] = useState(-1)
-  const bottomSheetIndexRef = useRef(-1)
-  const snapPoints = useMemo(() => ["50%", "90%"], [])
+  const [messageSheetIndex, setMessageSheetIndex] = useState(-1)
+  const messageSheetIndexRef = useRef(-1)
+  const messageSnapPoints = useMemo(() => ["50%", "90%"], [])
 
+  // Profile detail bottom sheet
+  const detailSheetRef = useRef<BottomSheet>(null)
+
+  // Photo carousel ref (for zoom portal URI)
+  const photoCarouselRef = useRef<PhotoCarouselRef>(null)
+  const photoContainerRef = useAnimatedRef<Animated.View>()
+
+  // Card animation values
   const translateY = useSharedValue(0)
   const opacity = useSharedValue(1)
-  const photoScale = useSharedValue(1)
   const isDismissing = useSharedValue(false)
-  const threshold = swipe.verticalThreshold
 
+  // Zoom portal
+  const {
+    overlayScale,
+    overlayTranslateX,
+    overlayTranslateY,
+    isZoomed,
+    startZoom,
+    endZoom,
+  } = useZoomPortal()
+  const zoomScaleSaved = useSharedValue(1)
 
-  // --- Swipe-up result handling ---
-  // When parent sets swipeResult after a like, react accordingly
+  // Scroll-driven swipe: bounces={true} reports overscroll via contentOffset.
+  // Negative offset = pulling down at top (pass), offset > max = pulling up at bottom (like).
+  const scrollRef = useRef<GHScrollView>(null)
+  const scrollY = useSharedValue(0)
+
+  const notifyScrollState = useCallback(
+    (y: number) => {
+      onScrollStateChange?.({ scrollY: y, isAtTop: y <= 1 })
+    },
+    [onScrollStateChange],
+  )
+
+  const triggerPass = useCallback(() => {
+    if (topProfile) onSwipe(topProfile.id, "pass")
+  }, [topProfile, onSwipe])
+
+  const triggerLike = useCallback(() => {
+    if (topProfile) {
+      onSwipe(topProfile.id, "like")
+      setAwaitingResult(true)
+    }
+  }, [topProfile, onSwipe])
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      if (isDismissing.value) return
+
+      const y = event.contentOffset.y
+      const maxScroll = Math.max(
+        0,
+        event.contentSize.height - event.layoutMeasurement.height,
+      )
+      scrollY.value = Math.max(0, Math.min(y, maxScroll))
+      runOnJS(notifyScrollState)(y)
+
+      // Overscroll at top → pass visual (pull down, y < 0)
+      if (y < 0) {
+        const pullDown = -y
+        translateY.value = pullDown
+        crushImageSize.value = 0
+        const maxSize = SCREEN_WIDTH * 0.8
+        dropImageSize.value = Math.min(maxSize, 80 + pullDown * 1.5)
+        return
+      }
+
+      // Overscroll at bottom → like visual (pull up, y > maxScroll)
+      if (maxScroll > 0 && y > maxScroll) {
+        const pullUp = y - maxScroll
+        translateY.value = -pullUp
+        dropImageSize.value = 0
+        const pull = Math.max(0, pullUp - CRUSH_DEAD_ZONE)
+        if (pull > 0) {
+          const maxSize = SCREEN_WIDTH * 0.8
+          crushImageSize.value = Math.min(maxSize, 80 + pull * 1.5)
+        } else {
+          crushImageSize.value = 0
+        }
+        return
+      }
+
+      // Normal scroll range — reset card position
+      if (translateY.value !== 0) {
+        translateY.value = 0
+        dropImageSize.value = 0
+        crushImageSize.value = 0
+      }
+    },
+    onEndDrag: (event) => {
+      if (isDismissing.value) return
+
+      const y = event.contentOffset.y
+      const maxScroll = Math.max(
+        0,
+        event.contentSize.height - event.layoutMeasurement.height,
+      )
+      const velocity = event.velocity?.y ?? 0
+
+      // Check pass (overscroll at top)
+      if (y < 0) {
+        const pullDown = -y
+        if (
+          pullDown > SWIPE_THRESHOLD ||
+          Math.abs(velocity) > VELOCITY_THRESHOLD
+        ) {
+          // Trigger pass — card snaps back, logos fade
+          dropImageSize.value = withTiming(0, { duration: 200 })
+          translateY.value = withTiming(0, { duration: 200 })
+          runOnJS(triggerPass)()
+          return
+        }
+      }
+
+      // Check like (overscroll at bottom)
+      if (maxScroll > 0 && y > maxScroll) {
+        const pullUp = y - maxScroll
+        const effectivePull = Math.max(0, pullUp - CRUSH_DEAD_ZONE)
+        if (
+          effectivePull > SWIPE_THRESHOLD ||
+          Math.abs(velocity) > VELOCITY_THRESHOLD
+        ) {
+          isDismissing.value = true
+          crushImageSize.value = withTiming(0, { duration: 150 })
+          translateY.value = withTiming(-SCREEN_HEIGHT * 0.35, {
+            duration: CARD_EXIT_MS,
+            easing: Easing.out(Easing.quad),
+          })
+          runOnJS(triggerLike)()
+          return
+        }
+      }
+
+      // Not triggered — reset (bounce will snap scroll back)
+      translateY.value = withTiming(0, { duration: 200 })
+      dropImageSize.value = withTiming(0, { duration: 150 })
+      crushImageSize.value = withTiming(0, { duration: 150 })
+    },
+  })
+
+  // --- Swipe result handling ---
   useEffect(() => {
     if (!awaitingResult || swipeResult == null) return
-
     if (swipeResult === "match") {
-      // Skip celebration — go straight to match modal
       setAwaitingResult(false)
       onSwipeComplete?.()
     } else {
-      // No match — show tick briefly, then advance
       setShowTick(true)
       setTimeout(() => {
         setShowTick(false)
@@ -169,71 +317,74 @@ export function SwipeDeck({
     }
   }, [swipeResult, awaitingResult])
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetY([-20, 20])
-    .onUpdate((event) => {
-      if (isDismissing.value) return
-      if (Math.abs(event.translationY) > Math.abs(event.translationX)) {
-        translateY.value = event.translationY
-        // Gentle fade — card stays mostly visible during drag, only dims ~30% at threshold
-        const progress = Math.min(
-          1,
-          Math.abs(event.translationY) / (threshold * 1.5),
-        )
-        opacity.value = 1 - progress * 0.3
-        if (event.translationY < 0) {
-          // Swipe up (crush) — grow crush image
-          photoScale.value = 1 + Math.min(-event.translationY / 300, 0.2)
-          dropImageSize.value = 0
-          const pull = -event.translationY
-          const maxSize = SCREEN_WIDTH * 0.8
-          crushImageSize.value = Math.min(maxSize, 80 + pull * 1.5)
-        } else {
-          // Swipe down (drop) — grow drop image
-          photoScale.value = 1
-          crushImageSize.value = 0
-          const maxSize = SCREEN_WIDTH * 0.8
-          dropImageSize.value = Math.min(maxSize, 80 + event.translationY * 1.5)
-        }
-      }
-    })
-    .onEnd((event) => {
-      if (isDismissing.value) return
-      const velocity = event.velocityY
-      const triggered =
-        Math.abs(event.translationY) > threshold ||
-        Math.abs(velocity) > swipe.velocityThreshold
+  // --- Gestures ---
 
-      if (triggered) {
-        if (event.translationY > 0 || velocity > 0) {
-          // --- Swipe DOWN (pass) --- fire immediately, card resets on profile change
-          dropImageSize.value = withTiming(0, { duration: 150 })
-          crushImageSize.value = 0
-          if (topProfile) runOnJS(onSwipe)(topProfile.id, "pass")
-        } else {
-          // --- Swipe UP (like) --- fire immediately, animate card out while waiting for result
-          isDismissing.value = true
-          crushImageSize.value = withTiming(0, { duration: 150 })
-          translateY.value = withTiming(-SCREEN_HEIGHT * 0.35, {
-            duration: CARD_EXIT_MS,
-            easing: Easing.out(Easing.quad),
+  // Helper: called on JS thread to read the photo URI from the ref and start zoom
+  const startZoomWithCurrentPhoto = useCallback(
+    (layout: { x: number; y: number; width: number; height: number }) => {
+      const uri = photoCarouselRef.current?.getCurrentPhotoUri()
+      if (uri) {
+        startZoom({ uri, layout })
+      }
+    },
+    [startZoom],
+  )
+
+  // 1. Pinch to zoom (2 fingers)
+  const pinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      cancelAnimation(overlayScale)
+      zoomScaleSaved.value = overlayScale.value > 1 ? overlayScale.value : 1
+
+      try {
+        const measured = measure(photoContainerRef)
+        if (measured) {
+          runOnJS(startZoomWithCurrentPhoto)({
+            x: measured.pageX,
+            y: measured.pageY,
+            width: measured.width,
+            height: measured.height,
           })
-          opacity.value = withTiming(0, { duration: CARD_EXIT_MS })
-          if (topProfile) {
-            runOnJS(onSwipe)(topProfile.id, "like")
-            runOnJS(setAwaitingResult)(true)
-          }
         }
-      } else {
-        // Snap back
-        translateY.value = withSpring(0)
-        opacity.value = withSpring(1)
-        photoScale.value = withSpring(1)
-        dropImageSize.value = withTiming(0, { duration: 150 })
-        crushImageSize.value = withTiming(0, { duration: 150 })
+      } catch {
+        // View not yet laid out — skip zoom
+      }
+    })
+    .onUpdate((e) => {
+      const next = zoomScaleSaved.value * e.scale
+      overlayScale.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
+    })
+    .onFinalize(() => {
+      zoomScaleSaved.value = 1
+      runOnJS(endZoom)()
+    })
+
+  // 2. Pan while zoomed (1-2 fingers, only when zoomed)
+  const zoomPanSaved = { x: useSharedValue(0), y: useSharedValue(0) }
+  const zoomPanGesture = Gesture.Pan()
+    .minPointers(1)
+    .maxPointers(2)
+    .onStart(() => {
+      zoomPanSaved.x.value = overlayTranslateX.value
+      zoomPanSaved.y.value = overlayTranslateY.value
+    })
+    .onUpdate((e) => {
+      if (isZoomed.value) {
+        overlayTranslateX.value = zoomPanSaved.x.value + e.translationX
+        overlayTranslateY.value = zoomPanSaved.y.value + e.translationY
+      }
+    })
+    .onFinalize(() => {
+      if (overlayScale.value <= 1.05) {
+        overlayTranslateX.value = withSpring(0, ZOOM_SPRING)
+        overlayTranslateY.value = withSpring(0, ZOOM_SPRING)
       }
     })
 
+  // Compose: only pinch + zoom-pan (swipe is now scroll-driven, no pan gesture)
+  const composedGesture = Gesture.Simultaneous(pinchGesture, zoomPanGesture)
+
+  // --- Animated styles ---
   const animatedCardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
     opacity: opacity.value,
@@ -242,26 +393,18 @@ export function SwipeDeck({
   const animatedBackCardStyle = useAnimatedStyle(() => {
     const progress = Math.min(
       1,
-      Math.abs(translateY.value) / Math.max(1, threshold),
+      Math.abs(translateY.value) / Math.max(1, SWIPE_THRESHOLD),
     )
-
     const scale = BACK_CARD_SCALE + (1 - BACK_CARD_SCALE) * progress
-    const ty = BACK_CARD_TRANSLATE_Y * (1 - progress)
     const op = BACK_CARD_OPACITY + (1 - BACK_CARD_OPACITY) * progress
-
     return {
-      transform: [{ translateY: ty }, { scale }],
+      transform: [{ translateY: -BACK_CARD_PEEK }, { scale }],
       opacity: op,
     }
   })
 
-  const animatedPhotoStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: photoScale.value }],
-  }))
-
   const dropImageAnimatedStyle = useAnimatedStyle(() => {
     if (dropImageSize.value <= 0) return { width: 0, height: 0, opacity: 0 }
-    // progress 0→1 from first appearance to trigger point
     const progress = Math.min(1, (dropImageSize.value - 80) / (SCREEN_WIDTH * 0.5))
     return {
       width: dropImageSize.value,
@@ -280,58 +423,46 @@ export function SwipeDeck({
     }
   })
 
+  // --- Reset on profile change ---
   useEffect(() => {
-    setHasTriggeredInterested(false)
-    setHasTriggeredSkip(false)
     setSelectedPrompt(null)
     setIsImageChat(false)
     setMessageText("")
-    setSwipeUpTooltipVisible(false)
     setAwaitingResult(false)
     setShowTick(false)
     crushImageSize.value = 0
     dropImageSize.value = 0
     translateY.value = 0
     opacity.value = 1
-    photoScale.value = 1
-    dropImageSize.value = 0
     isDismissing.value = false
-    bottomSheetRef.current?.close()
-    scrollViewRef.current?.scrollTo({ y: 0, animated: false })
+    scrollY.value = 0
+    scrollRef.current?.scrollTo?.({ y: 0, animated: false })
+    messageSheetRef.current?.close()
+    detailSheetRef.current?.close()
+    // Notify parent header is visible
+    onScrollStateChange?.({ scrollY: 0, isAtTop: true })
   }, [topProfile?.id])
 
-  useEffect(() => {
-    if (showSwipeUpTooltip) {
-      setSwipeUpTooltipVisible(false)
-      scrollViewRef.current?.scrollToEnd({ animated: true })
-      const timer = setTimeout(() => {
-        setSwipeUpTooltipVisible(true)
-      }, 450)
-      return () => clearTimeout(timer)
-    } else {
-      setSwipeUpTooltipVisible(false)
-    }
-  }, [showSwipeUpTooltip])
-
+  // --- Keyboard handling for message sheet ---
   useEffect(() => {
     const keyboardWillShow = Keyboard.addListener("keyboardWillShow", () => {
-      if (bottomSheetRef.current && bottomSheetIndexRef.current >= 0) {
-        bottomSheetRef.current.snapToIndex(2)
+      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
+        messageSheetRef.current.snapToIndex(2)
       }
     })
     const keyboardDidShow = Keyboard.addListener("keyboardDidShow", () => {
-      if (bottomSheetRef.current && bottomSheetIndexRef.current >= 0) {
-        bottomSheetRef.current.snapToIndex(2)
+      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
+        messageSheetRef.current.snapToIndex(2)
       }
     })
     const keyboardWillHide = Keyboard.addListener("keyboardWillHide", () => {
-      if (bottomSheetRef.current && bottomSheetIndexRef.current >= 0) {
-        bottomSheetRef.current.snapToIndex(0)
+      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
+        messageSheetRef.current.snapToIndex(0)
       }
     })
     const keyboardDidHide = Keyboard.addListener("keyboardDidHide", () => {
-      if (bottomSheetRef.current && bottomSheetIndexRef.current >= 0) {
-        bottomSheetRef.current.snapToIndex(0)
+      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
+        messageSheetRef.current.snapToIndex(0)
       }
     })
     return () => {
@@ -342,98 +473,12 @@ export function SwipeDeck({
     }
   }, [])
 
-  const handleScroll = useCallback(
-    (event: any) => {
-      const { contentOffset, contentSize, layoutMeasurement } =
-        event.nativeEvent
-      const currentScrollY = contentOffset.y
-      const scrollBottom = currentScrollY + layoutMeasurement.height
-      const pastBottom = scrollBottom - contentSize.height
-      const scrollThreshold = 50
-
-      const isAtTop = currentScrollY <= scrollThreshold
-      if (isAtTop !== lastIsAtTopRef.current) {
-        lastIsAtTopRef.current = isAtTop
-        onScrollStateChange?.({ scrollY: currentScrollY, isAtTop })
-      }
-
-      if (currentScrollY > 10 && hasTriggeredInterested) {
-        setHasTriggeredInterested(false)
-      }
-      if (currentScrollY > -10 && hasTriggeredSkip) {
-        setHasTriggeredSkip(false)
-      }
-
-      // Drive the drop image on pull-down (negative scroll = pulling past top)
-      if (currentScrollY < 0) {
-        const pullDown = Math.abs(currentScrollY)
-        const maxSize = SCREEN_WIDTH * 0.8
-        dropImageSize.value = Math.min(maxSize, 80 + pullDown * 2)
-        crushImageSize.value = 0
-      } else {
-        dropImageSize.value = 0
-      }
-
-      // Drive the crush image when scrolling past bottom
-      if (pastBottom > 0) {
-        const maxSize = SCREEN_WIDTH * 0.8
-        crushImageSize.value = Math.min(maxSize, 80 + pastBottom * 2)
-      } else {
-        crushImageSize.value = 0
-      }
-
-      if (
-        pastBottom >= CRUSH_TRIGGER &&
-        !hasTriggeredInterested
-      ) {
-        setHasTriggeredInterested(true)
-        if (topProfile) {
-          onSwipe(topProfile.id, "like")
-          setAwaitingResult(true)
-        }
-      }
-      if (currentScrollY < -DROP_TRIGGER && !hasTriggeredSkip && topProfile) {
-        setHasTriggeredSkip(true)
-        // Fade out the drop logo, snap scroll to top, then fire pass
-        dropImageSize.value = withTiming(0, { duration: 200 })
-        scrollViewRef.current?.scrollTo({ y: 0, animated: false })
-        onSwipe(topProfile.id, "pass")
-      }
-    },
-    [
-      hasTriggeredInterested,
-      hasTriggeredSkip,
-      onSwipe,
-      topProfile,
-      onScrollStateChange,
-    ],
-  )
-
-  const mockPrompts = useMemo(
-    () => [
-      {
-        title: "MY GYM HOT TAKE IS",
-        answer:
-          "Cardio is just as important as lifting, and I'll die on this hill.",
-      },
-      {
-        title: "THE WAY TO WIN ME OVER IS",
-        answer: "Spot me on bench press and share your protein shake recipe.",
-      },
-      {
-        title: "I'M LOOKING FOR",
-        answer:
-          "Someone who understands that 5am gym sessions are non-negotiable.",
-      },
-    ],
-    [],
-  )
-
-  const handleCloseBottomSheet = useCallback(() => {
+  // --- Handlers ---
+  const handleCloseMessageSheet = useCallback(() => {
     setSelectedPrompt(null)
     setIsImageChat(false)
     setMessageText("")
-    bottomSheetRef.current?.close()
+    messageSheetRef.current?.close()
   }, [])
 
   const router = useRouter()
@@ -442,7 +487,6 @@ export function SwipeDeck({
   const handleSendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() || !topProfile) return
-
       try {
         await sendMessageRequest.mutateAsync({
           toUserId: topProfile.id,
@@ -460,12 +504,8 @@ export function SwipeDeck({
                 }
               : {}),
         })
-
-        handleCloseBottomSheet()
-
-        setTimeout(() => {
-          router.push("/(tabs)/chat")
-        }, 500)
+        handleCloseMessageSheet()
+        setTimeout(() => router.push("/(tabs)/chat"), 500)
       } catch (error: any) {
         console.error("Error sending message:", error)
         toast({
@@ -475,39 +515,29 @@ export function SwipeDeck({
         })
       }
     },
-    [
-      topProfile,
-      sendMessageRequest,
-      handleCloseBottomSheet,
-      router,
-      selectedPrompt,
-      isImageChat,
-    ],
+    [topProfile, sendMessageRequest, handleCloseMessageSheet, router, selectedPrompt, isImageChat],
   )
 
   const handleOpenImageChat = useCallback(() => {
     setIsImageChat(true)
     setSelectedPrompt(null)
-    bottomSheetRef.current?.snapToIndex(0)
+    messageSheetRef.current?.snapToIndex(0)
   }, [])
 
   const handlePromptPress = useCallback((title: string, answer: string) => {
     setSelectedPrompt({ title, answer })
-    bottomSheetRef.current?.snapToIndex(0)
+    messageSheetRef.current?.snapToIndex(0)
   }, [])
 
-  const handleBottomSheetChange = useCallback((index: number) => {
-    setBottomSheetIndex(index)
-    bottomSheetIndexRef.current = index
+  const handleMessageSheetChange = useCallback((index: number) => {
+    setMessageSheetIndex(index)
+    messageSheetIndexRef.current = index
     if (index === -1) {
       setSelectedPrompt(null)
       setIsImageChat(false)
       setMessageText("")
     }
   }, [])
-
-  const imageHeight = SCREEN_WIDTH * (1350 / 1080) - 30
-  const effectiveImageHeight = imageHeight
 
   const handleReportAndBlock = useCallback(() => {
     Alert.alert(
@@ -524,25 +554,39 @@ export function SwipeDeck({
     )
   }, [onReportAndBlock, topProfile])
 
+  const handleOpenDetailSheet = useCallback(() => {
+    detailSheetRef.current?.snapToIndex(0)
+  }, [])
+
+  // --- Layout ---
+  const [cardHeight, setCardHeight] = useState(0)
+  const handleCardLayout = useCallback((e: any) => {
+    setCardHeight(e.nativeEvent.layout.height)
+  }, [])
+
+  // Name row ~50px, swipe-down indicator ~30px, compact details ~110px,
+  // swipe-up indicator ~50px, padding ~20px = ~260px non-photo content
+  const NON_PHOTO_HEIGHT = 260
+  const idealImageHeight = SCREEN_WIDTH * (1350 / 1080) - 30
+  const effectiveImageHeight = cardHeight > 0
+    ? Math.min(idealImageHeight, cardHeight - NON_PHOTO_HEIGHT)
+    : idealImageHeight
+
   if (profiles.length === 0 || !topProfile) {
     return null
   }
 
-  // Use pre-computed distance from parent
   const distance = distances?.get(topProfile.id) ?? null
-
-  // Get intents from discovery_preferences
   const discoveryPrefs = topProfile.discovery_preferences as any
   const intents = (discoveryPrefs?.intents || []) as Intent[]
   const height = topProfile.height ?? discoveryPrefs?.height ?? null
-
-  // Format data for sub-components
   const distanceKm = formatDistanceKmRounded(distance)
   const formattedIntents = formatIntents(intents)
 
   return (
     <View style={styles.container}>
       <View style={styles.stackContainer}>
+        {/* Back card (next profile peeking) */}
         {nextProfile ? (
           <Animated.View
             pointerEvents="none"
@@ -556,9 +600,7 @@ export function SwipeDeck({
                 variant="compact"
               />
             </View>
-            <View
-              style={[styles.photoWrapper, { height: effectiveImageHeight }]}
-            >
+            <View style={[styles.photoWrapper, { height: effectiveImageHeight }]}>
               <PhotoSection
                 photos={nextProfile.photo_urls}
                 imageHeight={effectiveImageHeight}
@@ -571,180 +613,173 @@ export function SwipeDeck({
           </Animated.View>
         ) : null}
 
-        <GestureDetector gesture={panGesture}>
-          <Animated.View style={[styles.frontCard, animatedCardStyle]}>
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.scrollView}
+        {/* Front card */}
+        <GestureDetector gesture={composedGesture}>
+          <Animated.View style={[styles.frontCard, animatedCardStyle]} onLayout={handleCardLayout}>
+            <AnimatedGHScrollView
+              ref={scrollRef as any}
+              bounces
+              alwaysBounceVertical
               showsVerticalScrollIndicator={false}
-              scrollEnabled={true}
-              onScroll={handleScroll}
+              onScroll={scrollHandler}
               scrollEventThrottle={16}
-              bounces={true}
-              overScrollMode="always"
             >
-              <View style={styles.nameRow}>
-                <ProfileHeader
-                  displayName={topProfile.display_name}
-                  age={topProfile.age}
-                  distanceKm={distanceKm}
-                  variant="compact"
+            {/* Name row */}
+            <View style={styles.nameRow}>
+              <ProfileHeader
+                displayName={topProfile.display_name}
+                age={topProfile.age}
+                distanceKm={distanceKm}
+                variant="compact"
+              />
+            </View>
+
+            {/* Photo area (pinch-to-zoom ref target) */}
+            <Animated.View
+              ref={photoContainerRef}
+              collapsable={false}
+              style={[styles.photoWrapper, { height: effectiveImageHeight }]}
+            >
+              <View>
+                <PhotoSection
+                  ref={photoCarouselRef}
+                  photos={topProfile.photo_urls}
+                  imageHeight={effectiveImageHeight}
+                  photoWidth={DISCOVER_PHOTO_WIDTH}
+                  onOpenImageChat={handleOpenImageChat}
+                  showPhotoSwipeTooltip={showPhotoSwipeTooltip}
+                  showImageCommentTooltip={showImageCommentTooltip}
+                  onPhotoSwipeTooltipClose={onPhotoSwipeTooltipClose}
+                  onImageCommentTooltipClose={onImageCommentTooltipClose}
                 />
               </View>
-              <View
-                style={[styles.photoWrapper, { height: effectiveImageHeight }]}
-              >
-                <Animated.View style={animatedPhotoStyle}>
-                  <PhotoSection
-                    photos={topProfile.photo_urls}
-                    imageHeight={effectiveImageHeight}
-                    photoWidth={DISCOVER_PHOTO_WIDTH}
-                    onOpenImageChat={handleOpenImageChat}
-                    showPhotoSwipeTooltip={showPhotoSwipeTooltip}
-                    showImageCommentTooltip={showImageCommentTooltip}
-                    onPhotoSwipeTooltipClose={onPhotoSwipeTooltipClose}
-                    onImageCommentTooltipClose={onImageCommentTooltipClose}
-                  />
-                </Animated.View>
-                {/* Top overlay: Approachable (left) and Report & Block (right), vertically centered with each other */}
-                <View style={styles.imageTopOverlay}>
-                  <View style={styles.imageTopOverlayLeft}>
-                    {topProfile.approach_prompt &&
-                      topProfile.approach_prompt.trim().length > 0 && (
-                        <Pressable style={styles.approachablePill}>
-                          <Text
-                            variant="bodySmall"
-                            weight="semibold"
-                            style={styles.approachableText}
-                          >
-                            Approachable
-                          </Text>
-                        </Pressable>
-                      )}
-                  </View>
-                  <Pressable
-                    onPress={handleReportAndBlock}
-                    style={styles.reportBlockButton}
-                  >
-                    <MoreHorizontal size={20} color={colors.foreground} />
-                  </Pressable>
-                </View>
-              </View>
 
-              <Tooltip
-                isVisible={showSwipeDownTooltip}
-                allowChildInteraction={false}
-                contentStyle={{
-                  backgroundColor: colors.primary,
-                  padding: 0,
-                  borderRadius: borderRadius.md,
-                }}
-                content={
-                  <View
-                    style={{
-                      backgroundColor: colors.primary,
-                      padding: spacing[3],
-                      borderRadius: borderRadius.md,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: palette.black,
-                        fontSize: fontSize.base,
-                      }}
-                    >
-                      {TOOLTIP_SWIPE_DOWN}
-                    </Text>
-                  </View>
-                }
-                placement="top"
-                onClose={onSwipeDownTooltipClose}
-                backgroundColor="rgba(0,0,0,0.5)"
-              >
-                <View style={{ width: "100%" }}>
-                  <SwipeIndicator direction="down" text={SWIPE_DOWN_LABEL} />
-                </View>
-              </Tooltip>
-
-              <View style={styles.contentSection}>
-                <ProfileDetailContent
-                  height={height}
-                  intent={formattedIntents}
-                  occupation={topProfile.occupation ?? null}
-                  city={profileGym?.city ?? null}
-                  bio={topProfile.bio}
+              {/* Photo overlays */}
+              <View style={styles.imageTopOverlay}>
+                <View style={styles.imageTopOverlayLeft} />
+                <Pressable
+                  onPress={handleReportAndBlock}
+                  style={styles.reportBlockButton}
                 >
-                  <PromptsList
-                    prompts={mockPrompts}
-                    onPromptPress={handlePromptPress}
-                  />
-
-                  <Tooltip
-                    isVisible={swipeUpTooltipVisible}
-                    allowChildInteraction={false}
-                    contentStyle={{
-                      backgroundColor: colors.primary,
-                      padding: 0,
-                      borderRadius: borderRadius.md,
-                    }}
-                    content={
-                      <View
-                        style={{
-                          backgroundColor: colors.primary,
-                          padding: spacing[3],
-                          borderRadius: borderRadius.md,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: palette.black,
-                            fontSize: fontSize.base,
-                          }}
-                        >
-                          {TOOLTIP_SWIPE_UP}
-                        </Text>
-                      </View>
-                    }
-                    placement="bottom"
-                    onClose={onSwipeUpTooltipClose}
-                    backgroundColor="rgba(0,0,0,0.5)"
-                  >
-                    <SwipeIndicator
-                      direction="up"
-                      text={getSwipeUpMatchLabel(topProfile.display_name)}
-                      containerStyle="up"
-                    />
-                  </Tooltip>
-                </ProfileDetailContent>
+                  <MoreHorizontal size={20} color={colors.foreground} />
+                </Pressable>
               </View>
-            </ScrollView>
+
+            </Animated.View>
+
+            {/* Swipe down indicator */}
+            <Tooltip
+              isVisible={showSwipeDownTooltip}
+              allowChildInteraction={false}
+              contentStyle={{
+                backgroundColor: colors.primary,
+                padding: 0,
+                borderRadius: borderRadius.md,
+              }}
+              content={
+                <View
+                  style={{
+                    backgroundColor: colors.primary,
+                    padding: spacing[3],
+                    borderRadius: borderRadius.md,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: palette.black,
+                      fontSize: fontSize.base,
+                    }}
+                  >
+                    {TOOLTIP_SWIPE_DOWN}
+                  </Text>
+                </View>
+              }
+              placement="top"
+              onClose={onSwipeDownTooltipClose}
+              backgroundColor="rgba(0,0,0,0.5)"
+            >
+              <View style={{ width: "100%" }}>
+                <SwipeIndicator direction="down" text={SWIPE_DOWN_LABEL} />
+              </View>
+            </Tooltip>
+
+            {/* Full profile details (inline — scrollable) */}
+            <View style={styles.profileDetailSection}>
+              <ProfileDetailContent
+                height={height}
+                intent={formattedIntents}
+                occupation={topProfile.occupation ?? null}
+                city={profileGym?.city ?? null}
+                bio={topProfile.bio ?? null}
+              />
+              <PromptsList prompts={prompts} onPromptPress={handlePromptPress} />
+            </View>
+
+            {/* Swipe up indicator */}
+            <Tooltip
+              isVisible={showSwipeUpTooltip}
+              allowChildInteraction={false}
+              contentStyle={{
+                backgroundColor: colors.primary,
+                padding: 0,
+                borderRadius: borderRadius.md,
+              }}
+              content={
+                <View
+                  style={{
+                    backgroundColor: colors.primary,
+                    padding: spacing[3],
+                    borderRadius: borderRadius.md,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: palette.black,
+                      fontSize: fontSize.base,
+                    }}
+                  >
+                    {TOOLTIP_SWIPE_UP}
+                  </Text>
+                </View>
+              }
+              placement="bottom"
+              onClose={onSwipeUpTooltipClose}
+              backgroundColor="rgba(0,0,0,0.5)"
+            >
+              <SwipeIndicator
+                direction="up"
+                text={getSwipeUpMatchLabel(topProfile.display_name)}
+                containerStyle="up"
+              />
+            </Tooltip>
+            </AnimatedGHScrollView>
           </Animated.View>
         </GestureDetector>
       </View>
 
-      {/* Drop logo on swipe-down / pull-past-top — anchored above card top */}
+      {/* Drop logo on swipe-down */}
       <View style={styles.dropOverlayContainer} pointerEvents="none">
         <Animated.View style={dropImageAnimatedStyle}>
           <Image
             source={require("@/assets/images/DropLogo.png")}
-            style={styles.dropImage}
+            style={styles.overlayImage}
             resizeMode="contain"
           />
         </Animated.View>
       </View>
 
-      {/* Crush logo on swipe-up / scroll-past-bottom — anchored below card bottom */}
+      {/* Crush logo on swipe-up */}
       <View style={styles.crushOverlayContainer} pointerEvents="none">
         <Animated.View style={crushImageAnimatedStyle}>
           <Image
             source={require("@/assets/images/CrushLogo.png")}
-            style={styles.dropImage}
+            style={styles.overlayImage}
             resizeMode="contain"
           />
         </Animated.View>
       </View>
 
-      {/* Tick overlay – shown briefly on like with no match */}
+      {/* Tick overlay on no-match */}
       {showTick && (
         <Animated.View
           style={styles.swipeOverlayContainer}
@@ -758,18 +793,29 @@ export function SwipeDeck({
         </Animated.View>
       )}
 
+      {/* Profile detail sheet */}
+      <ProfileDetailSheet
+        profile={topProfile}
+        profileGym={profileGym}
+        distance={distance}
+        prompts={prompts}
+        onPromptPress={handlePromptPress}
+        bottomSheetRef={detailSheetRef}
+      />
+
+      {/* Message sheet */}
       <MessageBottomSheet
-        bottomSheetRef={bottomSheetRef}
+        bottomSheetRef={messageSheetRef}
         selectedPrompt={selectedPrompt}
         isImageChat={isImageChat}
         messageText={messageText}
         profileName={topProfile.display_name}
-        snapPoints={snapPoints}
-        bottomSheetIndex={bottomSheetIndex}
+        snapPoints={messageSnapPoints}
+        bottomSheetIndex={messageSheetIndex}
         onMessageTextChange={setMessageText}
-        onClose={handleCloseBottomSheet}
+        onClose={handleCloseMessageSheet}
         onSend={handleSendMessage}
-        onChange={handleBottomSheetChange}
+        onChange={handleMessageSheetChange}
       />
     </View>
   )
@@ -787,13 +833,23 @@ const styles = StyleSheet.create({
   backCard: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
   },
   frontCard: {
     flex: 1,
     zIndex: 1,
-  },
-  scrollView: {
-    flex: 1,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    overflow: "hidden",
+    marginTop: BACK_CARD_PEEK,
   },
   nameRow: {
     flexDirection: "row",
@@ -802,6 +858,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingTop: spacing[3],
     paddingBottom: spacing[3],
+    backgroundColor: colors.card,
   },
   approachablePill: {
     backgroundColor: `${colors.card}CC`,
@@ -831,42 +888,11 @@ const styles = StyleSheet.create({
   reportBlockButton: {
     padding: spacing[2],
   },
-  logoOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: spacing[6],
-  },
-  logoContainer: {
-    width: 220,
-    height: 220,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoAnimatedWrap: {
-    position: "absolute",
-    width: 200,
-    height: 200,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoImage: {
-    width: 200,
-    height: 200,
-  },
-  contentSection: {
-    backgroundColor: colors.background,
+  profileDetailSection: {
+    backgroundColor: colors.card,
     paddingHorizontal: spacing[3],
-    paddingVertical: spacing[6],
-  },
-  swipeOverlayContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 8,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: spacing[3],
+    gap: spacing[4],
   },
   dropOverlayContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -882,7 +908,13 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingBottom: spacing[1],
   },
-  dropImage: {
+  swipeOverlayContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overlayImage: {
     width: "100%",
     height: "100%",
   },
