@@ -2,7 +2,6 @@ import { DiscoveryFilterDropdowns, type DiscoveryFilterValues } from '@/componen
 import { DiscoveryPreferences, DiscoveryPreferencesContent, type DiscoveryPreferencesData } from '@/components/discover/DiscoveryPreferences';
 import { EmptyFeed } from '@/components/discover/EmptyFeed';
 import { MatchModal } from '@/components/discover/MatchModal';
-import { OfferWallModal } from '@/components/discover/OfferWallModal';
 import { SwipeDeck } from '@/components/discover/SwipeDeck';
 import { WorkoutTypeGrid } from '@/components/fitness/WorkoutTypeGrid';
 import { FilterRangeSliderContent } from '@/components/ui/FilterRangeSlider';
@@ -14,7 +13,7 @@ import {
   TOOLTIP_ADJUST_PREFERENCES,
 } from '@/constants';
 import { useCheckMatch, useCrushSignal, useLike, useLikedProfileIds, useMatches } from '@/lib/api/matches';
-import { useDiscoverProfiles, useProfile, useUpdateDiscoveryPreferences } from '@/lib/api/profiles';
+import { useDiscoverProfiles, useNearbyProfiles, useProfile, useUpdateDiscoveryPreferences } from '@/lib/api/profiles';
 import { useGymById, useGymsByIds } from '@/lib/api/gyms';
 import { usesMiles, milesToKm, kmToMiles } from '@/lib/utils/locale';
 import { calculateDistanceMiles } from '@/lib/utils/distance';
@@ -30,7 +29,7 @@ import { toast } from '@/lib/toast';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Pressable, StyleSheet, Text, View, Modal, ScrollView } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Tooltip from 'react-native-walkthrough-tooltip';
 
@@ -38,22 +37,33 @@ const STORAGE_KEY_PREFERENCES = APP.STORAGE_KEYS.DISCOVERY_PREFERENCES;
 const STORAGE_KEY_SWIPED = APP.STORAGE_KEYS.SWIPED_PROFILES;
 const STORAGE_KEY_SKIPPED = APP.STORAGE_KEYS.SKIPPED_PROFILES;
 const STORAGE_KEY_TOOLTIPS_SEEN = APP.STORAGE_KEYS.DISCOVER_TOOLTIPS_SEEN;
+const STORAGE_KEY_SWIPE_DOWN_PASS_DONE = APP.STORAGE_KEYS.DISCOVER_SWIPE_DOWN_PASS_DONE;
 
 const MIN_DISTANCE_KM = Math.round(milesToKm(MIN_DISTANCE_MILES));
 const MAX_DISTANCE_KM = 160; // 100 miles
 const DEFAULT_DISTANCE_KM = Math.round(milesToKm(DEFAULT_DISTANCE_MILES));
+
+const DEFAULT_DISCOVERY_PREFS: DiscoveryPreferencesData = {
+  gender: 'everyone',
+  maxDistance: DEFAULT_DISTANCE_MILES,
+  disciplines: [],
+  searchByGym: true,
+  selectedGym: null,
+  gymCrushMode: false,
+};
 
 // Load initial preferences from AsyncStorage
 const getInitialPreferences = async (): Promise<DiscoveryPreferencesData> => {
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEY_PREFERENCES);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored) as Partial<DiscoveryPreferencesData>;
+      return { ...DEFAULT_DISCOVERY_PREFS, ...parsed };
     }
   } catch (error) {
     console.error('Failed to load preferences:', error);
   }
-  return { gender: 'everyone', maxDistance: DEFAULT_DISTANCE_MILES, disciplines: [], searchByGym: true, selectedGym: null };
+  return { ...DEFAULT_DISCOVERY_PREFS };
 };
 
 // Load swiped profiles from AsyncStorage
@@ -130,6 +140,24 @@ const setTooltipsSeen = async (): Promise<void> => {
   }
 };
 
+const getSwipeDownPassDone = async (): Promise<boolean> => {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY_SWIPE_DOWN_PASS_DONE);
+    return stored === 'true';
+  } catch (error) {
+    console.error('Failed to load swipe-down pass done:', error);
+    return false;
+  }
+};
+
+const setSwipeDownPassDone = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY_SWIPE_DOWN_PASS_DONE, 'true');
+  } catch (error) {
+    console.error('Failed to save swipe-down pass done:', error);
+  }
+};
+
 // --- Match-check state machine ---
 type MatchCheckState =
   | { status: 'idle' }
@@ -169,6 +197,8 @@ interface FilterSortOptions {
   currentProfile: Profile | null | undefined;
   gymsMap: Map<string, any>;
   viewerHomeGym: any;
+  /** When true (Gym Crush Mode), skip client-side distance filtering — same gym only from API */
+  skipDistanceFilter?: boolean;
 }
 
 function filterScoreAndSort({
@@ -179,6 +209,7 @@ function filterScoreAndSort({
   currentProfile,
   gymsMap,
   viewerHomeGym,
+  skipDistanceFilter = false,
 }: FilterSortOptions): { profile: Profile; distance: number | null }[] {
   const filtered = profiles.filter((profile) => {
     if (!include(profile)) return false;
@@ -207,14 +238,16 @@ function filterScoreAndSort({
     return { profile, distance: calculateDistanceMiles(viewerRef, candidateRef) };
   });
 
-  const distanceFiltered = withDistances.filter(({ distance }) => {
-    if (filters.distance !== null && filters.distance > 0) {
-      const maxMiles = kmToMiles(filters.distance);
-      if (distance === null) return false;
-      if (distance > maxMiles) return false;
-    }
-    return true;
-  });
+  const distanceFiltered = skipDistanceFilter
+    ? withDistances
+    : withDistances.filter(({ distance }) => {
+        if (filters.distance !== null && filters.distance > 0) {
+          const maxMiles = kmToMiles(filters.distance);
+          if (distance === null) return false;
+          if (distance > maxMiles) return false;
+        }
+        return true;
+      });
 
   // Hoist current user's disciplines Set outside the loop
   const currentDisciplines = currentProfile?.fitness_disciplines
@@ -236,7 +269,7 @@ function filterScoreAndSort({
 
       // Profile completeness
       if (profile.bio && profile.bio.trim().length > 0) relevanceScore += 2;
-      if (profile.approach_prompt && profile.approach_prompt.trim().length > 0) relevanceScore += 2;
+      // approach_prompt removed — prompt completeness could be scored via profile_prompts in the future
       const photoCount = profile.photo_urls?.length || 0;
       if (photoCount > 1) relevanceScore += Math.min(photoCount - 1, 3);
 
@@ -283,8 +316,8 @@ export default function DiscoverScreen() {
   const workoutTypesBottomSheetRef = useRef<BottomSheet>(null);
   const workoutTypesSnapPoints = useMemo(() => ['70%'], []);
 
-  // Offer wall modal
-  const [offerWallOpen, setOfferWallOpen] = useState(false);
+  /** Same home gym only — persisted via preferences JSON */
+  const [gymCrushModeEnabled, setGymCrushModeEnabled] = useState(false);
 
   // Distance slider state
   const [isDistanceSliderOpen, setIsDistanceSliderOpen] = useState(false);
@@ -296,13 +329,7 @@ export default function DiscoverScreen() {
   const [ageRangeSliderValue, setAgeRangeSliderValue] = useState<[number, number]>([18, 65]);
   const ageRangeDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  const [preferences, setPreferences] = useState<DiscoveryPreferencesData>({
-    gender: 'everyone',
-    maxDistance: DEFAULT_DISTANCE_MILES,
-    disciplines: [],
-    searchByGym: true,
-    selectedGym: null,
-  });
+  const [preferences, setPreferences] = useState<DiscoveryPreferencesData>({ ...DEFAULT_DISCOVERY_PREFS });
   const [filters, setFilters] = useState<DiscoveryFilterValues>({
     ageRange: null,
     distance: null,
@@ -318,9 +345,10 @@ export default function DiscoverScreen() {
   }, []);
 
   const handleOpenDistanceSlider = useCallback(() => {
+    if (gymCrushModeEnabled) return;
     setDistanceSliderValue(filters.distance ?? DEFAULT_DISTANCE_KM);
     setIsDistanceSliderOpen(true);
-  }, [filters.distance]);
+  }, [filters.distance, gymCrushModeEnabled]);
 
   const handleCloseDistanceSlider = useCallback(() => {
     setIsDistanceSliderOpen(false);
@@ -388,6 +416,29 @@ export default function DiscoverScreen() {
     setFilters((prev) => ({ ...prev, ageRange: null }));
   }, []);
 
+  const handleAgeRangeFromPreferencesModal = useCallback((value: [number, number] | null) => {
+    if (value === null) {
+      if (ageRangeDebounceTimerRef.current) {
+        clearTimeout(ageRangeDebounceTimerRef.current);
+        ageRangeDebounceTimerRef.current = null;
+      }
+      setAgeRangeSliderValue([18, 65]);
+      setFilters((prev) => ({ ...prev, ageRange: null }));
+      setCurrentIndex(0);
+      setSkippedIndex(0);
+      return;
+    }
+    const [min, max] = value;
+    if (typeof min !== 'number' || typeof max !== 'number' || isNaN(min) || isNaN(max) || min > max) return;
+    setAgeRangeSliderValue(value);
+    if (ageRangeDebounceTimerRef.current) clearTimeout(ageRangeDebounceTimerRef.current);
+    ageRangeDebounceTimerRef.current = setTimeout(() => {
+      setFilters((prev) => ({ ...prev, ageRange: value }));
+      setCurrentIndex(0);
+      setSkippedIndex(0);
+    }, AGE_RANGE_DEBOUNCE_MS);
+  }, []);
+
 
   const handleWorkoutTypeToggle = useCallback((discipline: FitnessDiscipline) => {
     setFilters((prev) => {
@@ -403,8 +454,21 @@ export default function DiscoverScreen() {
     setFilters((prev) => ({ ...prev, workoutTypes: [] }));
   }, []);
 
-  const handleOfferWallChange = useCallback((open: boolean) => {
-    setOfferWallOpen(open);
+  const handleGymCrushModeChange = useCallback(async (open: boolean) => {
+    setGymCrushModeEnabled(open);
+    setCurrentIndex(0);
+    setSkippedIndex(0);
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY_PREFERENCES);
+      const existing = stored ? (JSON.parse(stored) as Record<string, unknown>) : {};
+      await AsyncStorage.setItem(
+        STORAGE_KEY_PREFERENCES,
+        JSON.stringify({ ...DEFAULT_DISCOVERY_PREFS, ...existing, gymCrushMode: open })
+      );
+      setPreferences((prev) => ({ ...prev, gymCrushMode: open }));
+    } catch (e) {
+      console.error('Failed to persist gym crush mode:', e);
+    }
   }, []);
 
   const renderBackdrop = useCallback(
@@ -429,6 +493,7 @@ export default function DiscoverScreen() {
   // 0=filter, 1=photoSwipe, 2=imageComment, 3=swipeDown, 4=swipeUp
   const [tooltipStep, setTooltipStep] = useState<number | null>(null);
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [swipeDownPassDone, setSwipeDownPassDoneState] = useState(false);
   const [deckScrollY, setDeckScrollY] = useState(0);
 
 
@@ -441,10 +506,23 @@ export default function DiscoverScreen() {
         loadSkippedProfiles(),
       ]);
       setPreferences(loadedPrefs);
+      setGymCrushModeEnabled(loadedPrefs.gymCrushMode ?? false);
       setSwipedProfiles(loadedSwiped);
       setSkippedProfiles(loadedSkipped);
     };
     loadData();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      const done = await getSwipeDownPassDone();
+      if (!cancelled) setSwipeDownPassDoneState(done);
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Re-load preferences from AsyncStorage when screen gains focus (e.g. after changing gender in Settings)
@@ -453,10 +531,17 @@ export default function DiscoverScreen() {
       const loadPrefs = async () => {
         const loadedPrefs = await getInitialPreferences();
         setPreferences(loadedPrefs);
+        setGymCrushModeEnabled(loadedPrefs.gymCrushMode ?? false);
       };
       loadPrefs();
     }, [])
   );
+
+  useEffect(() => {
+    if (gymCrushModeEnabled) {
+      setIsDistanceSliderOpen(false);
+    }
+  }, [gymCrushModeEnabled]);
 
   // Load distance from backend when profile is available
   useEffect(() => {
@@ -550,10 +635,43 @@ export default function DiscoverScreen() {
     };
   }, []);
 
-  // Fetch discover profiles (RLS scopes this to nearby users by last_location/home gym fallback)
-  const { data: nearbyProfiles = [], isLoading, error: nearbyProfilesError, refetch: refetchProfiles } = useDiscoverProfiles(
-    apiPreferences
-  );
+  const fetchDiscoverProfiles = !gymCrushModeEnabled;
+  const fetchNearbyProfiles = gymCrushModeEnabled && !!viewerHomeGymId;
+
+  const discoverQuery = useDiscoverProfiles(apiPreferences, { enabled: fetchDiscoverProfiles });
+  const nearbyQuery = useNearbyProfiles(viewerHomeGymId ?? '', apiPreferences, { enabled: fetchNearbyProfiles });
+
+  const nearbyProfiles = useMemo(() => {
+    if (gymCrushModeEnabled && viewerHomeGymId) return nearbyQuery.data ?? [];
+    if (gymCrushModeEnabled && !viewerHomeGymId) return [];
+    return discoverQuery.data ?? [];
+  }, [gymCrushModeEnabled, viewerHomeGymId, nearbyQuery.data, discoverQuery.data]);
+
+  const nearbyProfilesError = !gymCrushModeEnabled
+    ? discoverQuery.error
+    : gymCrushModeEnabled && viewerHomeGymId
+      ? nearbyQuery.error
+      : null;
+
+  const refetchProfiles = useCallback(() => {
+    if (gymCrushModeEnabled && viewerHomeGymId) void nearbyQuery.refetch();
+    else if (!gymCrushModeEnabled) void discoverQuery.refetch();
+  }, [gymCrushModeEnabled, viewerHomeGymId, nearbyQuery, discoverQuery]);
+
+  const showDeckLoading = useMemo(() => {
+    if (gymCrushModeEnabled && !viewerHomeGymId) return false;
+    if (!gymCrushModeEnabled) return discoverQuery.isPending || discoverQuery.isFetching;
+    return nearbyQuery.isPending || nearbyQuery.isFetching;
+  }, [
+    gymCrushModeEnabled,
+    viewerHomeGymId,
+    discoverQuery.isPending,
+    discoverQuery.isFetching,
+    nearbyQuery.isPending,
+    nearbyQuery.isFetching,
+  ]);
+
+  const gymCrushBlocked = gymCrushModeEnabled && !viewerHomeGymId;
 
   // Fetch viewer home gym for fallback distance calculation
   const { data: viewerHomeGym } = useGymById(viewerHomeGymId || '');
@@ -600,7 +718,8 @@ export default function DiscoverScreen() {
     currentProfile,
     gymsMap,
     viewerHomeGym,
-  }), [nearbyProfiles, excludedProfileIds, preferences, filters, gymsMap, currentProfile, viewerHomeGym]);
+    skipDistanceFilter: gymCrushModeEnabled,
+  }), [nearbyProfiles, excludedProfileIds, preferences, filters, gymsMap, currentProfile, viewerHomeGym, gymCrushModeEnabled]);
 
   // Skipped pool: profiles user previously passed (used when main feed is exhausted)
   const skippedPool = useMemo(() => filterScoreAndSort({
@@ -611,7 +730,8 @@ export default function DiscoverScreen() {
     currentProfile,
     gymsMap,
     viewerHomeGym,
-  }), [nearbyProfiles, skippedProfiles, preferences, filters, gymsMap, currentProfile, viewerHomeGym]);
+    skipDistanceFilter: gymCrushModeEnabled,
+  }), [nearbyProfiles, skippedProfiles, preferences, filters, gymsMap, currentProfile, viewerHomeGym, gymCrushModeEnabled]);
 
   const hasMainFeed = filteredUsers.length > 0 && currentIndex < filteredUsers.length;
   const hasSkippedToShow = filteredUsers.length === 0 && skippedPool.length > 0 && skippedIndex < skippedPool.length;
@@ -705,6 +825,10 @@ export default function DiscoverScreen() {
           // Don't advance index yet - wait to see if there's a match
           // If no match, we'll advance in handleKeepSwiping
         } else {
+          if (!swipeDownPassDone) {
+            setSwipeDownPassDoneState(true);
+            setSwipeDownPassDone();
+          }
           // For pass actions, save to swiped and to skipped list, then move to next profile
           const updatedSwiped = [...swipedProfiles, profileId];
           setSwipedProfiles(updatedSwiped);
@@ -729,7 +853,7 @@ export default function DiscoverScreen() {
         });
       }
     },
-    [currentUser, swipedProfiles, skippedProfiles, isSkippedMode, likeMutation, crushMutation, checkCrushAvailability, currentProfile?.id, queryClient]
+    [currentUser, swipedProfiles, skippedProfiles, isSkippedMode, likeMutation, crushMutation, checkCrushAvailability, currentProfile?.id, queryClient, swipeDownPassDone]
   );
 
   // Signal match/no-match result to SwipeDeck for overlay animations
@@ -834,8 +958,21 @@ export default function DiscoverScreen() {
 
   const handlePreferencesChange = useCallback((prefs: DiscoveryPreferencesData) => {
     setPreferences(prefs);
+    if (prefs.gymCrushMode !== undefined) {
+      setGymCrushModeEnabled(!!prefs.gymCrushMode);
+    }
     setCurrentIndex(0);
     setSkippedIndex(0);
+
+    const genderMap: Record<string, ('male' | 'female' | 'non-binary' | 'prefer-not-to-say')[]> = {
+      men: ['male'],
+      women: ['female'],
+      everyone: ['male', 'female', 'non-binary', 'prefer-not-to-say'],
+    };
+
+    const updates: Record<string, unknown> = {
+      genders: genderMap[prefs.gender] ?? [],
+    };
 
     // Sync distance filter: allow blank (null); default 30 miles; min 2 miles
     if (prefs.maxDistance !== undefined && prefs.maxDistance !== null && prefs.maxDistance > 0) {
@@ -845,15 +982,13 @@ export default function DiscoverScreen() {
         ? Math.round(milesToKm(milesClamped))
         : milesClamped;
       setFilters((prev) => ({ ...prev, distance: maxDistanceKm }));
-      updateDiscoveryPreferencesMutation.mutate({
-        max_distance: maxDistanceKm,
-      });
+      updates.max_distance = maxDistanceKm;
     } else {
       setFilters((prev) => ({ ...prev, distance: null }));
-      updateDiscoveryPreferencesMutation.mutate({
-        max_distance: null,
-      });
+      updates.max_distance = null;
     }
+
+    updateDiscoveryPreferencesMutation.mutate(updates);
   }, [updateDiscoveryPreferencesMutation]);
 
   const handleFiltersChange = useCallback((newFilters: DiscoveryFilterValues) => {
@@ -872,11 +1007,6 @@ export default function DiscoverScreen() {
     setDeckScrollY(scrollY);
   }, []);
 
-  const handleOfferWallCtaPress = useCallback(() => {
-    toast({ preset: 'none', title: 'Coming soon!' });
-    setOfferWallOpen(false);
-  }, []);
-
   const handleStartOver = useCallback(async () => {
     setSwipedProfiles([]);
     setSkippedProfiles([]);
@@ -886,16 +1016,6 @@ export default function DiscoverScreen() {
     await AsyncStorage.removeItem(APP.STORAGE_KEYS.SKIPPED_PROFILES);
     await AsyncStorage.removeItem(APP.STORAGE_KEYS.DISCOVER_TOOLTIPS_SEEN);
   }, []);
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={[layout.flex1, { backgroundColor: colors.background }]}>
-        <View style={[layout.flex1, layout.itemsCenter, layout.justifyCenter]}>
-          {/* Loading state - you can add a loading spinner here */}
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   if (nearbyProfilesError) {
     return (
@@ -946,8 +1066,8 @@ export default function DiscoverScreen() {
                 onFiltersChange={handleFiltersChange}
                 onOpenDistanceSlider={handleOpenDistanceSlider}
                 onOpenAgeRangeSlider={handleOpenAgeRangeSlider}
-                offerWallOpen={offerWallOpen}
-                onOfferWallChange={handleOfferWallChange}
+                gymCrushModeEnabled={gymCrushModeEnabled}
+                onGymCrushModeChange={handleGymCrushModeChange}
                 distanceMinKm={MIN_DISTANCE_KM}
                 distanceMaxKm={MAX_DISTANCE_KM}
               />
@@ -1009,35 +1129,56 @@ export default function DiscoverScreen() {
 
       {/* Profile View */}
       <View style={layout.flex1}>
-        {(hasMainFeed || hasSkippedToShow) && currentUser ? (
-          <View style={layout.flex1}>
-            {isSkippedMode && (
-              <View style={styles.skippedBanner}>
-                <Text style={styles.skippedBannerText}>Showing people you skipped</Text>
-              </View>
-            )}
-            <SwipeDeck
-              profiles={deckProfiles}
-              onSwipe={handleDeckSwipe}
-              swipeResult={swipeResultForDeck}
-              onSwipeComplete={handleSwipeComplete}
-              showPhotoSwipeTooltip={tooltipStep === 1}
-              showImageCommentTooltip={tooltipStep === 2}
-              showSwipeDownTooltip={tooltipStep === 3}
-              showSwipeUpTooltip={tooltipStep === 4}
-              onPhotoSwipeTooltipClose={advanceTooltip}
-              onImageCommentTooltipClose={advanceTooltip}
-              onSwipeDownTooltipClose={advanceTooltip}
-              onSwipeUpTooltipClose={advanceTooltip}
-              onScrollStateChange={handleDeckScrollStateChange}
-              distances={deckDistances}
-            />
+        {gymCrushBlocked ? (
+          <View style={[layout.flex1, layout.itemsCenter, layout.justifyCenter, { paddingHorizontal: spacing[6] }]}>
+            <Text style={{ fontSize: fontSize.xl, fontWeight: fontWeight.semibold, color: colors.foreground, textAlign: 'center', marginBottom: spacing[2] }}>
+              Set your home gym
+            </Text>
+            <Text style={{ fontSize: fontSize.sm, color: colors.mutedForeground, textAlign: 'center', marginBottom: spacing[6] }}>
+              Gym Crush Mode shows people at your home gym. Add one in your profile to continue.
+            </Text>
+            <Button variant="primary" onPress={() => router.push('/(tabs)/profile/edit')}>
+              Edit profile
+            </Button>
           </View>
         ) : (
-          <EmptyFeed
-            message="You've seen everyone!"
-            onStartOver={handleStartOver}
-          />
+          <View style={styles.deckArea}>
+            {(hasMainFeed || hasSkippedToShow) && currentUser ? (
+              <View style={layout.flex1}>
+                {isSkippedMode && (
+                  <View style={styles.skippedBanner}>
+                    <Text style={styles.skippedBannerText}>Showing people you skipped</Text>
+                  </View>
+                )}
+                <SwipeDeck
+                  profiles={deckProfiles}
+                  onSwipe={handleDeckSwipe}
+                  swipeResult={swipeResultForDeck}
+                  onSwipeComplete={handleSwipeComplete}
+                  showPhotoSwipeTooltip={tooltipStep === 1}
+                  showImageCommentTooltip={tooltipStep === 2}
+                  showSwipeDownTooltip={tooltipStep === 3 && !swipeDownPassDone}
+                  showSwipeUpTooltip={tooltipStep === 4}
+                  onPhotoSwipeTooltipClose={advanceTooltip}
+                  onImageCommentTooltipClose={advanceTooltip}
+                  onSwipeDownTooltipClose={advanceTooltip}
+                  onSwipeUpTooltipClose={advanceTooltip}
+                  onScrollStateChange={handleDeckScrollStateChange}
+                  distances={deckDistances}
+                />
+              </View>
+            ) : !showDeckLoading ? (
+              <EmptyFeed
+                message="You've seen everyone!"
+                onStartOver={handleStartOver}
+              />
+            ) : null}
+            {showDeckLoading ? (
+              <View style={styles.deckLoadingOverlay} pointerEvents="box-none">
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : null}
+          </View>
         )}
       </View>
 
@@ -1050,16 +1191,15 @@ export default function DiscoverScreen() {
       >
         <View style={styles.preferencesModalBackdrop}>
           <View style={styles.preferencesModalContent}>
-            <ScrollView
-              style={styles.preferencesModalScroll}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <DiscoveryPreferencesContent
-                onClose={handleClosePreferences}
-                onPreferencesChange={handlePreferencesChange}
-              />
-            </ScrollView>
+            <DiscoveryPreferencesContent
+              onClose={handleClosePreferences}
+              onPreferencesChange={handlePreferencesChange}
+              gender={preferences.gender}
+              onGenderChange={(g) => setPreferences((p) => ({ ...p, gender: g }))}
+              ageRange={filters.ageRange}
+              onAgeRangeChange={handleAgeRangeFromPreferencesModal}
+              gymCrushModeEnabled={gymCrushModeEnabled}
+            />
           </View>
         </View>
       </Modal>
@@ -1089,13 +1229,6 @@ export default function DiscoverScreen() {
           </View>
         </BottomSheetScrollView>
       </BottomSheet>
-
-      {/* Offer Wall Modal */}
-      <OfferWallModal
-        visible={offerWallOpen}
-        onClose={() => setOfferWallOpen(false)}
-        onCtaPress={handleOfferWallCtaPress}
-      />
 
       {/* Match Modal */}
       {currentProfile && matchedUser && (
@@ -1153,10 +1286,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   preferencesModalContent: {
+    width: '100%',
+    height: '90%',
     backgroundColor: colors.card,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
-    maxHeight: '90%',
+    overflow: 'hidden',
   },
   preferencesModalScroll: {
     maxHeight: '100%',
@@ -1217,5 +1352,16 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.mutedForeground,
     fontWeight: fontWeight.medium,
+  },
+  deckArea: {
+    flex: 1,
+    position: 'relative' as const,
+  },
+  deckLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.22)',
+    zIndex: 10,
   },
 });

@@ -13,7 +13,7 @@ const MOCK_CURRENT_USER: Profile = {
   id: 'playground-current-user',
   display_name: 'You',
   age: 26,
-  approach_prompt: null,
+
   bio: null,
   created_at: NOW_ISO,
   discovery_preferences: {} as any,
@@ -36,7 +36,7 @@ const MOCK_MATCHED_USER: Profile = {
   id: 'playground-match-user',
   display_name: 'Riley',
   age: 28,
-  approach_prompt: 'Always down for a lift and a coffee.',
+
   bio: 'Powerbuilding and weekend hikes.',
   created_at: NOW_ISO,
   discovery_preferences: {} as any,

@@ -16,7 +16,7 @@ export type Report = Database['public']['Tables']['reports']['Row'];
 
 // Onboarding types (re-exported from onboarding.ts)
 export type {
-  ApproachPreference, FITNESS_PROMPTS, FitnessDiscipline, FitnessLifestyle, GooglePlaceGym, INITIAL_ONBOARDING_DATA, Intent, OnboardingData, OnboardingStep, TrainingFrequency
+  ApproachPreference, FitnessDiscipline, FitnessLifestyle, GooglePlaceGym, Intent, OnboardingData, OnboardingStep, PromptAnswer, PromptSectionWithPrompts, ProfilePromptWithDetails, TrainingFrequency
 } from './onboarding';
 
 // Legacy types (for backward compatibility)

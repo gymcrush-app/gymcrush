@@ -99,7 +99,7 @@ async function createProfile(userId: string, profileData: typeof testProfiles[0]
       gender: profileData.gender,
       fitness_disciplines: profileData.disciplines,
       bio: profileData.bio,
-      approach_prompt: profileData.prompt,
+
       photo_urls: photoUrls,
       home_gym_id: gymId,
       is_visible: true,

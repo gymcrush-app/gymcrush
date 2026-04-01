@@ -178,7 +178,7 @@ async function createProfile(
       gender: 'female',
       fitness_disciplines: disciplines,
       bio,
-      approach_prompt: prompt,
+
       photo_urls: photoUrls,
       home_gym_id: gymId,
       is_visible: true,

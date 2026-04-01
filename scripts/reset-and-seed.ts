@@ -579,7 +579,7 @@ async function createProfile(
   gymId: string,
   photoUrls: string[],
   bio: string,
-  prompt: string,
+  _prompt: string, // unused after approach_prompt removal, kept for call-site compat
   disciplines: string[],
   intents: Intent[],
   lastLocationWkt?: string | null,
@@ -594,7 +594,6 @@ async function createProfile(
     gender,
     fitness_disciplines: disciplines,
     bio,
-    approach_prompt: prompt,
     photo_urls: photoUrls,
     home_gym_id: gymId,
     is_visible: true,
@@ -946,23 +945,6 @@ async function main() {
       )
     }
 
-    // Fetch approach_prompt for Meridian user (Chris) and both Canada users
-    const { data: chrisProfile } = await supabase
-      .from("profiles")
-      .select("approach_prompt")
-      .eq("id", MERIDIAN_CURRENT_USER_ID)
-      .single()
-    const meridianApproachPrompt = chrisProfile?.approach_prompt ?? null
-
-    const { data: canadaProfiles } = await supabase
-      .from("profiles")
-      .select("id, approach_prompt")
-      .in("id", CANADA_CURRENT_USER_IDS)
-    const canadaApproachPrompts: Record<string, string | null> = {}
-    for (const p of canadaProfiles ?? []) {
-      canadaApproachPrompts[p.id] = p.approach_prompt ?? null
-    }
-
     const meridianProfiles: SeedProfile[] = []
     const kelownaProfiles: SeedProfile[] = []
 
@@ -1229,7 +1211,7 @@ async function main() {
             const reactionCount = await seedReactionMessages(
               match.id,
               profile.id,
-              meridianApproachPrompt,
+              null, // approach_prompt removed
             )
             meridianMessagesInMatches += reactionCount
           }
@@ -1343,7 +1325,7 @@ async function main() {
       women: SeedProfile[],
       label: string,
     ) => {
-      const approachPrompt = canadaApproachPrompts[canadaUserId] ?? null
+      const approachPrompt = null // approach_prompt removed
       const matchProfiles = women.slice(0, NUM_CANADA_MATCHES_PER_USER)
       const swipeUpProfiles = women.slice(
         NUM_CANADA_MATCHES_PER_USER,

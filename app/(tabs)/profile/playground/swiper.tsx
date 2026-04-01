@@ -17,7 +17,7 @@ const MOCK_CURRENT_USER: Profile = {
   id: 'mock-current-user',
   display_name: 'You',
   age: 25,
-  approach_prompt: null,
+
   bio: null,
   created_at: NOW_ISO,
   discovery_preferences: {} as any,
@@ -41,7 +41,7 @@ const MOCK_PROFILES: Profile[] = [
     id: 'mock-profile-1',
     display_name: 'Avery',
     age: 27,
-    approach_prompt: "Open to being approached. Let's train.",
+
     bio: 'Cardio + lifting enjoyer. Here for the vibes and the PRs.',
     created_at: NOW_ISO,
     discovery_preferences: {
@@ -69,7 +69,7 @@ const MOCK_PROFILES: Profile[] = [
     id: 'mock-profile-2',
     display_name: 'Jordan',
     age: 29,
-    approach_prompt: 'Approach me with your best workout recommendation.',
+
     bio: 'Strength focused, always learning. Ask me about programming.',
     created_at: NOW_ISO,
     discovery_preferences: {

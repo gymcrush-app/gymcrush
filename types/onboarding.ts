@@ -76,7 +76,7 @@ export interface OnboardingData {
   approachPreference: ApproachPreference | null
   showStatusPublicly: boolean
   photos: string[]
-  prompts: PromptAnswer[] // Array of up to 3 prompts
+  prompts: PromptAnswer[] // 7 prompts, one per section
   selectedGyms: string[]
   interestedInGender: "men" | "women" | "everyone" | null
 }

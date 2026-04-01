@@ -70,7 +70,7 @@ export function useProfilePrompts(profileId: string | undefined) {
           prompt_sections!inner(name, display_order)
         `)
         .eq('profile_id', profileId)
-        .order('prompt_sections(display_order)');
+        .order('display_order', { referencedTable: 'prompt_sections' });
 
       if (error) throw error;
 

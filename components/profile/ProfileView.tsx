@@ -4,7 +4,7 @@ import { FitnessBadges } from '@/components/profile/FitnessBadges';
 import { PhotoCarousel } from '@/components/profile/PhotoCarousel';
 import { Button } from '@/components/ui/Button';
 import { Label } from '@/components/ui/Label';
-import { Switch } from '@/components/ui/Switch';
+
 import { Text } from '@/components/ui/Text';
 import { MERIDIAN_ID_COORDS, VISIBILITY_OPTIONS } from '@/constants';
 import { triggerDevLocationRefresh } from '@/lib/devLocationRefresh';
@@ -19,7 +19,6 @@ import React from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { toast } from '@/lib/toast';
 
-const DEFAULT_APPROACH_PROMPT = "I'm open to being approached at the gym";
 
 interface ProfileViewProps {
   profile: Profile;
@@ -75,21 +74,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
   },
   visibilityOptionDescription: {
-    marginTop: spacing[1],
-  },
-  approachSection: {
-    gap: spacing[3],
-  },
-  approachHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  approachTextContainer: {
-    flex: 1,
-    marginRight: spacing[4],
-  },
-  approachDescription: {
     marginTop: spacing[1],
   },
   settingsSection: {
@@ -148,7 +132,7 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
   const name = profile.display_name;
   const age = profile.age;
   const visibility: Visibility = profile.is_visible ? 'visible' : 'paused';
-  const openToApproach = !!profile.approach_prompt;
+
 
   const discoveryPrefs = profile.discovery_preferences as { intents?: Intent[] } | null | undefined;
   const intents = (discoveryPrefs?.intents ?? []) as Intent[];
@@ -161,13 +145,7 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
     onUpdateProfile({ is_visible: isVisible });
   };
 
-  const handleOpenToApproachChange = (checked: boolean) => {
-    if (checked) {
-      onUpdateProfile({ approach_prompt: DEFAULT_APPROACH_PROMPT });
-    } else {
-      onUpdateProfile({ approach_prompt: null });
-    }
-  };
+
 
   const handleSetLocationMeridian = async () => {
     try {
@@ -270,21 +248,6 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
           </View>
         </View>
 
-        {/* Open to Approach */}
-        <View style={styles.approachSection}>
-          <View style={styles.approachHeader}>
-            <View style={styles.approachTextContainer}>
-              <Label>Open to being approached</Label>
-              <Text variant="mutedSmall" style={styles.approachDescription}>
-                Let others know you{"'"}re comfortable being approached in person at the gym
-              </Text>
-            </View>
-            <Switch
-              value={openToApproach}
-              onValueChange={handleOpenToApproachChange}
-            />
-          </View>
-        </View>
 
         {/* Settings section */}
         <View style={styles.settingsSection}>
