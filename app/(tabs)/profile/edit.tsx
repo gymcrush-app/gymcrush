@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button"
 import { CensoredPreview } from "@/components/ui/CensoredPreview"
+import { FilteredTextarea } from "@/components/ui/FilteredTextarea"
 import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
 import { WORKOUT_TYPE_OPTIONS } from "@/constants/fitness"
@@ -7,6 +8,7 @@ import { useFilteredInput } from "@/hooks/useFilteredInput"
 import { useGymSearch } from "@/hooks/useGymSearch"
 import { useGymById } from "@/lib/api/gyms"
 import { useProfile, useUpdateProfile } from "@/lib/api/profiles"
+import { useProfilePrompts, usePromptSections, useUpsertProfilePrompt } from "@/lib/api/prompts"
 import { resolvePhotoUrls } from "@/lib/storage/uploadProfilePhoto"
 import { fetchPlaceDetailsFull } from "@/lib/utils/google-places"
 import { resolveHomeGym } from "@/lib/utils/resolveHomeGym"
@@ -19,12 +21,13 @@ import {
   spacing,
 } from "@/theme"
 import type { Profile } from "@/types"
-import type { GooglePlaceGym } from "@/types/onboarding"
+import type { GooglePlaceGym, ProfilePromptWithDetails } from "@/types/onboarding"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "@/lib/toast"
 import * as ImagePicker from "expo-image-picker"
 import { useRouter } from "expo-router"
 import { DraggablePhotoGrid } from "@/components/profile/DraggablePhotoGrid"
+import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet"
 import { ChevronLeft, X } from "lucide-react-native"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -66,6 +69,17 @@ export default function EditProfileScreen() {
     search: searchPlaces,
     clearResults: clearPlaceResults,
   } = useGymSearch()
+
+  const { data: profilePrompts, isLoading: promptsLoading } = useProfilePrompts(profile?.id)
+  const { data: promptSections } = usePromptSections()
+  const upsertPrompt = useUpsertProfilePrompt()
+
+  // Prompt editing bottom sheet state
+  const [editingPrompt, setEditingPrompt] = useState<ProfilePromptWithDetails | null>(null)
+  const [editPromptId, setEditPromptId] = useState<string | null>(null)
+  const [editAnswer, setEditAnswer] = useState('')
+  const promptSheetRef = useRef<BottomSheet>(null)
+  const promptSheetSnapPoints = useMemo(() => ['85%'], [])
 
   const [displayName, setDisplayName] = useState("")
   const [disciplines, setDisciplines] = useState<string[]>([])
@@ -292,6 +306,37 @@ export default function EditProfileScreen() {
     (urls: string[]) => setPhotoUrls(urls),
     [],
   )
+
+  const handleOpenPromptEdit = useCallback((prompt: ProfilePromptWithDetails) => {
+    setEditingPrompt(prompt)
+    setEditPromptId(prompt.prompt_id)
+    setEditAnswer(prompt.answer)
+    promptSheetRef.current?.snapToIndex(0)
+  }, [])
+
+  const handleSavePrompt = useCallback(async () => {
+    if (!editingPrompt || !editPromptId || !editAnswer.trim()) return
+
+    const isSwappedPrompt = editPromptId !== editingPrompt.prompt_id
+
+    try {
+      await upsertPrompt.mutateAsync({
+        promptId: editPromptId,
+        sectionId: editingPrompt.section_id,
+        answer: editAnswer.trim(),
+        resetEngagement: isSwappedPrompt,
+      })
+      promptSheetRef.current?.close()
+      setEditingPrompt(null)
+    } catch (err) {
+      console.error('[EditProfile] Failed to update prompt:', err)
+      toast({
+        preset: 'error',
+        title: 'Failed to update prompt',
+        message: err instanceof Error ? err.message : 'Please try again.',
+      })
+    }
+  }, [editingPrompt, editPromptId, editAnswer, upsertPrompt])
 
   const handleAddPhoto = useCallback(() => {
     pickImage(photoUrls.length)
@@ -768,9 +813,107 @@ export default function EditProfileScreen() {
             <Text style={styles.photoHint}>Add at least 3 photos.</Text>
           </View>
 
+          {/* Prompts */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Prompts</Text>
+            {promptsLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : profilePrompts && profilePrompts.length > 0 ? (
+              <View style={{ gap: spacing[4] }}>
+                {profilePrompts.map((pp) => (
+                  <Pressable
+                    key={pp.id}
+                    onPress={() => handleOpenPromptEdit(pp)}
+                    style={styles.promptEditCard}
+                  >
+                    <Text style={styles.promptEditSection}>{pp.section_name}</Text>
+                    <Text style={styles.promptEditTitle} numberOfLines={2}>
+                      {pp.prompt_text}
+                    </Text>
+                    <Text style={styles.promptEditAnswer} numberOfLines={2}>
+                      {pp.answer}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.promptEditEmpty}>No prompts yet</Text>
+            )}
+          </View>
+
           <View style={{ height: spacing[12] }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Prompt Edit Bottom Sheet */}
+      <BottomSheet
+        ref={promptSheetRef}
+        index={-1}
+        snapPoints={promptSheetSnapPoints}
+        backdropComponent={(props: any) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
+        )}
+        backgroundStyle={{ backgroundColor: colors.card }}
+        handleIndicatorStyle={{ backgroundColor: colors.muted }}
+        enablePanDownToClose
+      >
+        <BottomSheetScrollView showsVerticalScrollIndicator={false}>
+          <View style={{ padding: spacing[6], gap: spacing[4], paddingBottom: spacing[28] }}>
+            {editingPrompt && promptSections && (() => {
+              const section = promptSections.find((s) => s.id === editingPrompt.section_id)
+              if (!section) return null
+              return (
+                <>
+                  <Text style={styles.promptSheetTitle}>{section.name}</Text>
+                  <Text style={styles.promptSheetSubtitle}>{section.subtitle}</Text>
+                  <View style={{ gap: spacing[2] }}>
+                    {section.prompts.map((p) => {
+                      const isSelected = editPromptId === p.id
+                      return (
+                        <Pressable
+                          key={p.id}
+                          onPress={() => {
+                            setEditPromptId(p.id)
+                            if (p.id !== editingPrompt.prompt_id) {
+                              setEditAnswer('')
+                            }
+                          }}
+                          style={[
+                            styles.promptOption,
+                            isSelected && styles.promptOptionSelected,
+                          ]}
+                        >
+                          <Text style={[
+                            styles.promptOptionText,
+                            isSelected && styles.promptOptionTextSelected,
+                          ]}>
+                            {p.prompt_text}
+                          </Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                  {editPromptId && (
+                    <FilteredTextarea
+                      placeholder="Your answer..."
+                      value={editAnswer}
+                      onChangeText={setEditAnswer}
+                      maxLength={APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH}
+                      showCharCount
+                    />
+                  )}
+                  <Button
+                    onPress={handleSavePrompt}
+                    disabled={!editPromptId || !editAnswer.trim() || upsertPrompt.isPending}
+                  >
+                    {upsertPrompt.isPending ? 'Saving...' : 'Save'}
+                  </Button>
+                </>
+              )
+            })()}
+          </View>
+        </BottomSheetScrollView>
+      </BottomSheet>
     </SafeAreaView>
   )
 }
@@ -967,5 +1110,60 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.mutedForeground,
     marginTop: spacing[2],
+  },
+  promptEditCard: {
+    padding: spacing[4],
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing[1],
+  },
+  promptEditSection: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+    textTransform: 'uppercase' as const,
+  },
+  promptEditTitle: {
+    fontSize: fontSize.sm,
+    color: colors.mutedForeground,
+  },
+  promptEditAnswer: {
+    fontSize: fontSize.base,
+    color: colors.foreground,
+  },
+  promptEditEmpty: {
+    fontSize: fontSize.sm,
+    color: colors.mutedForeground,
+    textAlign: 'center' as const,
+    paddingVertical: spacing[4],
+  },
+  promptSheetTitle: {
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    color: colors.foreground,
+  },
+  promptSheetSubtitle: {
+    fontSize: fontSize.base,
+    color: colors.mutedForeground,
+  },
+  promptOption: {
+    padding: spacing[4],
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.input,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  promptOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}1A`,
+  },
+  promptOptionText: {
+    fontSize: fontSize.base,
+    color: colors.foreground,
+  },
+  promptOptionTextSelected: {
+    color: colors.primary,
   },
 })
