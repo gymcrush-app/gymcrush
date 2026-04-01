@@ -3,7 +3,7 @@
  * useProfile, useUpdateProfile, useDiscoverProfiles, useNearbyProfiles, useProfileById, useUpdateDiscoveryPreferences.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { filterBadWords } from '@/lib/utils/filterBadWords';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
@@ -28,7 +28,10 @@ export function useProfile() {
   });
 }
 
-export function useDiscoverProfiles(preferences?: DiscoveryPreferences) {
+export function useDiscoverProfiles(
+  preferences?: DiscoveryPreferences,
+  options?: { enabled?: boolean }
+) {
   const user = useAuthStore((s) => s.user);
 
   return useQuery({
@@ -74,7 +77,8 @@ export function useDiscoverProfiles(preferences?: DiscoveryPreferences) {
         return [];
       }
     },
-    enabled: !!user,
+    enabled: !!user && (options?.enabled ?? true),
+    placeholderData: keepPreviousData,
     retry: 1,
   });
 }
@@ -92,9 +96,6 @@ export function useUpdateProfile() {
       }
       if (typeof filteredUpdates.bio === 'string') {
         filteredUpdates.bio = filterBadWords(filteredUpdates.bio);
-      }
-      if (typeof filteredUpdates.approach_prompt === 'string') {
-        filteredUpdates.approach_prompt = filterBadWords(filteredUpdates.approach_prompt);
       }
       const { data, error } = await supabase
         .from('profiles')
@@ -127,7 +128,11 @@ export function useUpdateProfile() {
   });
 }
 
-export function useNearbyProfiles(gymId: string, preferences?: DiscoveryPreferences) {
+export function useNearbyProfiles(
+  gymId: string,
+  preferences?: DiscoveryPreferences,
+  options?: { enabled?: boolean }
+) {
   const user = useAuthStore((s) => s.user);
 
   return useQuery({
@@ -178,7 +183,8 @@ export function useNearbyProfiles(gymId: string, preferences?: DiscoveryPreferen
         return [];
       }
     },
-    enabled: !!gymId && !!user,
+    enabled: !!gymId && !!user && (options?.enabled ?? true),
+    placeholderData: keepPreviousData,
     retry: 1,
   });
 }

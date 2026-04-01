@@ -124,7 +124,6 @@ export const APP = {
   MAX_PHOTOS: 6,
   CRUSH_COOLDOWN_MS: 86_400_000, // 24 hours
   MAX_BIO_LENGTH: 300,
-  MAX_APPROACH_PROMPT_LENGTH: 100,
   MAX_ONBOARDING_PROMPT_ANSWER_LENGTH: 225,
   GYM_SEARCH_DEBOUNCE_MS: 300,
   MIN_AGE: 18,
@@ -134,6 +133,7 @@ export const APP = {
     SWIPED_PROFILES: 'gymcrush_swiped_profiles',
     SKIPPED_PROFILES: 'gymcrush_skipped_profiles',
     DISCOVER_TOOLTIPS_SEEN: 'gymcrush_discover_tooltips_seen',
+    DISCOVER_SWIPE_DOWN_PASS_DONE: 'gymcrush_discover_swipe_down_pass_done',
     LAST_LOCATION_SYNC: 'gymcrush_last_location_sync_v1',
     DEV_LOCATION_OVERRIDE: 'gymcrush_dev_location_override',
     AUTH: 'auth-storage',
