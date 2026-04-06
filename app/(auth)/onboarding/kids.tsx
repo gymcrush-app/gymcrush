@@ -23,7 +23,7 @@ export default function OnboardingKids() {
   };
 
   return (
-    <OnboardingContainer currentStep={4} totalSteps={17} showBack={true}>
+    <OnboardingContainer currentStep={4} totalSteps={13} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Do you have kids?</Text>

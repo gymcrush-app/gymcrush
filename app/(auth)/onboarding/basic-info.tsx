@@ -202,9 +202,9 @@ export default function OnboardingBasicInfo() {
   }, [data.fullName, data.dateOfBirth, data.gender]);
 
   return (
-    <OnboardingContainer 
+    <OnboardingContainer
       currentStep={1}
-      totalSteps={17}
+      totalSteps={13}
       showBack={false}
       showClose={true}
       onClose={async () => {
