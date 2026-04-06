@@ -16,6 +16,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 import { getSupabaseConfig } from './env';
+import {
+  generateAnswersForProfileSeed,
+  insertProfilePromptsForUser,
+  loadPromptCatalogFirstPerSection,
+} from './seedPromptHelpers';
 
 const { url: supabaseUrl, serviceRoleKey } = getSupabaseConfig();
 
@@ -85,29 +90,11 @@ const bioTemplates = [
   'Gym regular looking for workout accountability.',
 ];
 
-// Prompt templates
-const promptTemplates = [
-  'My gym hot take is... leg day is the best day.',
-  'The way to my heart is through... a good protein shake after class.',
-  'My ideal post-workout meal is... anything with protein and carbs.',
-  'You\'ll find me at the gym when... the sun is rising.',
-  'The exercise I love to hate is... deadlifts.',
-  'My gym playlist always includes... high-energy beats.',
-  'After leg day, I\'m usually... foam rolling everything.',
-  'My fitness journey started because... I wanted to feel confident.',
-  'The way to win me over is... spot me on bench press.',
-  'I\'m looking for... someone who understands 5am gym sessions.',
-  'My gym hot take is... cardio doesn\'t kill gains if done right.',
-  'The way to my heart is through... perfect squat form.',
-  'My ideal workout partner is... someone who pushes me.',
-  'You\'ll find me at the gym when... it\'s empty and quiet.',
-  'The exercise I love to hate is... burpees.',
-  'My gym playlist always includes... motivational tracks.',
-  'After leg day, I\'m usually... walking like a penguin.',
-  'My fitness journey started because... I wanted to be strong.',
-  'The way to win me over is... share your protein shake.',
-  'I\'m looking for... a workout partner who shows up consistently.',
-];
+// Lifestyle attribute options
+const religions = ['Atheist','Jewish','Muslim','Christian','Catholic','Buddhist','Hindu','Sikh','Spiritual','Other'];
+const yesNoSometimes = ['Yes','No','Sometimes'];
+const yesNo = ['Yes','No'];
+const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
 async function getCurrentUserGym() {
   const { data: profile, error } = await supabase
@@ -166,7 +153,6 @@ async function createProfile(
   gymId: string,
   photoUrls: string[],
   bio: string,
-  prompt: string,
   disciplines: string[]
 ) {
   const { data, error } = await supabase
@@ -188,6 +174,11 @@ async function createProfile(
         max_age: 100,
         genders: [],
       },
+      religion: pick(religions),
+      alcohol: pick(yesNoSometimes),
+      smoking: pick(yesNoSometimes),
+      marijuana: pick(yesNoSometimes),
+      has_kids: pick(yesNo),
     })
     .select()
     .single();
@@ -242,6 +233,8 @@ async function main() {
     const gym = await getCurrentUserGym();
     console.log(`Using gym: ${gym.name} (${gym.id})\n`);
 
+    const promptCatalog = await loadPromptCatalogFirstPerSection(supabase);
+
     // Create 20 female profiles
     const createdProfiles = [];
     const profilesWithLikes: string[] = []; // Track which profiles will like the current user
@@ -253,7 +246,6 @@ async function main() {
       const password = 'TestPassword123!';
       const disciplines = disciplineCombos[i % disciplineCombos.length];
       const bio = bioTemplates[i % bioTemplates.length];
-      const prompt = promptTemplates[i % promptTemplates.length];
 
       console.log(`Creating profile ${i + 1}/20: ${name} (age ${age})...`);
 
@@ -274,8 +266,13 @@ async function main() {
           gym.id,
           photoUrls,
           bio,
-          prompt,
           disciplines
+        );
+        await insertProfilePromptsForUser(
+          supabase,
+          profile.id,
+          promptCatalog,
+          generateAnswersForProfileSeed(i + 5000),
         );
         console.log(`  ✓ Created profile: ${profile.display_name} with ${photoUrls.length} photos`);
 

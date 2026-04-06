@@ -14,6 +14,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 import { getSupabaseConfig } from './env';
+import {
+  generateAnswersForProfileSeed,
+  insertProfilePromptsForUser,
+  loadPromptCatalogFirstPerSection,
+} from './seedPromptHelpers';
 
 const { url: supabaseUrl, serviceRoleKey } = getSupabaseConfig();
 
@@ -27,16 +32,16 @@ const supabase = createClient<Database>(supabaseUrl, serviceRoleKey, {
 
 // Test profiles data
 const testProfiles = [
-  { name: 'Alex', age: 25, gender: 'male', disciplines: ['bodybuilding', 'powerlifting'], bio: 'Lifting heavy and living life. Always down for a workout partner!', prompt: 'My gym hot take is... leg day is the best day.' },
-  { name: 'Jordan', age: 28, gender: 'female', disciplines: ['yoga', 'functional'], bio: 'Yoga instructor by day, fitness enthusiast by night. Let\'s flow together!', prompt: 'The way to my heart is through... a good protein shake after class.' },
-  { name: 'Sam', age: 23, gender: 'non-binary', disciplines: ['crossfit', 'functional'], bio: 'CrossFit addict looking for training buddies. Let\'s push each other!', prompt: 'My ideal post-workout meal is... anything with protein and carbs.' },
-  { name: 'Taylor', age: 30, gender: 'female', disciplines: ['running', 'yoga'], bio: 'Marathon runner and yoga enthusiast. Always training for the next race!', prompt: 'You\'ll find me at the gym when... the sun is rising.' },
-  { name: 'Morgan', age: 26, gender: 'male', disciplines: ['bodybuilding', 'general'], bio: 'Bodybuilder focused on building muscle and strength. Let\'s get big together!', prompt: 'My fitness journey started because... I wanted to feel confident.' },
-  { name: 'Casey', age: 24, gender: 'female', disciplines: ['powerlifting', 'olympic'], bio: 'Powerlifter chasing PRs. Looking for someone to spot me!', prompt: 'The exercise I love to hate is... deadlifts.' },
-  { name: 'Riley', age: 29, gender: 'male', disciplines: ['crossfit', 'sports'], bio: 'CrossFit coach and former athlete. Always ready for a challenge!', prompt: 'My gym playlist always includes... high-energy beats.' },
-  { name: 'Quinn', age: 27, gender: 'non-binary', disciplines: ['yoga', 'functional', 'general'], bio: 'Yoga and functional movement enthusiast. Let\'s move mindfully together!', prompt: 'After leg day, I\'m usually... foam rolling everything.' },
-  { name: 'Dakota', age: 31, gender: 'female', disciplines: ['bodybuilding', 'running'], bio: 'Fitness model and runner. Balancing strength and cardio!', prompt: 'My gym hot take is... cardio doesn\'t kill gains if done right.' },
-  { name: 'Avery', age: 22, gender: 'male', disciplines: ['powerlifting', 'olympic', 'bodybuilding'], bio: 'Competitive powerlifter. Always training for the next meet!', prompt: 'The way to my heart is through... a perfect squat form.' },
+  { name: 'Alex', age: 25, gender: 'male', disciplines: ['bodybuilding', 'powerlifting'], bio: 'Lifting heavy and living life. Always down for a workout partner!', religion: 'Atheist', alcohol: 'Yes', smoking: 'No', marijuana: 'No', has_kids: 'No' },
+  { name: 'Jordan', age: 28, gender: 'female', disciplines: ['yoga', 'functional'], bio: 'Yoga instructor by day, fitness enthusiast by night. Let\'s flow together!', religion: 'Spiritual', alcohol: 'Sometimes', smoking: 'No', marijuana: 'Sometimes', has_kids: 'No' },
+  { name: 'Sam', age: 23, gender: 'non-binary', disciplines: ['crossfit', 'functional'], bio: 'CrossFit addict looking for training buddies. Let\'s push each other!', religion: 'Christian', alcohol: 'Yes', smoking: 'No', marijuana: 'No', has_kids: 'No' },
+  { name: 'Taylor', age: 30, gender: 'female', disciplines: ['running', 'yoga'], bio: 'Marathon runner and yoga enthusiast. Always training for the next race!', religion: 'Jewish', alcohol: 'Sometimes', smoking: 'No', marijuana: 'No', has_kids: 'Yes' },
+  { name: 'Morgan', age: 26, gender: 'male', disciplines: ['bodybuilding', 'general'], bio: 'Bodybuilder focused on building muscle and strength. Let\'s get big together!', religion: 'Catholic', alcohol: 'Yes', smoking: 'Sometimes', marijuana: 'No', has_kids: 'No' },
+  { name: 'Casey', age: 24, gender: 'female', disciplines: ['powerlifting', 'olympic'], bio: 'Powerlifter chasing PRs. Looking for someone to spot me!', religion: 'Buddhist', alcohol: 'No', smoking: 'No', marijuana: 'No', has_kids: 'No' },
+  { name: 'Riley', age: 29, gender: 'male', disciplines: ['crossfit', 'sports'], bio: 'CrossFit coach and former athlete. Always ready for a challenge!', religion: 'Muslim', alcohol: 'No', smoking: 'No', marijuana: 'No', has_kids: 'Yes' },
+  { name: 'Quinn', age: 27, gender: 'non-binary', disciplines: ['yoga', 'functional', 'general'], bio: 'Yoga and functional movement enthusiast. Let\'s move mindfully together!', religion: 'Hindu', alcohol: 'Sometimes', smoking: 'No', marijuana: 'Sometimes', has_kids: 'No' },
+  { name: 'Dakota', age: 31, gender: 'female', disciplines: ['bodybuilding', 'running'], bio: 'Fitness model and runner. Balancing strength and cardio!', religion: 'Sikh', alcohol: 'No', smoking: 'No', marijuana: 'No', has_kids: 'Yes' },
+  { name: 'Avery', age: 22, gender: 'male', disciplines: ['powerlifting', 'olympic', 'bodybuilding'], bio: 'Competitive powerlifter. Always training for the next meet!', religion: 'Other', alcohol: 'Yes', smoking: 'No', marijuana: 'No', has_kids: 'No' },
 ];
 
 // Use the existing gym ID from your manually created gym
@@ -89,7 +94,7 @@ async function createAuthUser(email: string, password: string) {
   }
 }
 
-async function createProfile(userId: string, profileData: typeof testProfiles[0], gymId: string, photoUrls: string[]) {
+async function createProfile(userId: string, profileData: (typeof testProfiles)[0], gymId: string, photoUrls: string[]) {
   const { data, error } = await supabase
     .from('profiles')
     .insert({
@@ -109,6 +114,11 @@ async function createProfile(userId: string, profileData: typeof testProfiles[0]
         max_age: 100,
         genders: [],
       },
+      religion: profileData.religion,
+      alcohol: profileData.alcohol,
+      smoking: profileData.smoking,
+      marijuana: profileData.marijuana,
+      has_kids: profileData.has_kids,
     })
     .select()
     .single();
@@ -139,6 +149,8 @@ async function main() {
     const gym = await findOrCreateTestGym();
     console.log(`Using gym: ${gym.name} (${gym.id})\n`);
 
+    const promptCatalog = await loadPromptCatalogFirstPerSection(supabase);
+
     // Create profiles
     const createdProfiles = [];
     for (let i = 0; i < testProfiles.length; i++) {
@@ -159,6 +171,12 @@ async function main() {
 
         // Create profile
         const profile = await createProfile(user.id, profileData, gym.id, photoUrls);
+        await insertProfilePromptsForUser(
+          supabase,
+          profile.id,
+          promptCatalog,
+          generateAnswersForProfileSeed(i + 3000),
+        );
         console.log(`  ✓ Created profile: ${profile.display_name} with ${photoUrls.length} photos`);
         console.log(`  ✓ Photos: ${photoUrls.join(', ')}\n`);
 
