@@ -9,7 +9,7 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-const TOTAL_STEPS = 14;
+const TOTAL_STEPS = 17;
 
 export default function PromptSectionScreen() {
   const navigation = useNavigation();
@@ -61,7 +61,7 @@ export default function PromptSectionScreen() {
   }, [canContinue, section, selectedPromptId, answer, data.prompts, updateData, sectionIdx, navigation]);
 
   // Step number: sections 0-6 map to steps 7-13
-  const currentStep = 7 + sectionIdx;
+  const currentStep = 10 + sectionIdx;
 
   if (isLoading || !section) {
     return (

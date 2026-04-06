@@ -30,7 +30,7 @@ export default function OnboardingFitness() {
   }
 
   return (
-    <OnboardingContainer currentStep={4} totalSteps={14} showBack={true}>
+    <OnboardingContainer currentStep={7} totalSteps={17} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>How do you like to train?</Text>

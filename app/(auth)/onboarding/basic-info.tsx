@@ -188,7 +188,7 @@ export default function OnboardingBasicInfo() {
 
   const handleSubmit = () => {
     if (validate()) {
-      (navigation as any).navigate('intent');
+      (navigation as any).navigate('religion');
     }
   };
 
@@ -204,7 +204,7 @@ export default function OnboardingBasicInfo() {
   return (
     <OnboardingContainer 
       currentStep={1}
-      totalSteps={14}
+      totalSteps={17}
       showBack={false}
       showClose={true}
       onClose={async () => {

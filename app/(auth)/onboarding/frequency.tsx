@@ -22,7 +22,7 @@ export default function OnboardingFrequency() {
   };
 
   return (
-    <OnboardingContainer currentStep={5} totalSteps={14} showBack={true}>
+    <OnboardingContainer currentStep={8} totalSteps={17} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>
