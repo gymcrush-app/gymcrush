@@ -1,6 +1,6 @@
 import { Avatar } from '@/components/ui/Avatar';
-import { PhotoCarousel } from '@/components/profile/PhotoCarousel';
 import type { ProfileWithScore } from '@/types';
+import { Image } from 'expo-image';
 import { borderRadius, colors, fontSize, fontWeight, shadows, spacing } from '@/theme';
 import { Gem } from 'lucide-react-native';
 import React, { useEffect } from 'react';
@@ -20,6 +20,8 @@ export interface GymGemCardProps {
   onPress: (userId: string) => void;
   /** Available height for the entire card (photo + button). */
   cardHeight: number;
+  /** Available width for the card. */
+  cardWidth?: number;
   /** Whether the current user has their daily gem available. */
   hasGemToday?: boolean;
   /** True if the user already gave their gem to this profile this session. */
@@ -36,6 +38,7 @@ export const GymGemCard = React.memo(function GymGemCard({
   onPress,
   cardHeight,
   hasGemToday = false,
+  cardWidth,
   gemGivenToThisUser = false,
   onGiveGem,
   isGivingGem = false,
@@ -82,9 +85,11 @@ export const GymGemCard = React.memo(function GymGemCard({
       >
         <View style={[styles.photoWrapper, { height: photoHeight }]}>
           {hasPhoto ? (
-            <PhotoCarousel
-              photos={photos}
-              height={photoHeight}
+            <Image
+              source={{ uri: photos[0] }}
+              style={{ width: cardWidth ?? '100%', height: photoHeight }}
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={[styles.photoPlaceholder, { height: photoHeight }]}>
@@ -92,7 +97,7 @@ export const GymGemCard = React.memo(function GymGemCard({
             </View>
           )}
 
-          {/* Name overlay – top-left, white text */}
+          {/* Name overlay */}
           <View style={styles.nameOverlay} pointerEvents="none">
             <Text style={styles.nameText} numberOfLines={1}>
               {item.display_name}

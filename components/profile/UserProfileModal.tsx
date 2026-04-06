@@ -1,8 +1,10 @@
 import { OtherUserProfileContent } from "@/components/profile/OtherUserProfileContent"
+import { ZoomPortalProvider } from "@/lib/contexts/ZoomPortalContext"
 import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query"
 import React, { useEffect, useRef } from "react"
 import { BackHandler, Modal, StyleSheet, View } from "react-native"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 
 /**
@@ -35,18 +37,22 @@ export function UserProfileModal() {
       onRequestClose={closeUserProfile}
     >
       {userId !== null && (
-        <QueryClientProvider client={queryClient}>
-          <SafeAreaProvider>
-            <View style={styles.container}>
-              <OtherUserProfileContent
-                key={userId}
-                userId={userId}
-                onBack={closeUserProfile}
-                onOpenImageChat={closeUserProfile}
-              />
-            </View>
-          </SafeAreaProvider>
-        </QueryClientProvider>
+        <GestureHandlerRootView style={styles.container}>
+          <QueryClientProvider client={queryClient}>
+            <SafeAreaProvider>
+              <ZoomPortalProvider>
+                <View style={styles.container}>
+                  <OtherUserProfileContent
+                    key={userId}
+                    userId={userId}
+                    onBack={closeUserProfile}
+                    onOpenImageChat={closeUserProfile}
+                  />
+                </View>
+              </ZoomPortalProvider>
+            </SafeAreaProvider>
+          </QueryClientProvider>
+        </GestureHandlerRootView>
       )}
     </Modal>
   )

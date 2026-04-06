@@ -156,6 +156,7 @@ export function OtherUserProfileContent({
           photos={profile.photo_urls || []}
           imageHeight={imageHeight}
           onOpenImageChat={handleOpenImageChat}
+          enableZoom
         />
 
         <View style={styles.contentSection}>

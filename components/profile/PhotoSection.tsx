@@ -1,4 +1,4 @@
-import { PhotoCarousel } from '@/components/profile/PhotoCarousel';
+import { PhotoCarousel, PhotoCarouselRef } from '@/components/profile/PhotoCarousel';
 import { Text } from '@/components/ui/Text';
 import { TOOLTIP_IMAGE_COMMENT, TOOLTIP_PHOTO_SWIPE } from '@/constants';
 import { borderRadius, colors, fontSize, palette, spacing } from '@/theme';
@@ -19,22 +19,25 @@ interface PhotoSectionProps {
   /** Width of the photo area (default full screen). Use DISCOVER_PHOTO_WIDTH for inset + rounded corners. */
   photoWidth?: number;
   onOpenImageChat: () => void;
+  /** Enable pinch-to-zoom on photos (requires ZoomPortalProvider ancestor). */
+  enableZoom?: boolean;
   showPhotoSwipeTooltip?: boolean;
   showImageCommentTooltip?: boolean;
   onPhotoSwipeTooltipClose?: () => void;
   onImageCommentTooltipClose?: () => void;
 }
 
-export const PhotoSection = React.memo<PhotoSectionProps>(({
+export const PhotoSection = React.forwardRef<PhotoCarouselRef, PhotoSectionProps>(({
   photos,
   imageHeight,
   photoWidth = SCREEN_WIDTH,
   onOpenImageChat,
+  enableZoom = false,
   showPhotoSwipeTooltip = false,
   showImageCommentTooltip = false,
   onPhotoSwipeTooltipClose,
   onImageCommentTooltipClose,
-}) => {
+}, ref) => {
   const useInset = photoWidth < SCREEN_WIDTH;
   const containerStyle = useInset
     ? [styles.container, { height: imageHeight }, styles.insetContainer, { width: photoWidth }]
@@ -59,7 +62,7 @@ export const PhotoSection = React.memo<PhotoSectionProps>(({
         backgroundColor="rgba(0,0,0,0.5)"
       >
         <View style={carouselWrapperStyle}>
-          <PhotoCarousel photos={photos} height={imageHeight} width={photoWidth} />
+          <PhotoCarousel ref={ref} photos={photos} height={imageHeight} width={photoWidth} enableZoom={enableZoom} />
         </View>
       </Tooltip>
 
@@ -94,7 +97,7 @@ export const PhotoSection = React.memo<PhotoSectionProps>(({
   );
 });
 
-PhotoSection.displayName = 'PhotoSection';
+PhotoSection.displayName = "PhotoSection";
 
 const styles = StyleSheet.create({
   container: {
@@ -106,14 +109,20 @@ const styles = StyleSheet.create({
     marginHorizontal: PHOTO_INSET,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: borderRadius.xl,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     overflow: 'hidden',
   },
   carouselAnchor: {
     width: '100%',
   },
   roundedOverflow: {
-    borderRadius: borderRadius.xl,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     overflow: 'hidden',
   },
   chatBubbleContainer: {

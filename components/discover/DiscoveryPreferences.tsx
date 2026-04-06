@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button"
 import { Chip } from "@/components/ui/Chip"
+import { Select } from "@/components/ui/Select"
 import { useSearchGyms, useGymById } from "@/lib/api/gyms"
 import { useProfile } from "@/lib/api/profiles"
 import { kmToMiles, milesToKm, usesMiles } from "@/lib/utils/locale"
@@ -15,6 +16,7 @@ import {
 import {
   DEFAULT_DISTANCE_MILES,
   FITNESS_DISCIPLINES,
+  GENDER_OPTIONS_WITH_EVERYONE,
   MAX_DISTANCE_MILES,
   MIN_DISTANCE_MILES,
 } from "@/constants"
@@ -22,7 +24,8 @@ import type { Gym } from "@/types"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Settings2, X } from "lucide-react-native"
 import React, { useCallback, useEffect, useRef, useState } from "react"
-import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native"
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import MultiSlider from "@ptomasroos/react-native-multi-slider"
 
 export interface DiscoveryPreferencesData {
@@ -31,6 +34,8 @@ export interface DiscoveryPreferencesData {
   disciplines: string[]
   searchByGym: boolean
   selectedGym: string | null
+  /** Persisted: show same home-gym profiles only (Gym Crush Mode) */
+  gymCrushMode?: boolean
 }
 
 const DEFAULT_PREFERENCES: DiscoveryPreferencesData = {
@@ -39,6 +44,7 @@ const DEFAULT_PREFERENCES: DiscoveryPreferencesData = {
   disciplines: [],
   searchByGym: true,
   selectedGym: null,
+  gymCrushMode: false,
 }
 
 const STORAGE_KEY = APP.STORAGE_KEYS.DISCOVERY_PREFERENCES;
@@ -52,6 +58,11 @@ interface DiscoveryPreferencesProps {
 interface DiscoveryPreferencesContentProps {
   onClose: () => void
   onPreferencesChange: (prefs: DiscoveryPreferencesData) => void
+  gender: DiscoveryPreferencesData["gender"]
+  onGenderChange: (gender: DiscoveryPreferencesData["gender"]) => void
+  ageRange: [number, number] | null
+  onAgeRangeChange: (range: [number, number] | null) => void
+  gymCrushModeEnabled: boolean
 }
 
 export function DiscoveryPreferences({
@@ -72,7 +83,13 @@ export function DiscoveryPreferences({
 export function DiscoveryPreferencesContent({
   onClose,
   onPreferencesChange,
+  gender,
+  onGenderChange,
+  ageRange,
+  onAgeRangeChange,
+  gymCrushModeEnabled,
 }: DiscoveryPreferencesContentProps) {
+  const insets = useSafeAreaInsets()
   const [preferences, setPreferences] =
     useState<DiscoveryPreferencesData>(DEFAULT_PREFERENCES)
   const [gymSearchQuery, setGymSearchQuery] = useState("")
@@ -158,10 +175,13 @@ export function DiscoveryPreferencesContent({
 
   const handleSave = async () => {
     try {
-      // Save to AsyncStorage for local persistence
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
-      // Notify parent which will handle backend update
-      onPreferencesChange(preferences)
+      const payload: DiscoveryPreferencesData = {
+        ...preferences,
+        gender,
+        gymCrushMode: gymCrushModeEnabled,
+      }
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+      onPreferencesChange(payload)
       onClose()
     } catch (error) {
       console.error("Failed to save discovery preferences:", error)
@@ -214,7 +234,7 @@ export function DiscoveryPreferencesContent({
   }
 
   return (
-    <>
+    <View style={styles.preferencesRoot}>
       <View style={styles.bottomSheetHeader}>
         <Text style={styles.modalTitle}>Discovery Preferences</Text>
         <Pressable onPress={onClose}>
@@ -222,7 +242,31 @@ export function DiscoveryPreferencesContent({
         </Pressable>
       </View>
 
-      <View style={styles.scrollView}>
+      <View style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Show me</Text>
+            <Text style={styles.sectionHint}>Who you see in Discover</Text>
+            <Select
+              value={gender}
+              onValueChange={(value) =>
+                onGenderChange(value as DiscoveryPreferencesData["gender"])
+              }
+              options={GENDER_OPTIONS_WITH_EVERYONE}
+              placeholder="Select preference"
+            />
+          </View>
+
+          <AgeRangeSection
+            value={ageRange}
+            onChange={onAgeRangeChange}
+          />
+
         {/* Max Distance - slider; optional "No limit" to clear */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
@@ -374,17 +418,105 @@ export function DiscoveryPreferencesContent({
               </View> */}
 
         {/* Save Button */}
-        <View style={styles.saveButtonContainer}>
+        </ScrollView>
+
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: Math.max(spacing[4], insets.bottom) },
+          ]}
+        >
           <Button onPress={handleSave} variant="primary" size="lg">
             Save Preferences
           </Button>
         </View>
       </View>
-    </>
+    </View>
+  )
+}
+
+function AgeRangeSection({
+  value,
+  onChange,
+}: {
+  value: [number, number] | null
+  onChange: (range: [number, number] | null) => void
+}) {
+  const MIN = 18
+  const MAX = 65
+
+  const [local, setLocal] = useState<[number, number]>(value ?? [MIN, MAX])
+
+  useEffect(() => {
+    setLocal(value ?? [MIN, MAX])
+  }, [value])
+
+  const handleValuesChange = useCallback((values: number[]) => {
+    const low = Math.min(values[0] ?? MIN, values[1] ?? MAX)
+    const high = Math.max(values[0] ?? MIN, values[1] ?? MAX)
+    const clampedLow = Math.max(MIN, Math.min(low, MAX - 1))
+    const clampedHigh = Math.min(MAX, Math.max(high, clampedLow + 1))
+    setLocal([clampedLow, clampedHigh])
+  }, [])
+
+  const handleValuesChangeFinish = useCallback((values: number[]) => {
+    const low = Math.min(values[0] ?? MIN, values[1] ?? MAX)
+    const high = Math.max(values[0] ?? MIN, values[1] ?? MAX)
+    const clampedLow = Math.max(MIN, Math.min(low, MAX - 1))
+    const clampedHigh = Math.min(MAX, Math.max(high, clampedLow + 1))
+    const next: [number, number] = [clampedLow, clampedHigh]
+    setLocal(next)
+    onChange(next)
+  }, [onChange])
+
+  const displayMax = local[1] === MAX ? `${MAX}+` : `${local[1]}`
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Age</Text>
+      <Text style={styles.sectionHint}>
+        Same as the age filter on Discover — updates your feed
+      </Text>
+
+      <Text style={styles.ageRangeValue}>
+        {local[0]} - {displayMax}
+      </Text>
+
+      <View style={styles.ageSliderWrap}>
+        <MultiSlider
+          values={[local[0], local[1]]}
+          onValuesChange={handleValuesChange}
+          onValuesChangeFinish={handleValuesChangeFinish}
+          min={MIN}
+          max={MAX}
+          step={1}
+          sliderLength={Dimensions.get("window").width - spacing[4] * 2}
+          selectedStyle={styles.distanceSelectedTrack}
+          unselectedStyle={styles.distanceUnselectedTrack}
+          trackStyle={styles.distanceTrack}
+          markerStyle={styles.distanceMarker}
+          pressedMarkerStyle={styles.distancePressedMarker}
+        />
+        <View style={styles.distanceRangeLabels}>
+          <Text style={styles.rangeLabel}>{MIN}</Text>
+          <Text style={styles.rangeLabel}>{MAX}+</Text>
+        </View>
+
+        <Pressable
+          onPress={() => onChange(null)}
+          style={styles.noLimitLinkWrap}
+        >
+          <Text style={styles.noLimitLink}>Any age</Text>
+        </Pressable>
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  preferencesRoot: {
+    flex: 1,
+  },
   preferencesButton: {
     padding: spacing[2],
   },
@@ -404,8 +536,15 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
   },
+  content: {
+    flex: 1,
+  },
   scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     padding: spacing[4],
+    paddingBottom: spacing[8] + 72,
   },
   section: {
     marginBottom: spacing[6],
@@ -414,7 +553,22 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontSize: fontSize.base,
     fontWeight: fontWeight.semibold,
+    marginBottom: spacing[2],
+  },
+  sectionHint: {
+    color: colors.mutedForeground,
+    fontSize: fontSize.sm,
     marginBottom: spacing[3],
+  },
+  ageRangeValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.foreground,
+    textAlign: "center",
+    marginBottom: spacing[4],
+  },
+  ageSliderWrap: {
+    marginTop: spacing[2],
   },
   distanceSliderWrap: {
     marginTop: spacing[2],
@@ -547,8 +701,16 @@ const styles = StyleSheet.create({
     color: colors.secondaryForeground,
     fontSize: fontSize.xs,
   },
-  saveButtonContainer: {
-    marginTop: spacing[4],
-    marginBottom: spacing[6],
+  footer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
+    paddingBottom: spacing[4],
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 })

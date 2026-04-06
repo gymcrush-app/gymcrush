@@ -15,6 +15,14 @@ import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { layout } from '@/lib/styles';
 import { useSyncLastLocation } from '@/hooks/useSyncLastLocation';
 import { ZoomPortalProvider } from '@/lib/contexts/ZoomPortalContext';
+import { useNotifications } from '@/hooks/useNotifications';
+import {
+  addForegroundNotificationListener,
+  addNotificationResponseListener,
+  configureNotificationPresentation,
+  getLastNotificationResponse,
+} from '@/lib/services/notificationHandlers';
+import { handleNotificationResponse } from '@/lib/services/notificationResponseHandler';
 
 try {
   SplashScreen.preventAutoHideAsync();
@@ -80,12 +88,35 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
   const hasRouted = useRef(false);
 
   useSyncLastLocation();
+  useNotifications();
 
   useEffect(() => {
     if (isReady) {
       SplashScreen.hideAsync();
     }
   }, [isReady]);
+
+  useEffect(() => {
+    configureNotificationPresentation();
+
+    const sub1 = addForegroundNotificationListener(() => {
+      // Later: in-app banners / query invalidation
+    });
+
+    const sub2 = addNotificationResponseListener((response) => {
+      handleNotificationResponse(router, response);
+    });
+
+    (async () => {
+      const last = await getLastNotificationResponse();
+      if (last) handleNotificationResponse(router, last);
+    })();
+
+    return () => {
+      sub1.remove();
+      sub2.remove();
+    };
+  }, [router]);
 
   // Fallback: if auth takes too long, hide splash after 5 seconds
   useEffect(() => {

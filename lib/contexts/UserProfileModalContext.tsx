@@ -1,4 +1,5 @@
 import { fetchProfileById } from "@/lib/api/profiles"
+import { fetchProfilePrompts } from "@/lib/api/prompts"
 import React, { createContext, useCallback, useContext, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
@@ -27,10 +28,15 @@ export function UserProfileModalProvider({
     (id: string) => {
       // Show modal immediately (with loading spinner) — don't block on fetch
       setUserId(id)
-      // Fire prefetch in background so data is ready for useProfileById
+      // Fire prefetches in parallel so data is ready when modal renders
       queryClient.prefetchQuery({
         queryKey: ["profile", id],
         queryFn: () => fetchProfileById(id),
+        staleTime: 30_000,
+      })
+      queryClient.prefetchQuery({
+        queryKey: ["profile-prompts", id],
+        queryFn: () => fetchProfilePrompts(id),
         staleTime: 30_000,
       })
     },

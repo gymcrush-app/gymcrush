@@ -1,5 +1,5 @@
 import { Text } from '@/components/ui/Text';
-import { colors, spacing } from '@/theme';
+import { borderRadius, colors, spacing } from '@/theme';
 import { MessageCircle } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -10,17 +10,23 @@ interface PromptItemProps {
   title: string;
   answer: string;
   onPress: () => void;
+  /** Render with primary background card style */
+  highlighted?: boolean;
 }
 
-export const PromptItem = React.memo<PromptItemProps>(({ title, answer, onPress }) => {
+export const PromptItem = React.memo<PromptItemProps>(({ title, answer, onPress, highlighted }) => {
   return (
-    <View>
+    <View style={highlighted ? styles.highlightedCard : undefined}>
       <View style={styles.header}>
-        <Text variant="mutedXSmall" weight="semibold" style={styles.promptTitle}>
+        <Text
+          variant="mutedXSmall"
+          weight="semibold"
+          style={styles.promptTitle}
+        >
           {title}
         </Text>
-        <Pressable onPress={onPress}>
-          <MessageCircle size={16} color={colors.mutedForeground} />
+        <Pressable onPress={onPress} style={styles.messageButton}>
+          <MessageCircle size={16} color={highlighted ? colors.primary : colors.mutedForeground} />
         </Pressable>
       </View>
       <Text variant="body">
@@ -34,12 +40,23 @@ PromptItem.displayName = 'PromptItem';
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    position: 'relative',
     marginBottom: spacing[2],
   },
   promptTitle: {
     fontSize: PROMPT_TITLE_FONT_SIZE,
+    paddingRight: spacing[7],
+  },
+  messageButton: {
+    position: 'absolute',
+    right: 0,
+    top: '50%',
+    transform: [{ translateY: -8 }],
+  },
+  highlightedCard: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.xl,
+    padding: spacing[4],
   },
 });

@@ -33,6 +33,8 @@ interface ZoomPortalContextValue {
   /** Shared values for pan translation while zoomed */
   overlayTranslateX: SharedValue<number>
   overlayTranslateY: SharedValue<number>
+  /** True while zoom portal is active — read on UI thread to block other gestures */
+  isZoomed: SharedValue<boolean>
   /** Call once on pinch start to show the portal image */
   startZoom: (state: ZoomPortalState) => void
   /** Call once on pinch end to animate back and dismiss */
@@ -47,10 +49,16 @@ export function useZoomPortal() {
   return ctx
 }
 
+/** Returns the zoom portal context or null if no provider exists. Safe for optional zoom support. */
+export function useZoomPortalOptional() {
+  return useContext(ZoomPortalContext)
+}
+
 export function ZoomPortalProvider({ children }: { children: React.ReactNode }) {
   const overlayScale = useSharedValue(1)
   const overlayTranslateX = useSharedValue(0)
   const overlayTranslateY = useSharedValue(0)
+  const isZoomed = useSharedValue(false)
   const layoutX = useSharedValue(0)
   const layoutY = useSharedValue(0)
   const layoutW = useSharedValue(0)
@@ -59,6 +67,7 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
   const [portal, setPortal] = useState<ZoomPortalState | null>(null)
 
   const startZoom = useCallback((state: ZoomPortalState) => {
+    isZoomed.value = true
     layoutX.value = state.layout.x
     layoutY.value = state.layout.y
     layoutW.value = state.layout.width
@@ -71,6 +80,7 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
     overlayTranslateY.value = withSpring(0, ZOOM_SPRING_CONFIG)
     overlayScale.value = withSpring(1, ZOOM_SPRING_CONFIG, (finished) => {
       if (finished) {
+        isZoomed.value = false
         runOnJS(setPortal)(null)
       }
     })
@@ -118,6 +128,7 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
     overlayScale,
     overlayTranslateX,
     overlayTranslateY,
+    isZoomed,
     startZoom,
     endZoom,
   }

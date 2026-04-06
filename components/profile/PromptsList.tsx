@@ -11,9 +11,11 @@ interface Prompt {
 interface PromptsListProps {
   prompts: Prompt[];
   onPromptPress: (title: string, answer: string) => void;
+  /** Render all items with primary background card style */
+  highlighted?: boolean;
 }
 
-export const PromptsList = React.memo<PromptsListProps>(({ prompts, onPromptPress }) => {
+export const PromptsList = React.memo<PromptsListProps>(({ prompts, onPromptPress, highlighted }) => {
   return (
     <View style={styles.container}>
       {prompts.map((prompt) => (
@@ -22,6 +24,7 @@ export const PromptsList = React.memo<PromptsListProps>(({ prompts, onPromptPres
           title={prompt.title}
           answer={prompt.answer}
           onPress={() => onPromptPress(prompt.title, prompt.answer)}
+          highlighted={highlighted}
         />
       ))}
     </View>

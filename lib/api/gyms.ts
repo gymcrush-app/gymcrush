@@ -40,6 +40,7 @@ export function useGymById(gymId: string) {
       return data as Gym;
     },
     enabled: !!gymId,
+    staleTime: 1000 * 60 * 60, // 1 hour — gym data rarely changes
   });
 }
 
@@ -70,5 +71,6 @@ export function useGymsByIds(gymIds: string[]) {
       return gymMap;
     },
     enabled: gymIds.length > 0,
+    staleTime: 1000 * 60 * 60, // 1 hour — gym data rarely changes
   });
 }

@@ -1,4 +1,5 @@
 import { GymGemCard } from "@/components/gymGems/GymGemCard"
+import { MessageBottomSheet } from "@/components/discover/SwipeDeck/MessageBottomSheet"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Text } from "@/components/ui/Text"
@@ -6,13 +7,14 @@ import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
 import { useGymGems } from "@/lib/api/gymGems"
 import { useGymsByIds } from "@/lib/api/gyms"
 import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
+import { toast } from "@/lib/toast"
 import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
 import type { ProfileWithScore } from "@/types"
-import { toast } from "@/lib/toast"
+import { BottomSheetModal } from "@gorhom/bottom-sheet"
 import { Image } from "expo-image"
 import { useRouter } from "expo-router"
 import { Compass, Gem } from "lucide-react-native"
-import React, { useCallback, useMemo, useState } from "react"
+import React, { useCallback, useMemo, useRef, useState } from "react"
 import {
   Dimensions,
   FlatList,
@@ -25,6 +27,10 @@ const GYM_CRUSH_HEART_IMAGE = require("@/assets/images/GymCrushHeart.png")
 
 const GYM_GEMS_RADIUS_MILES = 30
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
+/** Width reserved for the peek of the next card */
+const PEEK_WIDTH = 40
+const CARD_GAP = spacing[3]
+const CARD_WIDTH = SCREEN_WIDTH - spacing[4] * 2 - PEEK_WIDTH
 
 export default function GymGemsScreen() {
   const insets = useSafeAreaInsets()
@@ -39,12 +45,47 @@ export default function GymGemsScreen() {
   const giveGemMutation = useGiveGymGem()
   const [pendingToUserId, setPendingToUserId] = useState<string | null>(null)
 
+  // Message bottom sheet state
+  const messageSheetRef = useRef<BottomSheetModal>(null)
+  const [gemTargetProfile, setGemTargetProfile] = useState<ProfileWithScore | null>(null)
+  const [messageText, setMessageText] = useState("")
+  const [messageSheetIndex, setMessageSheetIndex] = useState(-1)
+  const messageSnapPoints = useMemo(() => ["50%", "90%"], [])
+
   const handleGiveGem = useCallback(
-    async (toUserId: string) => {
-      setPendingToUserId(toUserId)
+    (toUserId: string) => {
+      const profile = gems.find((g) => g.id === toUserId)
+      if (!profile) return
+      setGemTargetProfile(profile)
+      messageSheetRef.current?.present()
+    },
+    [gems],
+  )
+
+  const handleCloseMessageSheet = useCallback(() => {
+    setGemTargetProfile(null)
+    setMessageText("")
+    messageSheetRef.current?.dismiss()
+  }, [])
+
+  const handleMessageSheetChange = useCallback((index: number) => {
+    setMessageSheetIndex(index)
+    if (index === -1) {
+      setGemTargetProfile(null)
+      setMessageText("")
+    }
+  }, [])
+
+  const handleSendGemMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || !gemTargetProfile) return
+      setPendingToUserId(gemTargetProfile.id)
       try {
-        const result = await giveGemMutation.mutateAsync(toUserId)
-        if (!result.ok && result.error)
+        const result = await giveGemMutation.mutateAsync({
+          toUserId: gemTargetProfile.id,
+          message: content.trim(),
+        })
+        if (!result.ok && result.error) {
           toast({
             preset: "error",
             title:
@@ -52,11 +93,20 @@ export default function GymGemsScreen() {
                 ? "No gem left today"
                 : result.error,
           })
+        } else {
+          handleCloseMessageSheet()
+        }
+      } catch (err: any) {
+        toast({
+          preset: "error",
+          title: "Failed to send gem",
+          message: err?.message || "Please try again.",
+        })
       } finally {
         setPendingToUserId(null)
       }
     },
-    [giveGemMutation],
+    [gemTargetProfile, giveGemMutation, handleCloseMessageSheet],
   )
 
   const gymIds = useMemo(
@@ -80,6 +130,7 @@ export default function GymGemsScreen() {
           gymName={getGymName(item.home_gym_id)}
           onPress={openUserProfile}
           cardHeight={listHeight}
+          cardWidth={CARD_WIDTH}
           hasGemToday={hasGemToday}
           onGiveGem={handleGiveGem}
           isGivingGem={pendingToUserId === item.id}
@@ -172,13 +223,30 @@ export default function GymGemsScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           horizontal
-          pagingEnabled
           showsHorizontalScrollIndicator={false}
+          snapToInterval={CARD_WIDTH + CARD_GAP}
+          decelerationRate="fast"
           style={styles.gemsList}
           contentContainerStyle={styles.horizontalListContent}
           onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
         />
       )}
+
+      <MessageBottomSheet
+        bottomSheetRef={messageSheetRef}
+        selectedPrompt={null}
+        isImageChat={true}
+        messageText={messageText}
+        profileName={gemTargetProfile?.display_name ?? ""}
+        snapPoints={messageSnapPoints}
+        bottomSheetIndex={messageSheetIndex}
+        onMessageTextChange={setMessageText}
+        onClose={handleCloseMessageSheet}
+        onSend={handleSendGemMessage}
+        onChange={handleMessageSheetChange}
+        headerText={gemTargetProfile ? `Send ${gemTargetProfile.display_name} a Gym Gem ✦` : undefined}
+        sendLabel="Send Gem"
+      />
     </View>
   )
 }
@@ -233,10 +301,11 @@ const styles = StyleSheet.create({
   },
   horizontalListContent: {
     alignItems: "stretch",
+    paddingHorizontal: spacing[4],
+    gap: CARD_GAP,
   },
   cardWrapper: {
-    width: SCREEN_WIDTH,
-    paddingHorizontal: spacing[4],
+    width: CARD_WIDTH,
     paddingVertical: spacing[2],
   },
   errorContainer: {

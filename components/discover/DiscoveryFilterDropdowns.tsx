@@ -3,10 +3,10 @@ import { FilterSlider } from "@/components/ui/FilterSlider"
 import { Switch } from "@/components/ui/Switch"
 import { MAX_DISTANCE_MILES } from "@/constants"
 import { milesToKm } from "@/lib/utils/locale"
-import { spacing } from "@/theme"
+import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import type { FitnessDiscipline } from "@/types/onboarding"
 import React from "react"
-import { StyleSheet, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
 export interface DiscoveryFilterValues {
   ageRange: [number, number] | null
@@ -21,8 +21,9 @@ export interface DiscoveryFilterDropdownsProps {
   onFiltersChange: (filters: DiscoveryFilterValues) => void
   onOpenDistanceSlider?: () => void
   onOpenAgeRangeSlider?: () => void
-  offerWallOpen?: boolean
-  onOfferWallChange?: (open: boolean) => void
+  /** Gym Crush Mode: same home gym only; distance pill shows label instead of slider */
+  gymCrushModeEnabled?: boolean
+  onGymCrushModeChange?: (open: boolean) => void
   distanceMinKm?: number
   distanceMaxKm?: number
 }
@@ -37,8 +38,8 @@ export function DiscoveryFilterDropdowns({
   onFiltersChange,
   onOpenDistanceSlider,
   onOpenAgeRangeSlider,
-  offerWallOpen = false,
-  onOfferWallChange,
+  gymCrushModeEnabled = false,
+  onGymCrushModeChange,
   distanceMinKm = DEFAULT_DISTANCE_MIN_KM,
   distanceMaxKm = DEFAULT_DISTANCE_MAX_KM,
 }: DiscoveryFilterDropdownsProps) {
@@ -72,25 +73,30 @@ export function DiscoveryFilterDropdowns({
         />
       </View>
 
-      {/* Distance Filter */}
+      {/* Distance Filter — replaced by Gym Crush Mode label when enabled */}
       <View style={styles.filterItem}>
-        <FilterSlider
-          value={distance}
-          onValueChange={handleDistanceChange}
-          min={distanceMinKm}
-          max={distanceMaxKm}
-          unit="km"
-          label="Distance"
-          onOpen={onOpenDistanceSlider}
-        />
+        {gymCrushModeEnabled ? (
+          <View style={styles.gymCrushModeLabelWrap}>
+            <Text style={styles.gymCrushModeLabel}>Gym Crush Mode</Text>
+          </View>
+        ) : (
+          <FilterSlider
+            value={distance}
+            onValueChange={handleDistanceChange}
+            min={distanceMinKm}
+            max={distanceMaxKm}
+            unit="km"
+            label="Distance"
+            onOpen={onOpenDistanceSlider}
+          />
+        )}
       </View>
 
-      {/* Offer wall - switch opens placeholder bottom sheet */}
       <View style={styles.filterItem}>
         <View style={styles.offerWallRow}>
           <Switch
-            value={offerWallOpen}
-            onValueChange={(value) => onOfferWallChange?.(value)}
+            value={gymCrushModeEnabled}
+            onValueChange={(value) => onGymCrushModeChange?.(value)}
           />
         </View>
       </View>
@@ -112,5 +118,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+  },
+  gymCrushModeLabelWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 40,
+  },
+  gymCrushModeLabel: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    textAlign: "center",
   },
 })

@@ -45,12 +45,13 @@ export function useGiveGymGem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (toUserId: string): Promise<GiveGymGemResult> => {
+    mutationFn: async ({ toUserId, message }: { toUserId: string; message?: string }): Promise<GiveGymGemResult> => {
       if (!user) throw new Error('Not authenticated');
       const pGiverTodayStart = getStartOfTodayLocal();
       const { data, error } = await supabase.rpc('give_gym_gem', {
         p_to_user_id: toUserId,
         p_giver_today_start: pGiverTodayStart,
+        p_message: message ?? null,
       });
       if (error) {
         const msg = error.message || 'Failed to give gem';
@@ -60,7 +61,7 @@ export function useGiveGymGem() {
       if (result?.ok === true) return result;
       return { ok: false, error: (result as { error?: string })?.error ?? 'Unknown error' };
     },
-    onSuccess: (result, toUserId) => {
+    onSuccess: (result, { toUserId }) => {
       if (result.ok) {
         queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
         queryClient.invalidateQueries({ queryKey: ['profile', toUserId] });

@@ -3,7 +3,7 @@ import { Text } from '@/components/ui/Text';
 import { FilteredTextarea } from '@/components/ui/FilteredTextarea';
 import { useFilteredInput } from '@/hooks/useFilteredInput';
 import { colors, fontSize, spacing } from '@/theme';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import React, { RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -13,7 +13,7 @@ interface SelectedPrompt {
 }
 
 interface MessageBottomSheetProps {
-  bottomSheetRef: RefObject<BottomSheet | null>;
+  bottomSheetRef: RefObject<BottomSheetModal | null>;
   selectedPrompt: SelectedPrompt | null;
   isImageChat: boolean;
   messageText: string;
@@ -25,6 +25,10 @@ interface MessageBottomSheetProps {
   /** Called with the filtered (censored) message content when user taps Send. */
   onSend: (filteredContent: string) => void;
   onChange: (index: number) => void;
+  /** Override the default header text. */
+  headerText?: string;
+  /** Override the send button label. */
+  sendLabel?: string;
 }
 
 const renderBackdrop = (props: any) => (
@@ -48,6 +52,8 @@ export function MessageBottomSheet({
   onClose,
   onSend,
   onChange,
+  headerText,
+  sendLabel,
 }: MessageBottomSheetProps) {
   const filtered = useFilteredInput({ value: messageText, onChangeText: onMessageTextChange });
 
@@ -57,9 +63,8 @@ export function MessageBottomSheet({
   };
 
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={bottomSheetRef}
-      index={-1}
       snapPoints={snapPoints}
       backdropComponent={renderBackdrop}
       backgroundStyle={styles.background}
@@ -76,7 +81,7 @@ export function MessageBottomSheet({
             <>
               {/* Header */}
               <Text variant="h3" style={styles.title}>
-                Send {profileName} a message
+                {headerText ?? `Send ${profileName} a message`}
               </Text>
 
               {/* Prompt Section - Only show if it's a prompt-based chat */}
@@ -117,14 +122,14 @@ export function MessageBottomSheet({
                   disabled={!filtered.value.trim()}
                   style={styles.sendButton}
                 >
-                  Send
+                  {sendLabel ?? "Send"}
                 </Button>
               </View>
             </>
           )}
         </View>
       </BottomSheetScrollView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

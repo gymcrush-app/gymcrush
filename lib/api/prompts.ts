@@ -49,42 +49,43 @@ export function usePromptSections() {
   });
 }
 
+/** Shared fetcher for prefetch and useProfilePrompts. */
+export async function fetchProfilePrompts(profileId: string): Promise<ProfilePromptWithDetails[]> {
+  const { data, error } = await supabase
+    .from('profile_prompts')
+    .select(`
+      id,
+      prompt_id,
+      section_id,
+      answer,
+      engagement_count,
+      prompts!inner(prompt_text),
+      prompt_sections!inner(name, display_order)
+    `)
+    .eq('profile_id', profileId)
+    .order('display_order', { referencedTable: 'prompt_sections' });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    prompt_id: row.prompt_id,
+    section_id: row.section_id,
+    answer: row.answer,
+    engagement_count: row.engagement_count,
+    prompt_text: row.prompts.prompt_text,
+    section_name: row.prompt_sections.name,
+    section_display_order: row.prompt_sections.display_order,
+  }));
+}
+
 /**
  * Fetch a profile's prompt answers with prompt text and section info.
  */
 export function useProfilePrompts(profileId: string | undefined) {
   return useQuery({
     queryKey: ['profile-prompts', profileId],
-    queryFn: async (): Promise<ProfilePromptWithDetails[]> => {
-      if (!profileId) return [];
-
-      const { data, error } = await supabase
-        .from('profile_prompts')
-        .select(`
-          id,
-          prompt_id,
-          section_id,
-          answer,
-          engagement_count,
-          prompts!inner(prompt_text),
-          prompt_sections!inner(name, display_order)
-        `)
-        .eq('profile_id', profileId)
-        .order('display_order', { referencedTable: 'prompt_sections' });
-
-      if (error) throw error;
-
-      return (data ?? []).map((row: any) => ({
-        id: row.id,
-        prompt_id: row.prompt_id,
-        section_id: row.section_id,
-        answer: row.answer,
-        engagement_count: row.engagement_count,
-        prompt_text: row.prompts.prompt_text,
-        section_name: row.prompt_sections.name,
-        section_display_order: row.prompt_sections.display_order,
-      }));
-    },
+    queryFn: () => fetchProfilePrompts(profileId!),
     enabled: !!profileId,
     staleTime: 30_000,
   });
@@ -108,17 +109,14 @@ export function useUpsertProfilePrompt() {
 
       const filteredAnswer = filterBadWords(params.answer);
 
-      const upsertData: Record<string, any> = {
+      const upsertData = {
         profile_id: user.id,
         prompt_id: params.promptId,
         section_id: params.sectionId,
         answer: filteredAnswer,
         updated_at: new Date().toISOString(),
+        ...(params.resetEngagement ? { engagement_count: 0 } : {}),
       };
-
-      if (params.resetEngagement) {
-        upsertData.engagement_count = 0;
-      }
 
       const { data, error } = await supabase
         .from('profile_prompts')
@@ -162,7 +160,7 @@ export async function insertProfilePrompts(
 export function useIncrementEngagement() {
   return useMutation({
     mutationFn: async (profilePromptId: string) => {
-      const { error } = await supabase.rpc('increment_engagement_count', {
+      const { error } = await (supabase.rpc as any)('increment_engagement_count', {
         p_profile_prompt_id: profilePromptId,
       });
       if (error) {
