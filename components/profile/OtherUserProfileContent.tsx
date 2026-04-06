@@ -2,9 +2,9 @@ import { PhotoSection } from "@/components/profile/PhotoSection"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
 import { FitnessBadges } from "@/components/profile/FitnessBadges"
-import { ProfileDetailContent } from "@/components/profile/ProfileDetailContent"
+import { AboutSection } from "@/components/profile/AboutSection"
+import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
 import { PromptItem } from "@/components/profile/PromptItem"
-import { PromptsList } from "@/components/profile/PromptsList"
 import { Text } from "@/components/ui/Text"
 import { useGymsByIds } from "@/lib/api/gyms"
 import { useProfile, useProfileById } from "@/lib/api/profiles"
@@ -72,16 +72,13 @@ export function OtherUserProfileContent({
     }))
   }, [profilePrompts])
 
-  const { topPrompt, promptBatch1, promptBatch2 } = useMemo(() => {
-    if (prompts.length === 0) return { topPrompt: null, promptBatch1: [], promptBatch2: [] }
+  const { prompt1, prompt2, prompt3 } = useMemo(() => {
+    if (prompts.length === 0) return { prompt1: null, prompt2: null, prompt3: null }
     const sorted = [...prompts].sort((a, b) => b.engagement_count - a.engagement_count)
-    const top = sorted[0]
-    const rest = prompts.filter((p) => p.id !== top.id)
-    const shuffled = [...rest].sort(() => Math.random() - 0.5)
     return {
-      topPrompt: top,
-      promptBatch1: shuffled.slice(0, 3),
-      promptBatch2: shuffled.slice(3, 6),
+      prompt1: sorted[0] ?? null,
+      prompt2: sorted[1] ?? null,
+      prompt3: sorted[2] ?? null,
     }
   }, [prompts])
 
@@ -178,56 +175,63 @@ export function OtherUserProfileContent({
             </View>
           </View>
 
-          {/* 1. Most-engaged prompt (highlighted) */}
-          {topPrompt && (
+          {/* 1. Top prompt (most engaged) */}
+          {prompt1 && (
             <View style={styles.promptSection}>
               <PromptItem
-                title={topPrompt.title}
-                answer={topPrompt.answer}
-                onPress={() => handlePromptPress(topPrompt.title, topPrompt.answer)}
+                title={prompt1.title}
+                answer={prompt1.answer}
+                onPress={() => handlePromptPress(prompt1.title, prompt1.answer)}
                 highlighted
               />
             </View>
           )}
 
-          {/* 2. Info box + bio */}
-          <ProfileDetailContent
+          {/* 2. Info box */}
+          <ProfileInfoBox
             height={profile.height ?? null}
             intent={formattedIntents}
             occupation={profile.occupation ?? null}
             city={profileGym?.city ?? null}
-            bio={profile.bio || null}
+          />
+
+          {/* 3. Bio */}
+          <AboutSection bio={profile.bio || null} />
+
+          {/* 4. Prompt 2 */}
+          {prompt2 && (
+            <PromptItem
+              title={prompt2.title}
+              answer={prompt2.answer}
+              onPress={() => handlePromptPress(prompt2.title, prompt2.answer)}
+              highlighted
+            />
+          )}
+
+          {/* 5. Lifestyle info box */}
+          <ProfileLifestyleBox
             religion={(profile as any).religion ?? null}
             alcohol={(profile as any).alcohol ?? null}
             smoking={(profile as any).smoking ?? null}
             marijuana={(profile as any).marijuana ?? null}
             hasKids={(profile as any).has_kids ?? null}
-          >
-            {disciplines.length > 0 && (
-              <View style={styles.badgesSection}>
-                <FitnessBadges disciplines={disciplines} />
-              </View>
-            )}
-          </ProfileDetailContent>
+          />
 
-          {/* 3. First batch of 3 prompts (highlighted) */}
-          {promptBatch1.length > 0 && (
-            <PromptsList prompts={promptBatch1} onPromptPress={handlePromptPress} highlighted />
-          )}
-
-          {/* 4. Duplicate info box */}
-          {promptBatch2.length > 0 && (
-            <ProfileInfoBox
-              height={profile.height ?? null}
-              intent={formattedIntents}
-              occupation={profile.occupation ?? null}
-              city={profileGym?.city ?? null}
+          {/* 6. Prompt 3 */}
+          {prompt3 && (
+            <PromptItem
+              title={prompt3.title}
+              answer={prompt3.answer}
+              onPress={() => handlePromptPress(prompt3.title, prompt3.answer)}
+              highlighted
             />
           )}
 
-          {/* 5. Second batch of prompts (highlighted) */}
-          {promptBatch2.length > 0 && (
-            <PromptsList prompts={promptBatch2} onPromptPress={handlePromptPress} highlighted />
+          {/* Fitness badges */}
+          {disciplines.length > 0 && (
+            <View style={styles.badgesSection}>
+              <FitnessBadges disciplines={disciplines} />
+            </View>
           )}
         </View>
       </ScrollView>
