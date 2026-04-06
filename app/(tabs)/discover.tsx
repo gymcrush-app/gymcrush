@@ -1158,6 +1158,7 @@ export default function DiscoverScreen() {
                   showPhotoSwipeTooltip={tooltipStep === 1}
                   showImageCommentTooltip={tooltipStep === 2}
                   showSwipeDownTooltip={tooltipStep === 3 && !swipeDownPassDone}
+                  hideSwipeDownRibbon={swipeDownPassDone}
                   showSwipeUpTooltip={tooltipStep === 4}
                   onPhotoSwipeTooltipClose={advanceTooltip}
                   onImageCommentTooltipClose={advanceTooltip}

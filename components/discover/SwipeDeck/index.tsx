@@ -102,6 +102,7 @@ interface SwipeDeckProps {
   showPhotoSwipeTooltip?: boolean
   showImageCommentTooltip?: boolean
   showSwipeDownTooltip?: boolean
+  hideSwipeDownRibbon?: boolean
   showSwipeUpTooltip?: boolean
   onPhotoSwipeTooltipClose?: () => void
   onImageCommentTooltipClose?: () => void
@@ -120,6 +121,7 @@ export function SwipeDeck({
   showPhotoSwipeTooltip = false,
   showImageCommentTooltip = false,
   showSwipeDownTooltip = false,
+  hideSwipeDownRibbon = false,
   showSwipeUpTooltip = false,
   onPhotoSwipeTooltipClose,
   onImageCommentTooltipClose,
@@ -680,41 +682,43 @@ export function SwipeDeck({
 
             </Animated.View>
 
-            {/* Swipe down indicator */}
-            <Tooltip
-              isVisible={showSwipeDownTooltip}
-              allowChildInteraction={false}
-              contentStyle={{
-                backgroundColor: colors.primary,
-                padding: 0,
-                borderRadius: borderRadius.md,
-              }}
-              content={
-                <View
-                  style={{
-                    backgroundColor: colors.primary,
-                    padding: spacing[3],
-                    borderRadius: borderRadius.md,
-                  }}
-                >
-                  <Text
+            {/* Swipe down indicator — hidden once user has swiped down */}
+            {!hideSwipeDownRibbon && (
+              <Tooltip
+                isVisible={showSwipeDownTooltip}
+                allowChildInteraction={false}
+                contentStyle={{
+                  backgroundColor: colors.primary,
+                  padding: 0,
+                  borderRadius: borderRadius.md,
+                }}
+                content={
+                  <View
                     style={{
-                      color: palette.black,
-                      fontSize: fontSize.base,
+                      backgroundColor: colors.primary,
+                      padding: spacing[3],
+                      borderRadius: borderRadius.md,
                     }}
                   >
-                    {TOOLTIP_SWIPE_DOWN}
-                  </Text>
+                    <Text
+                      style={{
+                        color: palette.black,
+                        fontSize: fontSize.base,
+                      }}
+                    >
+                      {TOOLTIP_SWIPE_DOWN}
+                    </Text>
+                  </View>
+                }
+                placement="top"
+                onClose={onSwipeDownTooltipClose}
+                backgroundColor="rgba(0,0,0,0.5)"
+              >
+                <View style={{ width: "100%" }}>
+                  <SwipeIndicator direction="down" text={SWIPE_DOWN_LABEL} />
                 </View>
-              }
-              placement="top"
-              onClose={onSwipeDownTooltipClose}
-              backgroundColor="rgba(0,0,0,0.5)"
-            >
-              <View style={{ width: "100%" }}>
-                <SwipeIndicator direction="down" text={SWIPE_DOWN_LABEL} />
-              </View>
-            </Tooltip>
+              </Tooltip>
+            )}
 
             {/* Profile content — interleaved prompts + info */}
             <View style={styles.profileDetailSection}>
