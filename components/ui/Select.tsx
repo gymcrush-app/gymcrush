@@ -158,6 +158,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius['3xl'],
     borderTopRightRadius: borderRadius['3xl'],
     maxHeight: '50%',
+    paddingBottom: spacing[8],
   },
   modalHeader: {
     padding: spacing[4],
