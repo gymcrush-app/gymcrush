@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopLeftRadius: borderRadius['3xl'],
     borderTopRightRadius: borderRadius['3xl'],
-    maxHeight: '50%',
+    maxHeight: '60%',
     paddingBottom: spacing[8],
   },
   modalHeader: {
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
   },
   modalScrollView: {
-    maxHeight: 240, // 60 * 4 (spacing equivalent)
+    maxHeight: 400,
   },
   optionItem: {
     paddingHorizontal: spacing[4],
