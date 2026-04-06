@@ -20,11 +20,17 @@ export const ProfileLifestyleBox = React.memo<ProfileLifestyleBoxProps>(({
 }) => {
   return (
     <View style={styles.infoBox}>
-      <View style={styles.topRow}>
+      <View style={styles.row}>
         <View style={styles.cell}>
           <Text variant="mutedXSmall" style={styles.label}>RELIGION</Text>
           <Text variant="bodySmall" weight="semibold">{religion ?? '—'}</Text>
         </View>
+        <View style={styles.cell}>
+          <Text variant="mutedXSmall" style={styles.label}>KIDS</Text>
+          <Text variant="bodySmall" weight="semibold">{hasKids ?? '—'}</Text>
+        </View>
+      </View>
+      <View style={styles.row}>
         <View style={styles.cell}>
           <Text variant="mutedXSmall" style={styles.label}>ALCOHOL</Text>
           <Text variant="bodySmall" weight="semibold">{alcohol ?? '—'}</Text>
@@ -33,15 +39,9 @@ export const ProfileLifestyleBox = React.memo<ProfileLifestyleBoxProps>(({
           <Text variant="mutedXSmall" style={styles.label}>CIGS</Text>
           <Text variant="bodySmall" weight="semibold">{smoking ?? '—'}</Text>
         </View>
-      </View>
-      <View style={styles.bottomRow}>
         <View style={styles.cell}>
           <Text variant="mutedXSmall" style={styles.label}>POT</Text>
           <Text variant="bodySmall" weight="semibold">{marijuana ?? '—'}</Text>
-        </View>
-        <View style={styles.cell}>
-          <Text variant="mutedXSmall" style={styles.label}>KIDS</Text>
-          <Text variant="bodySmall" weight="semibold">{hasKids ?? '—'}</Text>
         </View>
       </View>
     </View>
@@ -58,8 +58,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
     gap: spacing[4],
   },
-  topRow: { flexDirection: 'row', gap: spacing[4] },
-  bottomRow: { flexDirection: 'row', gap: spacing[4] },
-  cell: { flex: 1 },
+  row: { flexDirection: 'row', justifyContent: 'space-evenly', gap: spacing[4] },
+  cell: { flex: 1, alignItems: 'center' },
   label: { marginBottom: spacing[1] },
 });
