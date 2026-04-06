@@ -78,6 +78,11 @@ export function mapOnboardingDataToProfile(
     discovery_preferences: discoveryPreferences,
     height: onboardingData.height ?? null,
     occupation: onboardingData.occupation ?? null,
+    religion: onboardingData.religion ?? null,
+    alcohol: onboardingData.alcohol ?? null,
+    smoking: onboardingData.smoking ?? null,
+    marijuana: onboardingData.marijuana ?? null,
+    has_kids: onboardingData.hasKids ?? null,
   };
 }
 
@@ -104,6 +109,11 @@ export function mapProfileToOnboardingData(
     selectedGyms: profile.home_gym_id ? [profile.home_gym_id] : [],
     height: profile.height ?? null,
     occupation: profile.occupation ?? null,
+    religion: (profile as any).religion ?? null,
+    alcohol: (profile as any).alcohol ?? null,
+    smoking: (profile as any).smoking ?? null,
+    marijuana: (profile as any).marijuana ?? null,
+    hasKids: (profile as any).has_kids ?? null,
     interestedInGender: (() => {
       const g = discoveryPrefs?.genders as string[] | undefined;
       if (!Array.isArray(g) || g.length === 0) return null;

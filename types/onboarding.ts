@@ -48,6 +48,12 @@ export type FitnessLifestyle = "gym_life" | "balanced" | "starting" | "on_off"
 
 export type ApproachPreference = "yes" | "sometimes" | "no"
 
+export type Religion = 'Atheist' | 'Jewish' | 'Muslim' | 'Christian' | 'Catholic' | 'Buddhist' | 'Hindu' | 'Sikh' | 'Spiritual' | 'Other';
+
+export type YesNoSometimes = 'Yes' | 'No' | 'Sometimes';
+
+export type YesNo = 'Yes' | 'No';
+
 export interface GooglePlaceGym {
   place_id: string
   name: string
@@ -67,6 +73,11 @@ export interface OnboardingData {
   gender: "male" | "female" | null
   height: string | null // Format: "5'10""
   occupation: string | null
+  religion: Religion | null;
+  alcohol: YesNoSometimes | null;
+  smoking: YesNoSometimes | null;
+  marijuana: YesNoSometimes | null;
+  hasKids: YesNo | null;
   email: string
   password: string
   intents: Intent[]
@@ -87,6 +98,11 @@ export const INITIAL_ONBOARDING_DATA: OnboardingData = {
   gender: null,
   height: null,
   occupation: null,
+  religion: null,
+  alcohol: null,
+  smoking: null,
+  marijuana: null,
+  hasKids: null,
   email: "",
   password: "",
   intents: [],
