@@ -167,6 +167,36 @@ export default function EditProfileScreen() {
   const [heightFeet, setHeightFeet] = useState("")
   const [heightInches, setHeightInches] = useState("")
 
+  const religionOptions = useMemo(() => [
+    { value: 'Atheist', label: 'Atheist' },
+    { value: 'Jewish', label: 'Jewish' },
+    { value: 'Muslim', label: 'Muslim' },
+    { value: 'Christian', label: 'Christian' },
+    { value: 'Catholic', label: 'Catholic' },
+    { value: 'Buddhist', label: 'Buddhist' },
+    { value: 'Hindu', label: 'Hindu' },
+    { value: 'Sikh', label: 'Sikh' },
+    { value: 'Spiritual', label: 'Spiritual' },
+    { value: 'Other', label: 'Other' },
+  ], [])
+
+  const yesNoSometimesOptions = useMemo(() => [
+    { value: 'Yes', label: 'Yes' },
+    { value: 'No', label: 'No' },
+    { value: 'Sometimes', label: 'Sometimes' },
+  ], [])
+
+  const yesNoOptions = useMemo(() => [
+    { value: 'Yes', label: 'Yes' },
+    { value: 'No', label: 'No' },
+  ], [])
+
+  const [religion, setReligion] = useState<string>('')
+  const [alcohol, setAlcohol] = useState<string>('')
+  const [smoking, setSmoking] = useState<string>('')
+  const [marijuana, setMarijuana] = useState<string>('')
+  const [hasKids, setHasKids] = useState<string>('')
+
   const displayNameInput = useFilteredInput({
     value: displayName,
     onChangeText: setDisplayName,
@@ -189,6 +219,11 @@ export default function EditProfileScreen() {
     const { feet, inches } = parseHeight(profile.height ?? null)
     setHeightFeet(feet)
     setHeightInches(inches)
+    setReligion((profile as any).religion ?? '')
+    setAlcohol((profile as any).alcohol ?? '')
+    setSmoking((profile as any).smoking ?? '')
+    setMarijuana((profile as any).marijuana ?? '')
+    setHasKids((profile as any).has_kids ?? '')
     skipFirstSaveRef.current = true
   }, [profile, parseHeight])
 
@@ -471,6 +506,11 @@ export default function EditProfileScreen() {
               heightFeet && heightInches
                 ? `${heightFeet}'${heightInches}"`
                 : null,
+            ...(religion ? { religion } : {}),
+            ...(alcohol ? { alcohol } : {}),
+            ...(smoking ? { smoking } : {}),
+            ...(marijuana ? { marijuana } : {}),
+            ...(hasKids ? { has_kids: hasKids } : {}),
           }
           await updateProfile.mutateAsync(updates)
         } catch (err: unknown) {
@@ -528,6 +568,11 @@ export default function EditProfileScreen() {
     displayNameInput,
     queryClient,
     updateProfile,
+    religion,
+    alcohol,
+    smoking,
+    marijuana,
+    hasKids,
   ])
 
   if (profileLoading || !profile) {
@@ -634,6 +679,56 @@ export default function EditProfileScreen() {
                   options={heightInchesOptions}
                 />
               </View>
+            </View>
+          </View>
+
+          {/* Lifestyle */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Lifestyle</Text>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Religion</Text>
+              <Select
+                value={religion}
+                onValueChange={setReligion}
+                placeholder="Select..."
+                options={religionOptions}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Alcohol</Text>
+              <Select
+                value={alcohol}
+                onValueChange={setAlcohol}
+                placeholder="Select..."
+                options={yesNoSometimesOptions}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Cigarettes</Text>
+              <Select
+                value={smoking}
+                onValueChange={setSmoking}
+                placeholder="Select..."
+                options={yesNoSometimesOptions}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Marijuana</Text>
+              <Select
+                value={marijuana}
+                onValueChange={setMarijuana}
+                placeholder="Select..."
+                options={yesNoSometimesOptions}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Kids</Text>
+              <Select
+                value={hasKids}
+                onValueChange={setHasKids}
+                placeholder="Select..."
+                options={yesNoOptions}
+              />
             </View>
           </View>
 
