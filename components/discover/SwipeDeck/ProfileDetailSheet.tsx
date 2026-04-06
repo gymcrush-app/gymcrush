@@ -5,7 +5,7 @@ import { formatIntents } from '@/lib/utils/formatting';
 import { colors, spacing } from '@/theme';
 import { Profile } from '@/types';
 import { Intent } from '@/types/onboarding';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import React, { RefObject, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
@@ -16,7 +16,7 @@ interface ProfileDetailSheetProps {
   distance: number | null;
   prompts: Array<{ id: string; title: string; answer: string }>;
   onPromptPress: (title: string, answer: string) => void;
-  bottomSheetRef: RefObject<BottomSheet | null>;
+  bottomSheetRef: RefObject<BottomSheetModal | null>;
 }
 
 const renderBackdrop = (props: any) => (
@@ -48,10 +48,15 @@ export function ProfileDetailSheet({
 
   const age = profile.age ?? null;
 
+  const religion = (profile as any).religion ?? null;
+  const alcohol = (profile as any).alcohol ?? null;
+  const smoking = (profile as any).smoking ?? null;
+  const marijuana = (profile as any).marijuana ?? null;
+  const hasKids = (profile as any).has_kids ?? null;
+
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={bottomSheetRef}
-      index={-1}
       snapPoints={snapPoints}
       backdropComponent={renderBackdrop}
       backgroundStyle={styles.background}
@@ -70,12 +75,17 @@ export function ProfileDetailSheet({
             occupation={profile.occupation ?? null}
             city={profileGym?.city ?? null}
             bio={profile.bio ?? null}
+            religion={religion}
+            alcohol={alcohol}
+            smoking={smoking}
+            marijuana={marijuana}
+            hasKids={hasKids}
           />
 
           <PromptsList prompts={prompts} onPromptPress={onPromptPress} />
         </View>
       </BottomSheetScrollView>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 }
 

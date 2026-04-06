@@ -1,10 +1,14 @@
 import { PhotoSection } from "@/components/profile/PhotoSection"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
+import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
 import { FitnessBadges } from "@/components/profile/FitnessBadges"
 import { ProfileDetailContent } from "@/components/profile/ProfileDetailContent"
+import { PromptItem } from "@/components/profile/PromptItem"
+import { PromptsList } from "@/components/profile/PromptsList"
 import { Text } from "@/components/ui/Text"
 import { useGymsByIds } from "@/lib/api/gyms"
 import { useProfile, useProfileById } from "@/lib/api/profiles"
+import { useProfilePrompts } from "@/lib/api/prompts"
 import { calculateGymDistance, formatDistanceKmRounded } from "@/lib/utils/distance"
 import { formatIntents } from "@/lib/utils/formatting"
 import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
@@ -55,6 +59,34 @@ export function OtherUserProfileContent({
     currentUserProfile && gymsMap && currentUserProfile.home_gym_id != null
       ? gymsMap.get(currentUserProfile.home_gym_id)
       : undefined
+
+  const { data: profilePrompts } = useProfilePrompts(userId)
+
+  const prompts = useMemo(() => {
+    if (!profilePrompts) return []
+    return profilePrompts.map((pp) => ({
+      id: pp.id,
+      title: pp.prompt_text.toUpperCase(),
+      answer: pp.answer,
+      engagement_count: pp.engagement_count,
+    }))
+  }, [profilePrompts])
+
+  const { topPrompt, promptBatch1, promptBatch2 } = useMemo(() => {
+    if (prompts.length === 0) return { topPrompt: null, promptBatch1: [], promptBatch2: [] }
+    const sorted = [...prompts].sort((a, b) => b.engagement_count - a.engagement_count)
+    const top = sorted[0]
+    const rest = prompts.filter((p) => p.id !== top.id)
+    const shuffled = [...rest].sort(() => Math.random() - 0.5)
+    return {
+      topPrompt: top,
+      promptBatch1: shuffled.slice(0, 3),
+      promptBatch2: shuffled.slice(3, 6),
+    }
+  }, [prompts])
+
+  // No-op for prompt press in this view (no message sheet)
+  const handlePromptPress = useCallback((_title: string, _answer: string) => {}, [])
 
   const handleOpenImageChat = useCallback(() => {
     (onOpenImageChat ?? onBack)()
@@ -111,7 +143,7 @@ export function OtherUserProfileContent({
   const formattedIntents = formatIntents(intents)
   const distanceKm = formatDistanceKmRounded(distance)
 
-  const imageHeight = SCREEN_WIDTH * 0.75
+  const imageHeight = SCREEN_WIDTH * (1350 / 1080) - 30
 
   return (
     <SafeAreaView
@@ -138,7 +170,7 @@ export function OtherUserProfileContent({
             variant="compact"
           />
 
-          {/* Gym Gem badge (e.g. when browsing Gym Gems) */}
+          {/* Gym Gem badge */}
           <View style={styles.gymGemRow}>
             <View style={styles.gymGemBadge}>
               <Gem size={16} color={colors.primary} />
@@ -146,12 +178,30 @@ export function OtherUserProfileContent({
             </View>
           </View>
 
+          {/* 1. Most-engaged prompt (highlighted) */}
+          {topPrompt && (
+            <View style={styles.promptSection}>
+              <PromptItem
+                title={topPrompt.title}
+                answer={topPrompt.answer}
+                onPress={() => handlePromptPress(topPrompt.title, topPrompt.answer)}
+                highlighted
+              />
+            </View>
+          )}
+
+          {/* 2. Info box + bio */}
           <ProfileDetailContent
             height={profile.height ?? null}
             intent={formattedIntents}
             occupation={profile.occupation ?? null}
             city={profileGym?.city ?? null}
             bio={profile.bio || null}
+            religion={(profile as any).religion ?? null}
+            alcohol={(profile as any).alcohol ?? null}
+            smoking={(profile as any).smoking ?? null}
+            marijuana={(profile as any).marijuana ?? null}
+            hasKids={(profile as any).has_kids ?? null}
           >
             {disciplines.length > 0 && (
               <View style={styles.badgesSection}>
@@ -159,6 +209,26 @@ export function OtherUserProfileContent({
               </View>
             )}
           </ProfileDetailContent>
+
+          {/* 3. First batch of 3 prompts (highlighted) */}
+          {promptBatch1.length > 0 && (
+            <PromptsList prompts={promptBatch1} onPromptPress={handlePromptPress} highlighted />
+          )}
+
+          {/* 4. Duplicate info box */}
+          {promptBatch2.length > 0 && (
+            <ProfileInfoBox
+              height={profile.height ?? null}
+              intent={formattedIntents}
+              occupation={profile.occupation ?? null}
+              city={profileGym?.city ?? null}
+            />
+          )}
+
+          {/* 5. Second batch of prompts (highlighted) */}
+          {promptBatch2.length > 0 && (
+            <PromptsList prompts={promptBatch2} onPromptPress={handlePromptPress} highlighted />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -211,6 +281,9 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.foreground,
+  },
+  promptSection: {
+    marginBottom: spacing[4],
   },
   badgesSection: {
     marginTop: spacing[4],

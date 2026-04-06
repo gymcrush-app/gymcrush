@@ -1,5 +1,6 @@
 import { AboutSection } from '@/components/profile/AboutSection';
 import { ProfileInfoBox } from '@/components/profile/ProfileInfoBox';
+import { ProfileLifestyleBox } from '@/components/profile/ProfileLifestyleBox';
 import { FitnessBadges } from '@/components/profile/FitnessBadges';
 import { PhotoCarousel } from '@/components/profile/PhotoCarousel';
 import { Button } from '@/components/ui/Button';
@@ -216,6 +217,14 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
           intent={formattedIntents}
           occupation={profile.occupation ?? null}
           city={gym?.city ?? null}
+        />
+
+        <ProfileLifestyleBox
+          religion={(profile as any).religion ?? null}
+          alcohol={(profile as any).alcohol ?? null}
+          smoking={(profile as any).smoking ?? null}
+          marijuana={(profile as any).marijuana ?? null}
+          hasKids={(profile as any).has_kids ?? null}
         />
 
         <AboutSection bio={profile.bio ?? null} />
