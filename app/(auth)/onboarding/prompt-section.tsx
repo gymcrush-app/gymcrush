@@ -7,32 +7,65 @@ import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/them
 import type { PromptAnswer } from '@/types/onboarding';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-const TOTAL_STEPS = 17;
+const TOTAL_STEPS = 13;
+const TOTAL_PROMPT_SCREENS = 3;
 
 export default function PromptSectionScreen() {
   const navigation = useNavigation();
   const { sectionIndex } = useLocalSearchParams<{ sectionIndex: string }>();
-  const sectionIdx = parseInt(sectionIndex ?? '0', 10);
+  const slotIdx = parseInt(sectionIndex ?? '0', 10);
 
   const { data: sections, isLoading } = usePromptSections();
   const data = useOnboardingStore((s) => s.data);
   const updateData = useOnboardingStore((s) => s.updateData);
 
-  const section = sections?.[sectionIdx];
-
-  // Find existing answer for this section from onboarding store
+  // Find existing answer for this slot (by slot index position)
   const existingAnswer = useMemo(() => {
-    if (!section) return null;
-    return data.prompts.find((p) => p.sectionId === section.id) ?? null;
-  }, [data.prompts, section]);
+    if (!sections) return null;
+    return data.prompts[slotIdx] ?? null;
+  }, [data.prompts, slotIdx, sections]);
 
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(
+    existingAnswer?.sectionId ?? null
+  );
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(
     existingAnswer?.promptId ?? null
   );
   const [answer, setAnswer] = useState(existingAnswer?.answer ?? '');
   const textareaRef = useRef<TextInput>(null);
+
+  // Collect promptIds already chosen in OTHER slots (not this one)
+  const usedPromptIds = useMemo(() => {
+    return new Set(
+      data.prompts
+        .filter((_, idx) => idx !== slotIdx)
+        .map((p) => p.promptId)
+    );
+  }, [data.prompts, slotIdx]);
+
+  // Filter questions for selected theme, excluding already-used prompts
+  const availableQuestions = useMemo(() => {
+    if (!selectedThemeId || !sections) return [];
+    const section = sections.find((s) => s.id === selectedThemeId);
+    if (!section) return [];
+    return section.prompts.filter((p) => !usedPromptIds.has(p.id));
+  }, [selectedThemeId, sections, usedPromptIds]);
+
+  const handleSelectTheme = useCallback((themeId: string) => {
+    setSelectedThemeId(themeId);
+    // Clear question selection when switching themes (unless it belongs to this theme)
+    if (selectedPromptId) {
+      const stillAvailable = sections
+        ?.find((s) => s.id === themeId)
+        ?.prompts.some((p) => p.id === selectedPromptId && !usedPromptIds.has(p.id));
+      if (!stillAvailable) {
+        setSelectedPromptId(null);
+        setAnswer('');
+      }
+    }
+  }, [selectedPromptId, sections, usedPromptIds]);
 
   const handleSelectPrompt = useCallback((promptId: string) => {
     setSelectedPromptId(promptId);
@@ -40,30 +73,31 @@ export default function PromptSectionScreen() {
     setTimeout(() => textareaRef.current?.focus(), 100);
   }, []);
 
-  const canContinue = !!selectedPromptId && answer.trim().length > 0;
+  const canContinue = !!selectedPromptId && !!selectedThemeId && answer.trim().length > 0;
 
   const handleNext = useCallback(() => {
-    if (!canContinue || !section || !selectedPromptId) return;
+    if (!canContinue || !selectedPromptId || !selectedThemeId) return;
 
-    // Update the prompts array in onboarding store
-    const updatedPrompts: PromptAnswer[] = [
-      ...data.prompts.filter((p) => p.sectionId !== section.id),
-      { promptId: selectedPromptId, sectionId: section.id, answer: answer.trim() },
-    ];
+    // Build updated prompts array, placing this answer at the correct slot index
+    const newEntry: PromptAnswer = {
+      promptId: selectedPromptId,
+      sectionId: selectedThemeId,
+      answer: answer.trim(),
+    };
+    const updatedPrompts = [...data.prompts];
+    updatedPrompts[slotIdx] = newEntry;
     updateData({ prompts: updatedPrompts });
 
-    // Navigate to next section or photos
-    if (sectionIdx < 6) {
-      (navigation as any).navigate('prompt-section', { sectionIndex: String(sectionIdx + 1) });
+    if (slotIdx < TOTAL_PROMPT_SCREENS - 1) {
+      (navigation as any).navigate('prompt-section', { sectionIndex: String(slotIdx + 1) });
     } else {
       (navigation as any).navigate('photos');
     }
-  }, [canContinue, section, selectedPromptId, answer, data.prompts, updateData, sectionIdx, navigation]);
+  }, [canContinue, selectedPromptId, selectedThemeId, answer, data.prompts, updateData, slotIdx, navigation]);
 
-  // Step number: sections 0-6 map to steps 7-13
-  const currentStep = 10 + sectionIdx;
+  const currentStep = 10 + slotIdx;
 
-  if (isLoading || !section) {
+  if (isLoading || !sections) {
     return (
       <OnboardingContainer currentStep={currentStep} totalSteps={TOTAL_STEPS} showBack={true}>
         <View style={styles.loadingContainer}>
@@ -75,37 +109,70 @@ export default function PromptSectionScreen() {
 
   return (
     <OnboardingContainer currentStep={currentStep} totalSteps={TOTAL_STEPS} showBack={true}>
-      <View style={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.title}>{section.name}</Text>
-          <Text style={styles.subtitle}>{section.subtitle}</Text>
+          <Text style={styles.title}>Pick a theme & question</Text>
+          <Text style={styles.subtitle}>
+            Answer {slotIdx + 1} of {TOTAL_PROMPT_SCREENS} prompts
+          </Text>
         </View>
 
-        <View style={styles.promptsList}>
-          {section.prompts.map((prompt) => {
-            const isSelected = selectedPromptId === prompt.id;
+        {/* Theme selector */}
+        <View style={styles.themesWrap}>
+          {sections.map((section) => {
+            const isSelected = selectedThemeId === section.id;
             return (
               <Pressable
-                key={prompt.id}
-                onPress={() => handleSelectPrompt(prompt.id)}
+                key={section.id}
+                onPress={() => handleSelectTheme(section.id)}
                 style={[
-                  styles.promptOption,
-                  isSelected && styles.promptOptionSelected,
+                  styles.themeButton,
+                  isSelected && styles.themeButtonSelected,
                 ]}
               >
                 <Text
                   style={[
-                    styles.promptOptionText,
-                    isSelected && styles.promptOptionTextSelected,
+                    styles.themeButtonText,
+                    isSelected && styles.themeButtonTextSelected,
                   ]}
+                  numberOfLines={1}
                 >
-                  {prompt.prompt_text}
+                  {section.name}
                 </Text>
               </Pressable>
             );
           })}
         </View>
 
+        {/* Questions list */}
+        {selectedThemeId && (
+          <View style={styles.questionsList}>
+            {availableQuestions.map((prompt) => {
+              const isSelected = selectedPromptId === prompt.id;
+              return (
+                <Pressable
+                  key={prompt.id}
+                  onPress={() => handleSelectPrompt(prompt.id)}
+                  style={[
+                    styles.questionOption,
+                    isSelected && styles.questionOptionSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.questionOptionText,
+                      isSelected && styles.questionOptionTextSelected,
+                    ]}
+                  >
+                    {prompt.prompt_text}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Answer textarea */}
         {selectedPromptId && (
           <FilteredTextarea
             ref={textareaRef}
@@ -117,19 +184,22 @@ export default function PromptSectionScreen() {
             style={styles.textarea}
           />
         )}
-      </View>
+      </ScrollView>
 
       <FloatingActionButton onPress={handleNext} disabled={!canContinue}>
-        {sectionIdx < 6 ? 'Next' : 'Continue'}
+        {slotIdx < TOTAL_PROMPT_SCREENS - 1 ? 'Next' : 'Continue'}
       </FloatingActionButton>
     </OnboardingContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+  },
   content: {
     gap: spacing[6],
-    paddingBottom: spacing[16],
+    paddingBottom: spacing[24],
   },
   loadingContainer: {
     flex: 1,
@@ -152,25 +222,51 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     textAlign: 'center',
   },
-  promptsList: {
+  themesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing[2],
   },
-  promptOption: {
+  themeButton: {
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[4],
+    borderRadius: borderRadius.full,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  themeButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}1A`,
+  },
+  themeButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.foreground,
+  },
+  themeButtonTextSelected: {
+    color: colors.primary,
+    fontWeight: fontWeight.semibold,
+  },
+  questionsList: {
+    gap: spacing[2],
+  },
+  questionOption: {
     padding: spacing[4],
     borderRadius: borderRadius.lg,
     backgroundColor: colors.input,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  promptOptionSelected: {
+  questionOptionSelected: {
     borderColor: colors.primary,
     backgroundColor: `${colors.primary}1A`,
   },
-  promptOptionText: {
+  questionOptionText: {
     fontSize: fontSize.base,
     color: colors.foreground,
   },
-  promptOptionTextSelected: {
+  questionOptionTextSelected: {
     color: colors.primary,
   },
   textarea: {},
