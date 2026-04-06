@@ -4,11 +4,11 @@ import {
   PhotoSection,
 } from "@/components/profile/PhotoSection"
 import { PhotoCarouselRef } from "@/components/profile/PhotoCarousel"
-import { ProfileDetailContent } from "@/components/profile/ProfileDetailContent"
+import { AboutSection } from "@/components/profile/AboutSection"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
+import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
 import { PromptItem } from "@/components/profile/PromptItem"
-import { PromptsList } from "@/components/profile/PromptsList"
 import { Text } from "@/components/ui/Text"
 import {
   getSwipeUpMatchLabel,
@@ -145,19 +145,14 @@ export function SwipeDeck({
     }))
   }, [profilePrompts])
 
-  // Split prompts: most-engaged first, then two batches of 3
-  const { topPrompt, promptBatch1, promptBatch2 } = useMemo(() => {
-    if (prompts.length === 0) return { topPrompt: null, promptBatch1: [], promptBatch2: [] }
-    // Pick the most-engaged prompt (ties/all-zero → first)
+  // Split prompts: most-engaged first, then 2nd and 3rd
+  const { prompt1, prompt2, prompt3 } = useMemo(() => {
+    if (prompts.length === 0) return { prompt1: null, prompt2: null, prompt3: null }
     const sorted = [...prompts].sort((a, b) => b.engagement_count - a.engagement_count)
-    const top = sorted[0]
-    const rest = prompts.filter((p) => p.id !== top.id)
-    // Shuffle the rest
-    const shuffled = [...rest].sort(() => Math.random() - 0.5)
     return {
-      topPrompt: top,
-      promptBatch1: shuffled.slice(0, 3),
-      promptBatch2: shuffled.slice(3, 6),
+      prompt1: sorted[0] ?? null,
+      prompt2: sorted[1] ?? null,
+      prompt3: sorted[2] ?? null,
     }
   }, [prompts])
 
@@ -724,36 +719,17 @@ export function SwipeDeck({
 
             {/* Profile content — interleaved prompts + info */}
             <View style={styles.profileDetailSection}>
-              {/* 1. Most-engaged prompt (highlighted) */}
-              {topPrompt && (
+              {/* 1. Top prompt (most engaged) */}
+              {prompt1 && (
                 <PromptItem
-                  title={topPrompt.title}
-                  answer={topPrompt.answer}
-                  onPress={() => handlePromptPress(topPrompt.title, topPrompt.answer)}
+                  title={prompt1.title}
+                  answer={prompt1.answer}
+                  onPress={() => handlePromptPress(prompt1.title, prompt1.answer)}
                   highlighted
                 />
               )}
 
-              {/* 2. Info box + bio */}
-              <ProfileDetailContent
-                height={height}
-                intent={formattedIntents}
-                occupation={topProfile.occupation ?? null}
-                city={profileGym?.city ?? null}
-                bio={topProfile.bio ?? null}
-                religion={(topProfile as any).religion ?? null}
-                alcohol={(topProfile as any).alcohol ?? null}
-                smoking={(topProfile as any).smoking ?? null}
-                marijuana={(topProfile as any).marijuana ?? null}
-                hasKids={(topProfile as any).has_kids ?? null}
-              />
-
-              {/* 3. First batch of 3 prompts (highlighted) */}
-              {promptBatch1.length > 0 && (
-                <PromptsList prompts={promptBatch1} onPromptPress={handlePromptPress} highlighted />
-              )}
-
-              {/* 4. Duplicate info box */}
+              {/* 2. Info box */}
               <ProfileInfoBox
                 height={height}
                 intent={formattedIntents}
@@ -761,9 +737,36 @@ export function SwipeDeck({
                 city={profileGym?.city ?? null}
               />
 
-              {/* 5. Second batch of prompts (highlighted) */}
-              {promptBatch2.length > 0 && (
-                <PromptsList prompts={promptBatch2} onPromptPress={handlePromptPress} highlighted />
+              {/* 3. Bio */}
+              <AboutSection bio={topProfile.bio ?? null} />
+
+              {/* 4. Prompt 2 */}
+              {prompt2 && (
+                <PromptItem
+                  title={prompt2.title}
+                  answer={prompt2.answer}
+                  onPress={() => handlePromptPress(prompt2.title, prompt2.answer)}
+                  highlighted
+                />
+              )}
+
+              {/* 5. Lifestyle info box */}
+              <ProfileLifestyleBox
+                religion={(topProfile as any).religion ?? null}
+                alcohol={(topProfile as any).alcohol ?? null}
+                smoking={(topProfile as any).smoking ?? null}
+                marijuana={(topProfile as any).marijuana ?? null}
+                hasKids={(topProfile as any).has_kids ?? null}
+              />
+
+              {/* 6. Prompt 3 */}
+              {prompt3 && (
+                <PromptItem
+                  title={prompt3.title}
+                  answer={prompt3.answer}
+                  onPress={() => handlePromptPress(prompt3.title, prompt3.answer)}
+                  highlighted
+                />
               )}
             </View>
 
