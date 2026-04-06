@@ -2,7 +2,6 @@ import { PhotoSection } from "@/components/profile/PhotoSection"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
 import { FitnessBadges } from "@/components/profile/FitnessBadges"
-import { AboutSection } from "@/components/profile/AboutSection"
 import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
 import { PromptItem } from "@/components/profile/PromptItem"
 import { Text } from "@/components/ui/Text"
@@ -195,10 +194,7 @@ export function OtherUserProfileContent({
             city={profileGym?.city ?? null}
           />
 
-          {/* 3. Bio */}
-          <AboutSection bio={profile.bio || null} />
-
-          {/* 4. Prompt 2 */}
+          {/* 3. Prompt 2 */}
           {prompt2 && (
             <PromptItem
               title={prompt2.title}

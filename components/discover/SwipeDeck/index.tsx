@@ -4,7 +4,6 @@ import {
   PhotoSection,
 } from "@/components/profile/PhotoSection"
 import { PhotoCarouselRef } from "@/components/profile/PhotoCarousel"
-import { AboutSection } from "@/components/profile/AboutSection"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
 import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
@@ -737,10 +736,7 @@ export function SwipeDeck({
                 city={profileGym?.city ?? null}
               />
 
-              {/* 3. Bio */}
-              <AboutSection bio={topProfile.bio ?? null} />
-
-              {/* 4. Prompt 2 */}
+              {/* 3. Prompt 2 */}
               {prompt2 && (
                 <PromptItem
                   title={prompt2.title}

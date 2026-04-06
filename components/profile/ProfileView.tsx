@@ -1,4 +1,3 @@
-import { AboutSection } from '@/components/profile/AboutSection';
 import { ProfileInfoBox } from '@/components/profile/ProfileInfoBox';
 import { ProfileLifestyleBox } from '@/components/profile/ProfileLifestyleBox';
 import { FitnessBadges } from '@/components/profile/FitnessBadges';
@@ -219,7 +218,6 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
           city={gym?.city ?? null}
         />
 
-        <AboutSection bio={profile.bio ?? null} />
 
         <ProfileLifestyleBox
           religion={(profile as any).religion ?? null}
