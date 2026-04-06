@@ -24,6 +24,14 @@ import { parseLocation } from "../lib/utils/distance"
 import type { Database } from "../types/database"
 import type { Intent } from "../types/onboarding"
 import { getSupabaseConfig } from "./env"
+import {
+  generateAnswersForProfileSeed,
+  getProfilePromptReactionContext,
+  getSweatLifeSectionId,
+  insertProfilePromptsForUser,
+  loadPromptCatalogFirstPerSection,
+  replaceProfilePromptsForUser,
+} from "./seedPromptHelpers"
 
 const { url: supabaseUrl, serviceRoleKey } = getSupabaseConfig()
 
@@ -178,30 +186,6 @@ const bioTemplates = [
   "Gym regular looking for workout accountability.",
 ]
 
-// Prompt templates
-const promptTemplates = [
-  "My gym hot take is... leg day is the best day.",
-  "The way to my heart is through... a good protein shake after class.",
-  "My ideal post-workout meal is... anything with protein and carbs.",
-  "You'll find me at the gym when... the sun is rising.",
-  "The exercise I love to hate is... deadlifts.",
-  "My gym playlist always includes... high-energy beats.",
-  "After leg day, I'm usually... foam rolling everything.",
-  "My fitness journey started because... I wanted to feel confident.",
-  "The way to win me over is... spot me on bench press.",
-  "I'm looking for... someone who understands 5am gym sessions.",
-  "My gym hot take is... cardio doesn't kill gains if done right.",
-  "The way to my heart is through... perfect squat form.",
-  "My ideal workout partner is... someone who pushes me.",
-  "You'll find me at the gym when... it's empty and quiet.",
-  "The exercise I love to hate is... burpees.",
-  "My gym playlist always includes... motivational tracks.",
-  "After leg day, I'm usually... walking like a penguin.",
-  "My fitness journey started because... I wanted to be strong.",
-  "The way to win me over is... share your protein shake.",
-  "I'm looking for... a workout partner who shows up consistently.",
-]
-
 // Height options (format "5'10\"")
 const heightOptions = [
   "5'2\"",
@@ -329,15 +313,12 @@ const messageRequestTemplates = [
 ]
 
 // Reaction messages (from other user reacting to current user's prompt or image)
-const promptReactionTemplates: { content: string; answer: string }[] = [
-  {
-    content: "Haha same! Leg day really is the best.",
-    answer: "Same! Leg day is the best day.",
-  },
-  { content: "That made me laugh 😄", answer: "Leg day is the best day." },
-  { content: "Couldn't agree more!", answer: "Focus on form over weight." },
-  { content: "Love that take!", answer: "Early morning sessions." },
-  { content: "So true!", answer: "Someone who pushes me." },
+const promptReactionTemplates: { content: string }[] = [
+  { content: "Haha same! Leg day really is the best." },
+  { content: "That made me laugh 😄" },
+  { content: "Couldn't agree more!" },
+  { content: "Love that take!" },
+  { content: "So true!" },
 ]
 const imageReactionTemplates = [
   "Love that photo!",
@@ -579,7 +560,6 @@ async function createProfile(
   gymId: string,
   photoUrls: string[],
   bio: string,
-  _prompt: string, // unused after approach_prompt removal, kept for call-site compat
   disciplines: string[],
   intents: Intent[],
   lastLocationWkt?: string | null,
@@ -610,6 +590,17 @@ async function createProfile(
     payload.last_location_updated_at = lastLocationUpdatedAt
   if (height != null) payload.height = height
   if (occupation != null) payload.occupation = occupation
+
+  // Add random lifestyle attributes
+  const religions = ['Atheist','Jewish','Muslim','Christian','Catholic','Buddhist','Hindu','Sikh','Spiritual','Other'] as const
+  const yesNoSometimes = ['Yes','No','Sometimes'] as const
+  const yesNo = ['Yes','No'] as const
+  const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.length)]
+  payload.religion = pick(religions)
+  payload.alcohol = pick(yesNoSometimes)
+  payload.smoking = pick(yesNoSometimes)
+  payload.marijuana = pick(yesNoSometimes)
+  payload.has_kids = pick(yesNo)
 
   const { data, error } = await supabase
     .from("profiles")
@@ -845,14 +836,17 @@ function getConversationWithFirstMessageFromOther(): (typeof conversationStarter
 async function seedReactionMessages(
   matchId: string,
   otherUserId: string,
-  currentUserApproachPrompt: string | null,
+  currentUserPrompt: {
+    promptTitle: string
+    promptAnswer: string
+  } | null,
 ): Promise<number> {
   const now = new Date()
   let messageTime = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
   let count = 0
 
-  // 1 prompt reaction (if we have a prompt to react to)
-  if (currentUserApproachPrompt && currentUserApproachPrompt.trim()) {
+  // 1 prompt reaction (if we have catalog title + answer for the current user)
+  if (currentUserPrompt?.promptTitle?.trim()) {
     const template =
       promptReactionTemplates[
         Math.floor(Math.random() * promptReactionTemplates.length)
@@ -865,8 +859,8 @@ async function seedReactionMessages(
         template.content,
         messageTime,
         "prompt",
-        currentUserApproachPrompt.trim(),
-        template.answer,
+        currentUserPrompt.promptTitle.trim(),
+        currentUserPrompt.promptAnswer.trim(),
       )
       count++
     } catch (e: any) {
@@ -927,6 +921,27 @@ async function main() {
     // Step 1: Clear existing data (keep only the three staging users)
     await clearExistingData(PRESERVED_USER_IDS)
 
+    const promptCatalog = await loadPromptCatalogFirstPerSection(supabase)
+    const sweatLifeSectionId = getSweatLifeSectionId(promptCatalog)
+    if (!sweatLifeSectionId) {
+      throw new Error("Prompt catalog missing Sweat Life section (display_order 7).")
+    }
+
+    const stagingPromptSeeds = [9000, 9001, 9002]
+    for (let i = 0; i < PRESERVED_USER_IDS.length; i++) {
+      const uid = PRESERVED_USER_IDS[i]
+      const seed = stagingPromptSeeds[i]
+      if (uid == null || seed == null) continue
+      await replaceProfilePromptsForUser(supabase, uid, promptCatalog, seed)
+    }
+    console.log("✓ Staging users profile_prompts (7 sections) refreshed\n")
+
+    const chrisSweatLifePrompt = await getProfilePromptReactionContext(
+      supabase,
+      MERIDIAN_CURRENT_USER_ID,
+      sweatLifeSectionId,
+    )
+
     // Step 2: Fetch both gyms by hardcoded IDs
     const meridianGym = await getGymById(MERIDIAN_GYM_ID, "Uplifted Gym")
     console.log(`Meridian gym: ${meridianGym.name} (${meridianGym.id})\n`)
@@ -959,7 +974,6 @@ async function main() {
       const password = "TestPassword123!"
       const disciplines = disciplineCombos[i % disciplineCombos.length]
       const bio = bioTemplates[i % bioTemplates.length]
-      const prompt = promptTemplates[i % promptTemplates.length]
       const intents = generateIntents()
       console.log(
         `Creating Meridian profile ${created}/${totalMeridian}: ${name} (${age}, female)...`,
@@ -984,13 +998,18 @@ async function main() {
           meridianGym.id,
           photoUrls,
           bio,
-          prompt,
           disciplines,
           intents,
           lastLocationWkt,
           lastLocationUpdatedAt,
           height,
           occupation,
+        )
+        await insertProfilePromptsForUser(
+          supabase,
+          profile.id,
+          promptCatalog,
+          generateAnswersForProfileSeed(i),
         )
         meridianProfiles.push(profile)
         console.log(`  ✓ ${profile.display_name}\n`)
@@ -1007,8 +1026,6 @@ async function main() {
       const disciplines =
         disciplineCombos[(NUM_MERIDIAN_FEMALE + i) % disciplineCombos.length]
       const bio = bioTemplates[(NUM_MERIDIAN_FEMALE + i) % bioTemplates.length]
-      const prompt =
-        promptTemplates[(NUM_MERIDIAN_FEMALE + i) % promptTemplates.length]
       const intents = generateIntents()
       console.log(
         `Creating Meridian profile ${created}/${totalMeridian}: ${name} (${age}, male)...`,
@@ -1035,13 +1052,18 @@ async function main() {
           meridianGym.id,
           photoUrls,
           bio,
-          prompt,
           disciplines,
           intents,
           lastLocationWkt,
           lastLocationUpdatedAt,
           height,
           occupation,
+        )
+        await insertProfilePromptsForUser(
+          supabase,
+          profile.id,
+          promptCatalog,
+          generateAnswersForProfileSeed(globalIndexM),
         )
         meridianProfiles.push(profile)
         console.log(`  ✓ ${profile.display_name}\n`)
@@ -1063,7 +1085,6 @@ async function main() {
       const disciplines =
         disciplineCombos[globalIndex % disciplineCombos.length]
       const bio = bioTemplates[globalIndex % bioTemplates.length]
-      const prompt = promptTemplates[globalIndex % promptTemplates.length]
       const intents = generateIntents()
       console.log(
         `Creating Kelowna profile ${created}/${totalKelowna}: ${name} (${age}, female)...`,
@@ -1087,13 +1108,18 @@ async function main() {
           kelownaGym.id,
           photoUrls,
           bio,
-          prompt,
           disciplines,
           intents,
           lastLocationWkt,
           lastLocationUpdatedAt,
           height,
           occupation,
+        )
+        await insertProfilePromptsForUser(
+          supabase,
+          profile.id,
+          promptCatalog,
+          generateAnswersForProfileSeed(globalIndex),
         )
         kelownaProfiles.push(profile)
         console.log(`  ✓ ${profile.display_name}\n`)
@@ -1103,7 +1129,6 @@ async function main() {
     }
     for (let i = 0; i < NUM_KELOWNA_MALE; i++) {
       created++
-      const globalIndex = NUM_MERIDIAN_MALE + i
       const name = getMaleDisplayName(NUM_MERIDIAN_MALE + i)
       const age = 22 + Math.floor(Math.random() * 13)
       const email = `test-male-${NUM_MERIDIAN_MALE + i}@gymcrush.test`
@@ -1116,10 +1141,6 @@ async function main() {
       const bio =
         bioTemplates[
           (NUM_MERIDIAN_FEMALE + NUM_MERIDIAN_MALE + i) % bioTemplates.length
-        ]
-      const prompt =
-        promptTemplates[
-          (NUM_MERIDIAN_FEMALE + NUM_MERIDIAN_MALE + i) % promptTemplates.length
         ]
       const intents = generateIntents()
       console.log(
@@ -1149,13 +1170,18 @@ async function main() {
           kelownaGym.id,
           photoUrls,
           bio,
-          prompt,
           disciplines,
           intents,
           lastLocationWkt,
           lastLocationUpdatedAt,
           height,
           occupation,
+        )
+        await insertProfilePromptsForUser(
+          supabase,
+          profile.id,
+          promptCatalog,
+          generateAnswersForProfileSeed(globalIndexK),
         )
         kelownaProfiles.push(profile)
         console.log(`  ✓ ${profile.display_name}\n`)
@@ -1211,7 +1237,7 @@ async function main() {
             const reactionCount = await seedReactionMessages(
               match.id,
               profile.id,
-              null, // approach_prompt removed
+              chrisSweatLifePrompt,
             )
             meridianMessagesInMatches += reactionCount
           }
@@ -1324,8 +1350,11 @@ async function main() {
       canadaUserId: string,
       women: SeedProfile[],
       label: string,
+      canadaUserSweatLifePrompt: {
+        promptTitle: string
+        promptAnswer: string
+      } | null,
     ) => {
-      const approachPrompt = null // approach_prompt removed
       const matchProfiles = women.slice(0, NUM_CANADA_MATCHES_PER_USER)
       const swipeUpProfiles = women.slice(
         NUM_CANADA_MATCHES_PER_USER,
@@ -1343,7 +1372,11 @@ async function main() {
               conversation,
               canadaUserId,
             )
-            await seedReactionMessages(match.id, profile.id, approachPrompt)
+            await seedReactionMessages(
+              match.id,
+              profile.id,
+              canadaUserSweatLifePrompt,
+            )
           }
         } catch (e: any) {
           console.error(
@@ -1369,15 +1402,27 @@ async function main() {
     console.log(
       "Creating Canada relationships (Brendan, Timmy with Kelowna women)...\n",
     )
+    const brendanSweatLife = await getProfilePromptReactionContext(
+      supabase,
+      CANADA_CURRENT_USER_IDS[0]!,
+      sweatLifeSectionId,
+    )
+    const timmySweatLife = await getProfilePromptReactionContext(
+      supabase,
+      CANADA_CURRENT_USER_IDS[1]!,
+      sweatLifeSectionId,
+    )
     await createCanadaRelationshipsForUser(
       CANADA_CURRENT_USER_IDS[0],
       canadaWomenForBrendan,
       "Brendan",
+      brendanSweatLife,
     )
     await createCanadaRelationshipsForUser(
       CANADA_CURRENT_USER_IDS[1],
       canadaWomenForTimmy,
       "Timmy",
+      timmySweatLife,
     )
 
     // Summary and test credentials

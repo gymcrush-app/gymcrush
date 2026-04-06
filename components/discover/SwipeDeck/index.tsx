@@ -6,6 +6,8 @@ import {
 import { PhotoCarouselRef } from "@/components/profile/PhotoCarousel"
 import { ProfileDetailContent } from "@/components/profile/ProfileDetailContent"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
+import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
+import { PromptItem } from "@/components/profile/PromptItem"
 import { PromptsList } from "@/components/profile/PromptsList"
 import { Text } from "@/components/ui/Text"
 import {
@@ -31,7 +33,7 @@ import {
 } from "@/theme"
 import type { Profile, SwipeAction } from "@/types"
 import type { Intent } from "@/types/onboarding"
-import BottomSheet from "@gorhom/bottom-sheet"
+import { BottomSheetModal } from "@gorhom/bottom-sheet"
 import { useRouter } from "expo-router"
 import { Check, ChevronUp, MoreHorizontal } from "lucide-react-native"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -86,8 +88,8 @@ const START_OPACITY = 0.3
 const SWIPE_THRESHOLD = 140
 /** Velocity (px/s) for a fast fling to trigger */
 const VELOCITY_THRESHOLD = 600
-/** Dead zone (px) before crush effect starts on swipe-up — lets user see details area first */
-const CRUSH_DEAD_ZONE = 80
+/** Dead zone (px) before crush effect starts on swipe-up */
+const CRUSH_DEAD_ZONE = 0
 
 const ZOOM_SPRING = { damping: 40, stiffness: 300 }
 const MIN_ZOOM = 1
@@ -139,8 +141,25 @@ export function SwipeDeck({
       id: pp.id,
       title: pp.prompt_text.toUpperCase(),
       answer: pp.answer,
+      engagement_count: pp.engagement_count,
     }))
   }, [profilePrompts])
+
+  // Split prompts: most-engaged first, then two batches of 3
+  const { topPrompt, promptBatch1, promptBatch2 } = useMemo(() => {
+    if (prompts.length === 0) return { topPrompt: null, promptBatch1: [], promptBatch2: [] }
+    // Pick the most-engaged prompt (ties/all-zero → first)
+    const sorted = [...prompts].sort((a, b) => b.engagement_count - a.engagement_count)
+    const top = sorted[0]
+    const rest = prompts.filter((p) => p.id !== top.id)
+    // Shuffle the rest
+    const shuffled = [...rest].sort(() => Math.random() - 0.5)
+    return {
+      topPrompt: top,
+      promptBatch1: shuffled.slice(0, 3),
+      promptBatch2: shuffled.slice(3, 6),
+    }
+  }, [prompts])
 
   const [awaitingResult, setAwaitingResult] = useState(false)
   const [showTick, setShowTick] = useState(false)
@@ -149,7 +168,7 @@ export function SwipeDeck({
   const crushImageSize = useSharedValue(0)
 
   // Message bottom sheet
-  const messageSheetRef = useRef<BottomSheet>(null)
+  const messageSheetRef = useRef<BottomSheetModal>(null)
   const [selectedPrompt, setSelectedPrompt] = useState<{
     title: string
     answer: string
@@ -161,7 +180,7 @@ export function SwipeDeck({
   const messageSnapPoints = useMemo(() => ["50%", "90%"], [])
 
   // Profile detail bottom sheet
-  const detailSheetRef = useRef<BottomSheet>(null)
+  const detailSheetRef = useRef<BottomSheetModal>(null)
 
   // Photo carousel ref (for zoom portal URI)
   const photoCarouselRef = useRef<PhotoCarouselRef>(null)
@@ -437,8 +456,8 @@ export function SwipeDeck({
     isDismissing.value = false
     scrollY.value = 0
     scrollRef.current?.scrollTo?.({ y: 0, animated: false })
-    messageSheetRef.current?.close()
-    detailSheetRef.current?.close()
+    messageSheetRef.current?.dismiss()
+    detailSheetRef.current?.dismiss()
     // Notify parent header is visible
     onScrollStateChange?.({ scrollY: 0, isAtTop: true })
   }, [topProfile?.id])
@@ -478,7 +497,7 @@ export function SwipeDeck({
     setSelectedPrompt(null)
     setIsImageChat(false)
     setMessageText("")
-    messageSheetRef.current?.close()
+    messageSheetRef.current?.dismiss()
   }, [])
 
   const router = useRouter()
@@ -521,12 +540,12 @@ export function SwipeDeck({
   const handleOpenImageChat = useCallback(() => {
     setIsImageChat(true)
     setSelectedPrompt(null)
-    messageSheetRef.current?.snapToIndex(0)
+    messageSheetRef.current?.present()
   }, [])
 
   const handlePromptPress = useCallback((title: string, answer: string) => {
     setSelectedPrompt({ title, answer })
-    messageSheetRef.current?.snapToIndex(0)
+    messageSheetRef.current?.present()
   }, [])
 
   const handleMessageSheetChange = useCallback((index: number) => {
@@ -555,7 +574,7 @@ export function SwipeDeck({
   }, [onReportAndBlock, topProfile])
 
   const handleOpenDetailSheet = useCallback(() => {
-    detailSheetRef.current?.snapToIndex(0)
+    detailSheetRef.current?.present()
   }, [])
 
   // --- Layout ---
@@ -703,16 +722,49 @@ export function SwipeDeck({
               </View>
             </Tooltip>
 
-            {/* Full profile details (inline — scrollable) */}
+            {/* Profile content — interleaved prompts + info */}
             <View style={styles.profileDetailSection}>
+              {/* 1. Most-engaged prompt (highlighted) */}
+              {topPrompt && (
+                <PromptItem
+                  title={topPrompt.title}
+                  answer={topPrompt.answer}
+                  onPress={() => handlePromptPress(topPrompt.title, topPrompt.answer)}
+                  highlighted
+                />
+              )}
+
+              {/* 2. Info box + bio */}
               <ProfileDetailContent
                 height={height}
                 intent={formattedIntents}
                 occupation={topProfile.occupation ?? null}
                 city={profileGym?.city ?? null}
                 bio={topProfile.bio ?? null}
+                religion={(topProfile as any).religion ?? null}
+                alcohol={(topProfile as any).alcohol ?? null}
+                smoking={(topProfile as any).smoking ?? null}
+                marijuana={(topProfile as any).marijuana ?? null}
+                hasKids={(topProfile as any).has_kids ?? null}
               />
-              <PromptsList prompts={prompts} onPromptPress={handlePromptPress} />
+
+              {/* 3. First batch of 3 prompts (highlighted) */}
+              {promptBatch1.length > 0 && (
+                <PromptsList prompts={promptBatch1} onPromptPress={handlePromptPress} highlighted />
+              )}
+
+              {/* 4. Duplicate info box */}
+              <ProfileInfoBox
+                height={height}
+                intent={formattedIntents}
+                occupation={topProfile.occupation ?? null}
+                city={profileGym?.city ?? null}
+              />
+
+              {/* 5. Second batch of prompts (highlighted) */}
+              {promptBatch2.length > 0 && (
+                <PromptsList prompts={promptBatch2} onPromptPress={handlePromptPress} highlighted />
+              )}
             </View>
 
             {/* Swipe up indicator */}
