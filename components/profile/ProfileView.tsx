@@ -219,6 +219,8 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
           city={gym?.city ?? null}
         />
 
+        <AboutSection bio={profile.bio ?? null} />
+
         <ProfileLifestyleBox
           religion={(profile as any).religion ?? null}
           alcohol={(profile as any).alcohol ?? null}
@@ -226,8 +228,6 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
           marijuana={(profile as any).marijuana ?? null}
           hasKids={(profile as any).has_kids ?? null}
         />
-
-        <AboutSection bio={profile.bio ?? null} />
 
         {disciplines.length > 0 && (
           <View>
