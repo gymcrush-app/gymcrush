@@ -20,7 +20,6 @@ import { useProfilePrompts } from "@/lib/api/prompts"
 import { useSendMessageRequest } from "@/lib/api/messages"
 import { useZoomPortal } from "@/lib/contexts/ZoomPortalContext"
 import { toast } from "@/lib/toast"
-import { track } from "@/lib/utils/analytics"
 import { formatDistanceKmRounded } from "@/lib/utils/distance"
 import { formatIntents } from "@/lib/utils/formatting"
 import {
@@ -564,8 +563,6 @@ export function SwipeDeck({
           style: "destructive",
           onPress: () => {
             if (topProfile) {
-              track('report_submitted');
-              track('block_user');
               onReportAndBlock?.(topProfile.id);
             }
           },

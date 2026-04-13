@@ -3,7 +3,9 @@ import { MatchHeader } from '@/components/chat/MatchHeader';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { useMatchById, useMarkMatchViewed } from '@/lib/api/matches';
 import { useChat } from '@/lib/api/messages';
+import { useReportAndBlock } from '@/lib/api/safety';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { toast } from '@/lib/toast';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { Message } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
@@ -87,6 +89,21 @@ export default function ChatScreen() {
     hasMarkedAsReadRef.current = false;
   }, [matchId]);
 
+  const reportAndBlockMutation = useReportAndBlock();
+
+  const handleReportAndBlock = useCallback(async (userId: string) => {
+    try {
+      await reportAndBlockMutation.mutateAsync({
+        targetUserId: userId,
+        reason: 'inappropriate',
+      });
+      toast({ preset: 'done', title: 'User reported & blocked', message: "You won't see this person again." });
+      router.back();
+    } catch (error: any) {
+      toast({ preset: 'error', title: 'Report failed', message: error?.message || 'Please try again.' });
+    }
+  }, [reportAndBlockMutation, router]);
+
   const handleSend = (content: string) => {
     if (matchId) {
       sendMessage(content);
@@ -151,7 +168,7 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      <MatchHeader match={match!} onBack={() => router.back()} />
+      <MatchHeader match={match!} onBack={() => router.back()} onReportAndBlock={handleReportAndBlock} />
       <FlashList
         ref={flashListRef}
         data={messages}

@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
+import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
+import { ChevronLeft, MoreHorizontal } from 'lucide-react-native';
 import { Avatar } from '@/components/ui/Avatar';
 import type { MatchWithProfile } from '@/types';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
@@ -9,13 +9,29 @@ import { useUserProfileModal } from '@/lib/contexts/UserProfileModalContext';
 interface MatchHeaderProps {
   match: MatchWithProfile;
   onBack: () => void;
+  onReportAndBlock?: (userId: string) => void;
 }
 
-export function MatchHeader({ match, onBack }: MatchHeaderProps) {
+export function MatchHeader({ match, onBack, onReportAndBlock }: MatchHeaderProps) {
   const { openUserProfile } = useUserProfileModal();
 
   const handleAvatarPress = () => {
     openUserProfile(match.otherUser.id);
+  };
+
+  const handleMorePress = () => {
+    Alert.alert(
+      'Report & Block',
+      `Are you sure you want to report and block ${match.otherUser.display_name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report & Block',
+          style: 'destructive',
+          onPress: () => onReportAndBlock?.(match.otherUser.id),
+        },
+      ],
+    );
   };
 
   return (
@@ -33,7 +49,9 @@ export function MatchHeader({ match, onBack }: MatchHeaderProps) {
         </Pressable>
         <Text style={styles.name}>{match.otherUser.display_name}</Text>
       </View>
-      <View style={styles.rightSpacer} />
+      <Pressable onPress={handleMorePress} style={styles.moreButton}>
+        <MoreHorizontal size={20} color={colors.mutedForeground} />
+      </Pressable>
     </View>
   );
 }
@@ -64,7 +82,10 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     marginTop: spacing[2],
   },
-  rightSpacer: {
-    width: 40, // Same width as back button to keep center content truly centered
+  moreButton: {
+    padding: spacing[2],
+    marginRight: -spacing[2],
+    width: 40,
+    alignItems: 'center',
   },
 });

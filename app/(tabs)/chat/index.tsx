@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { useUnmatch } from "@/lib/api/matches"
 import type { Conversation, ConversationMatch, MessageRequest } from "@/lib/api/messages"
 import { useConversations, useMessageRequests } from "@/lib/api/messages"
+import { useBlockedUserIds } from "@/lib/api/safety"
 import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
 import { useAuthStore } from "@/lib/stores/authStore"
 import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
@@ -36,13 +37,15 @@ export default function ChatListScreen() {
     refetch: refetchRequests,
   } = useMessageRequests()
   const unmatchMutation = useUnmatch()
+  const { data: blockedUserIds = [] } = useBlockedUserIds()
+  const blockedSet = useMemo(() => new Set(blockedUserIds), [blockedUserIds])
 
   // Split conversations into matches with messages and without messages
   const { matchesWithMessages, matchesWithoutMessages } = useMemo(() => {
     const withMessages: Conversation[] = []
     const withoutMessages: ConversationMatch[] = []
 
-    conversations.forEach((conv) => {
+    conversations.filter((c) => c.kind === 'gem_inbox' || !blockedSet.has(c.otherUser.id)).forEach((conv) => {
       if (conv.kind === "gem_inbox") {
         withMessages.push(conv)
         return

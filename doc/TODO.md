@@ -41,9 +41,10 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [x] In-app delete account flow (two-step confirmation in ProfileView)
   - [x] Backend delete/anonymize strategy (`supabase/functions/delete-account` — deletes all user data, storage, and auth record)
 
-- [ ] **UGC safety: report/block + moderation**
-  - [ ] Verify report/block works end-to-end
-  - [ ] Decide moderation approach (manual vs automated) and implement accordingly
+- [x] **UGC safety: report/block + moderation**
+  - [x] Report/block works end-to-end (discover + chat)
+  - [x] Blocks table + migration, blocked users filtered from discover feed and chat list
+  - [ ] Automated image moderation (v2 — manual review via Supabase dashboard for v1)
 
 ---
 

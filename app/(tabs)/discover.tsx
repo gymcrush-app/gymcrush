@@ -37,6 +37,7 @@ import { useAppStore } from "@/lib/stores/appStore"
 import { layout } from "@/lib/styles"
 import { toast } from "@/lib/toast"
 import { track } from "@/lib/utils/analytics"
+import { useReportAndBlock, useBlockedUserIds } from "@/lib/api/safety"
 import { calculateDistanceMiles } from "@/lib/utils/distance"
 import { kmToMiles, milesToKm, usesMiles } from "@/lib/utils/locale"
 import {
@@ -846,14 +847,15 @@ export default function DiscoverScreen() {
   // Server-side "already liked" and "matched" so discover excludes them even if local swiped list is out of sync
   const { data: likedProfileIds = [] } = useLikedProfileIds()
   const { data: matches = [] } = useMatches()
+  const { data: blockedUserIds = [] } = useBlockedUserIds()
   const matchedProfileIds = useMemo(
     () => matches.map((m) => m.otherUser.id),
     [matches],
   )
   const excludedProfileIds = useMemo(
     () =>
-      new Set([...swipedProfiles, ...likedProfileIds, ...matchedProfileIds]),
-    [swipedProfiles, likedProfileIds, matchedProfileIds],
+      new Set([...swipedProfiles, ...likedProfileIds, ...matchedProfileIds, ...blockedUserIds]),
+    [swipedProfiles, likedProfileIds, matchedProfileIds, blockedUserIds],
   )
 
   // User-facing error state is shown in the UI; log in dev only
@@ -896,7 +898,7 @@ export default function DiscoverScreen() {
     () =>
       filterScoreAndSort({
         profiles: nearbyProfiles,
-        include: (p) => skippedProfiles.includes(p.id),
+        include: (p) => skippedProfiles.includes(p.id) && !blockedUserIds.includes(p.id),
         preferences,
         filters,
         currentProfile,
@@ -951,6 +953,7 @@ export default function DiscoverScreen() {
   // Mutations
   const likeMutation = useLike()
   const crushMutation = useCrushSignal()
+  const reportAndBlockMutation = useReportAndBlock()
   // Only check for match when actively checking and have valid user IDs
   const matchCheckUserId =
     matchCheck.status !== "idle" ? matchCheck.userId : null
@@ -1266,6 +1269,38 @@ export default function DiscoverScreen() {
     [currentUser, handleSwipe],
   )
 
+  const handleReportAndBlock = useCallback(
+    async (profileId: string) => {
+      try {
+        await reportAndBlockMutation.mutateAsync({
+          targetUserId: profileId,
+          reason: "inappropriate",
+        })
+        // Treat as swiped so they disappear from the deck
+        const updatedSwiped = [...swipedProfiles, profileId]
+        setSwipedProfiles(updatedSwiped)
+        await saveSwipedProfile(profileId, updatedSwiped)
+        if (isSkippedMode) {
+          setSkippedIndex((prev) => prev + 1)
+        } else {
+          setCurrentIndex((prev) => prev + 1)
+        }
+        toast({
+          preset: "done",
+          title: "User reported & blocked",
+          message: "You won't see this person again.",
+        })
+      } catch (error: any) {
+        toast({
+          preset: "error",
+          title: "Report failed",
+          message: error?.message || "Please try again.",
+        })
+      }
+    },
+    [reportAndBlockMutation, swipedProfiles, isSkippedMode],
+  )
+
   const handleDeckScrollStateChange = useCallback(
     ({ scrollY }: { scrollY: number; isAtTop: boolean }) => {
       setDeckScrollY(scrollY)
@@ -1505,6 +1540,7 @@ export default function DiscoverScreen() {
                   onSwipeDownTooltipClose={advanceTooltip}
                   onSwipeUpTooltipClose={advanceTooltip}
                   onScrollStateChange={handleDeckScrollStateChange}
+                  onReportAndBlock={handleReportAndBlock}
                   distances={deckDistances}
                 />
               </View>
