@@ -4,6 +4,7 @@ import { useAuthStore } from "@/lib/stores/authStore"
 import { supabase } from "@/lib/supabase"
 import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { loginSchema } from "@/lib/utils/validation"
+import { signInWithApple } from "@/lib/auth/appleSignIn"
 import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -74,8 +75,21 @@ export default function LoginScreen() {
   }
 
   const handleAppleSignIn = async () => {
-    // TODO: Implement Apple OAuth
-    toast({ preset: "none", title: "Apple Sign In", message: "Coming soon" })
+    setIsLoading(true)
+    try {
+      const { session } = await signInWithApple()
+      if (session) {
+        track('login_success', { method: 'apple' })
+        setSession(session)
+      }
+    } catch (error: any) {
+      // Apple cancellation is code ERR_REQUEST_CANCELED — don't show an alert
+      if (error?.code === 'ERR_REQUEST_CANCELED') return
+      track('login_failed', { method: 'apple', error: error?.message })
+      Alert.alert("Apple Sign In failed", error?.message ?? "Something went wrong.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleGoogleSignIn = async () => {

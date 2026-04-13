@@ -18,24 +18,24 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [ ] Define entitlements + offerings
   - [ ] Implement purchase flow + restore purchases + entitlement gating
 
-- [ ] **Sentry production setup** — `config/sentry.ts`
-  - [ ] Initialize Sentry on app start (DSN via env)
-  - [ ] Add production config (release tracking/sourcemaps/environment separation/PII scrubbing)
+- [x] **Sentry production setup** — `config/sentry.ts`
+  - [x] Initialize Sentry on app start (DSN via env)
+  - [x] Add production config (release tracking/sourcemaps/environment separation/PII scrubbing)
 
 - [x] **Mixpanel production setup + core events** — `config/mixpanel.ts`, `lib/utils/analytics.ts`
   - [x] Initialize Mixpanel on app start
   - [x] Add `identify(userId)` after login and set core user traits
   - [x] Add minimum viable funnel events (see “Analytics events” below)
 
-- [ ] **iOS permission strings (required for image picker)**
-  - [ ] Add `NSPhotoLibraryUsageDescription` (image picker is used)
-  - [ ] Add `NSCameraUsageDescription` if camera is used now or planned
+- [x] **iOS permission strings (required for image picker)**
+  - [x] Add `NSPhotoLibraryUsageDescription` (image picker is used)
+  - [x] Add `NSCameraUsageDescription` if camera is used now or planned
   - [ ] Add `NSUserTrackingUsageDescription` only if implementing ATT/Meta SDK tracking
 
-- [ ] **Auth UX decision: implement or remove OAuth buttons** — `app/(auth)/login.tsx`
-  - [ ] Apple OAuth: currently stubbed (“Coming soon”)
-  - [ ] Google OAuth: currently stubbed (“Coming soon”)
-  - [ ] If offering any third‑party sign-in, ensure Apple Sign‑In is offered too (App Store guideline)
+- [x] **Auth UX decision: implement or remove OAuth buttons** — `app/(auth)/login.tsx`
+  - [x] Apple OAuth: native Sign in with Apple via `expo-apple-authentication` + Supabase `signInWithIdToken`
+  - [ ] Google OAuth: currently stubbed (“Coming soon”) — requires Google Cloud OAuth client setup
+  - [x] If offering any third‑party sign-in, ensure Apple Sign‑In is offered too (App Store guideline)
 
 - [ ] **Account deletion (App Store requirement for account-based apps)**
   - [ ] In-app delete account flow

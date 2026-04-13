@@ -18,9 +18,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.gymcrushdating.app",
       "buildNumber": "1",
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location to find gyms near you.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location to find gyms near you.",
+        "NSLocationWhenInUseUsageDescription": "GymCrush uses your location to find gyms and gym-goers near you.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GymCrush uses your location to find gyms and gym-goers near you.",
+        "NSPhotoLibraryUsageDescription": "GymCrush needs access to your photos so you can show off your gym gains on your profile.",
+        "NSCameraUsageDescription": "GymCrush uses your camera so you can snap fresh profile pics on the spot.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -45,18 +48,29 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-apple-authentication",
       "expo-router",
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/sounds/notification.caf"]
+          "sounds": [
+            "./assets/sounds/notification.caf"
+          ]
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to find gyms near you.",
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to find gyms near you."
+          "locationWhenInUsePermission": "GymCrush uses your location to find gyms and gym-goers near you.",
+          "locationAlwaysAndWhenInUsePermission": "GymCrush uses your location to find gyms and gym-goers near you."
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "gym-crush",
+          "organization": "gymcrush"
         }
       ]
     ],

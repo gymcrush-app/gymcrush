@@ -5,6 +5,7 @@ import { useOnboardingStore } from "@/lib/stores/onboardingStore"
 import { supabase } from "@/lib/supabase"
 import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { signupSchema } from "@/lib/utils/validation"
+import { signInWithApple } from "@/lib/auth/appleSignIn"
 import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -56,6 +57,23 @@ export default function SignupScreen() {
   useEffect(() => {
     useOnboardingStore.getState().clearData()
   }, [])
+
+  const handleAppleSignUp = async () => {
+    setIsLoading(true)
+    track('signup_started', { method: 'apple' })
+    try {
+      const { session } = await signInWithApple()
+      if (session) {
+        track('signup_completed', { method: 'apple' })
+        setSession(session)
+      }
+    } catch (error: any) {
+      if (error?.code === 'ERR_REQUEST_CANCELED') return
+      Alert.alert("Apple Sign In failed", error?.message ?? "Something went wrong.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true)
@@ -209,6 +227,15 @@ export default function SignupScreen() {
             Create Account
           </Button>
 
+          {/* Apple Sign-In */}
+          <Button
+            variant="outline"
+            onPress={handleAppleSignUp}
+            style={styles.appleButton}
+          >
+            Continue with Apple
+          </Button>
+
           {/* Sign In Link */}
           <View style={styles.signinLinkContainer}>
             <Text style={styles.signinText}>Already have an account? </Text>
@@ -285,6 +312,10 @@ const styles = StyleSheet.create({
     gap: spacing[4],
   },
   createButton: {
+    marginBottom: spacing[4],
+  },
+  appleButton: {
+    backgroundColor: colors.card,
     marginBottom: spacing[6],
   },
   signinLinkContainer: {
