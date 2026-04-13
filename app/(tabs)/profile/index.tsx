@@ -3,10 +3,13 @@ import { Text } from '@/components/ui/Text';
 import { useSignOut } from '@/lib/api/auth';
 import { useGymById } from '@/lib/api/gyms';
 import { useProfile, useUpdateProfile } from '@/lib/api/profiles';
+import { supabase } from '@/lib/supabase';
+import { signOutAndReset } from '@/lib/utils/signOut';
+import { track } from '@/lib/utils/analytics';
 import { colors, spacing } from '@/theme';
 import { toast } from '@/lib/toast';
 import type { Profile } from '@/types';
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,17 +34,46 @@ export default function ProfileScreen() {
     }
   };
 
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
   const handleLogout = async () => {
     try {
       await signOut.mutateAsync();
       // The AuthStateChangeHandler in _layout.tsx will handle redirecting to login
     } catch (error) {
       console.error('Failed to sign out:', error);
-      toast({ 
+      toast({
         preset: 'error',
         title: 'Logout failed',
         message: 'Failed to sign out. Please try again.',
       });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('delete-account', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error('Delete failed');
+
+      track('account_deleted');
+      await signOutAndReset();
+    } catch (error: any) {
+      console.error('Failed to delete account:', error);
+      toast({
+        preset: 'error',
+        title: 'Delete failed',
+        message: error?.message ?? 'Failed to delete your account. Please try again.',
+      });
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -79,8 +111,10 @@ export default function ProfileScreen() {
         profile={profile}
         gym={gym || null}
         onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
         onUpdateProfile={handleUpdateProfile}
         isLoggingOut={signOut.isPending}
+        isDeletingAccount={isDeletingAccount}
       />
     </SafeAreaView>
   );

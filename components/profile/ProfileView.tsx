@@ -14,9 +14,9 @@ import type { Gym, Profile, Visibility } from '@/types';
 import type { FitnessDiscipline, Intent } from '@/types/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { ChevronRight, LogOut, Settings } from 'lucide-react-native';
+import { ChevronRight, LogOut, Settings, Trash2 } from 'lucide-react-native';
 import React from 'react';
-import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { toast } from '@/lib/toast';
 
 
@@ -24,8 +24,10 @@ interface ProfileViewProps {
   profile: Profile;
   gym?: Gym | null;
   onLogout: () => void;
+  onDeleteAccount: () => void;
   onUpdateProfile: (updates: Partial<Profile>) => void;
   isLoggingOut?: boolean;
+  isDeletingAccount?: boolean;
 }
 
 const styles = StyleSheet.create({
@@ -107,6 +109,19 @@ const styles = StyleSheet.create({
     color: colors.destructive,
     fontWeight: fontWeight.semibold,
   },
+  deleteItem: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing[3],
+    borderRadius: borderRadius.xl,
+    justifyContent: 'flex-start',
+    marginTop: spacing[2],
+  },
+  deleteText: {
+    color: colors.mutedForeground,
+    fontWeight: fontWeight.medium,
+  },
   devSection: {
     marginTop: spacing[6],
     paddingTop: spacing[4],
@@ -122,7 +137,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ProfileView({ profile, gym, onLogout, onUpdateProfile, isLoggingOut }: ProfileViewProps) {
+export function ProfileView({ profile, gym, onLogout, onDeleteAccount, onUpdateProfile, isLoggingOut, isDeletingAccount }: ProfileViewProps) {
   const router = useRouter();
 
   const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -281,6 +296,41 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile, isLogging
               <LogOut size={20} color={colors.destructive} style={{ marginRight: spacing[3] }} />
             )}
             <Text style={styles.logoutText}>{isLoggingOut ? 'Logging out…' : 'Log Out'}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                'Delete Account',
+                'This will permanently delete your profile, matches, messages, and photos. This cannot be undone.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete My Account',
+                    style: 'destructive',
+                    onPress: () => {
+                      Alert.alert(
+                        'Are you sure?',
+                        'Last chance — all your GymCrush data will be gone forever.',
+                        [
+                          { text: 'Keep My Account', style: 'cancel' },
+                          { text: 'Delete Forever', style: 'destructive', onPress: onDeleteAccount },
+                        ],
+                      );
+                    },
+                  },
+                ],
+              );
+            }}
+            disabled={!!isDeletingAccount}
+            style={styles.deleteItem}
+          >
+            {isDeletingAccount ? (
+              <ActivityIndicator size="small" color={colors.destructive} style={{ marginRight: spacing[3] }} />
+            ) : (
+              <Trash2 size={20} color={colors.mutedForeground} style={{ marginRight: spacing[3] }} />
+            )}
+            <Text style={styles.deleteText}>{isDeletingAccount ? 'Deleting account…' : 'Delete Account'}</Text>
           </Pressable>
 
           {__DEV__ && (

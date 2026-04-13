@@ -37,9 +37,9 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [ ] Google OAuth: currently stubbed (“Coming soon”) — requires Google Cloud OAuth client setup
   - [x] If offering any third‑party sign-in, ensure Apple Sign‑In is offered too (App Store guideline)
 
-- [ ] **Account deletion (App Store requirement for account-based apps)**
-  - [ ] In-app delete account flow
-  - [ ] Backend delete/anonymize strategy consistent with privacy policy
+- [x] **Account deletion (App Store requirement for account-based apps)**
+  - [x] In-app delete account flow (two-step confirmation in ProfileView)
+  - [x] Backend delete/anonymize strategy (`supabase/functions/delete-account` — deletes all user data, storage, and auth record)
 
 - [ ] **UGC safety: report/block + moderation**
   - [ ] Verify report/block works end-to-end
