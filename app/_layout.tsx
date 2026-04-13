@@ -22,7 +22,7 @@ import {
   configureNotificationPresentation,
   getLastNotificationResponse,
 } from '@/lib/services/notificationHandlers';
-import { handleNotificationResponse } from '@/lib/services/notificationResponseHandler';
+import { handleNotificationResponse, getNotificationData } from '@/lib/services/notificationResponseHandler';
 import { initMixpanel } from '@/config/mixpanel';
 import { identify, reset as resetAnalytics, track } from '@/lib/utils/analytics';
 import * as Sentry from '@sentry/react-native';
@@ -128,8 +128,18 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     configureNotificationPresentation();
 
-    const sub1 = addForegroundNotificationListener(() => {
-      // Later: in-app banners / query invalidation
+    const sub1 = addForegroundNotificationListener((notification) => {
+      const data = getNotificationData(notification);
+      if (!data) return;
+      // Refresh relevant data when a notification arrives while app is open
+      if (data.type === 'match') {
+        queryClient.invalidateQueries({ queryKey: ['matches'] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      } else if (data.type === 'message' || data.type === 'message_request') {
+        queryClient.invalidateQueries({ queryKey: ['messages'] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['messageRequests'] });
+      }
     });
 
     const sub2 = addNotificationResponseListener((response) => {

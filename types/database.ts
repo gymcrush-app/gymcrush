@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -34,12 +39,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocks: {
+        Row: {
+          blocked_user_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          blocked_user_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          blocked_user_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocks_blocked_user_id_fkey"
+            columns: ["blocked_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gem_gifts: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          id: string
+          to_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          id?: string
+          to_user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          to_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gem_gifts_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gem_gifts_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gyms: {
         Row: {
           address: string
           city: string
           country: string
           created_at: string | null
+          google_place_id: string | null
           id: string
           location: unknown
           name: string
@@ -50,6 +128,7 @@ export type Database = {
           city: string
           country: string
           created_at?: string | null
+          google_place_id?: string | null
           id?: string
           location: unknown
           name: string
@@ -60,6 +139,7 @@ export type Database = {
           city?: string
           country?: string
           created_at?: string | null
+          google_place_id?: string | null
           id?: string
           location?: unknown
           name?: string
@@ -106,6 +186,39 @@ export type Database = {
           },
         ]
       }
+      match_views: {
+        Row: {
+          match_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          match_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          match_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_views_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           created_at: string | null
@@ -142,39 +255,6 @@ export type Database = {
           },
         ]
       }
-      match_views: {
-        Row: {
-          match_id: string
-          user_id: string
-          viewed_at: string
-        }
-        Insert: {
-          match_id: string
-          user_id: string
-          viewed_at?: string
-        }
-        Update: {
-          match_id?: string
-          user_id?: string
-          viewed_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "match_views_match_id_fkey"
-            columns: ["match_id"]
-            isOneToOne: false
-            referencedRelation: "matches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "match_views_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       messages: {
         Row: {
           content: string
@@ -182,11 +262,11 @@ export type Database = {
           gem_gift_id: string | null
           id: string
           match_id: string | null
-          read_at: string | null
           reaction_image_url: string | null
           reaction_prompt_answer: string | null
           reaction_prompt_title: string | null
-          reaction_type: 'prompt' | 'image' | null
+          reaction_type: string | null
+          read_at: string | null
           sender_id: string
           to_user_id: string | null
         }
@@ -196,11 +276,11 @@ export type Database = {
           gem_gift_id?: string | null
           id?: string
           match_id?: string | null
-          read_at?: string | null
           reaction_image_url?: string | null
           reaction_prompt_answer?: string | null
           reaction_prompt_title?: string | null
-          reaction_type?: 'prompt' | 'image' | null
+          reaction_type?: string | null
+          read_at?: string | null
           sender_id: string
           to_user_id?: string | null
         }
@@ -210,15 +290,22 @@ export type Database = {
           gem_gift_id?: string | null
           id?: string
           match_id?: string | null
-          read_at?: string | null
           reaction_image_url?: string | null
           reaction_prompt_answer?: string | null
           reaction_prompt_title?: string | null
-          reaction_type?: 'prompt' | 'image' | null
+          reaction_type?: string | null
+          read_at?: string | null
           sender_id?: string
           to_user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_gem_gift_id_fkey"
+            columns: ["gem_gift_id"]
+            isOneToOne: false
+            referencedRelation: "gem_gifts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_match_id_fkey"
             columns: ["match_id"]
@@ -233,62 +320,33 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      gem_gifts: {
-        Row: {
-          id: string
-          from_user_id: string
-          to_user_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          from_user_id: string
-          to_user_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          from_user_id?: string
-          to_user_id?: string
-          created_at?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: 'gem_gifts_from_user_id_fkey'
-            columns: ['from_user_id']
+            foreignKeyName: "messages_to_user_id_fkey"
+            columns: ["to_user_id"]
             isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'gem_gifts_to_user_id_fkey'
-            columns: ['to_user_id']
-            isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
       notification_preferences: {
         Row: {
-          user_id: string
           match_notifications: boolean
           message_notifications: boolean
           updated_at: string
+          user_id: string
         }
         Insert: {
-          user_id: string
           match_notifications?: boolean
           message_notifications?: boolean
           updated_at?: string
+          user_id: string
         }
         Update: {
-          user_id?: string
           match_notifications?: boolean
           message_notifications?: boolean
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -300,94 +358,35 @@ export type Database = {
           },
         ]
       }
-      prompt_sections: {
-        Row: {
-          id: string
-          name: string
-          subtitle: string
-          display_order: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          subtitle: string
-          display_order: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          subtitle?: string
-          display_order?: number
-          created_at?: string
-        }
-        Relationships: []
-      }
-      prompts: {
-        Row: {
-          id: string
-          section_id: string
-          prompt_text: string
-          display_order: number
-          is_active: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          section_id: string
-          prompt_text: string
-          display_order: number
-          is_active?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          section_id?: string
-          prompt_text?: string
-          display_order?: number
-          is_active?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prompts_section_id_fkey"
-            columns: ["section_id"]
-            isOneToOne: false
-            referencedRelation: "prompt_sections"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profile_prompts: {
         Row: {
+          answer: string
+          created_at: string
+          engagement_count: number
           id: string
           profile_id: string
           prompt_id: string
           section_id: string
-          answer: string
-          engagement_count: number
-          created_at: string
           updated_at: string
         }
         Insert: {
+          answer: string
+          created_at?: string
+          engagement_count?: number
           id?: string
           profile_id: string
           prompt_id: string
           section_id: string
-          answer: string
-          engagement_count?: number
-          created_at?: string
           updated_at?: string
         }
         Update: {
+          answer?: string
+          created_at?: string
+          engagement_count?: number
           id?: string
           profile_id?: string
           prompt_id?: string
           section_id?: string
-          answer?: string
-          engagement_count?: number
-          created_at?: string
           updated_at?: string
         }
         Relationships: [
@@ -417,65 +416,80 @@ export type Database = {
       profiles: {
         Row: {
           age: number
+          alcohol: string | null
           bio: string | null
           created_at: string | null
           discovery_preferences: Json | null
           display_name: string
           fitness_disciplines: string[]
-          gender: string
           gems_received_count: number
+          gender: string
+          has_kids: string | null
           height: string | null
           home_gym_id: string | null
           id: string
           is_onboarded: boolean | null
           is_visible: boolean | null
           last_gem_given_at: string | null
-          last_location: unknown | null
+          last_location: unknown
           last_location_updated_at: string | null
+          marijuana: string | null
           occupation: string | null
           photo_urls: string[]
+          religion: string | null
+          smoking: string | null
           updated_at: string | null
         }
         Insert: {
           age: number
+          alcohol?: string | null
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
           display_name: string
           fitness_disciplines?: string[]
-          gender: string
           gems_received_count?: number
+          gender: string
+          has_kids?: string | null
           height?: string | null
           home_gym_id?: string | null
           id: string
           is_onboarded?: boolean | null
           is_visible?: boolean | null
           last_gem_given_at?: string | null
-          last_location?: unknown | null
+          last_location?: unknown
           last_location_updated_at?: string | null
+          marijuana?: string | null
           occupation?: string | null
           photo_urls: string[]
+          religion?: string | null
+          smoking?: string | null
           updated_at?: string | null
         }
         Update: {
           age?: number
+          alcohol?: string | null
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
           display_name?: string
           fitness_disciplines?: string[]
-          gender?: string
           gems_received_count?: number
+          gender?: string
+          has_kids?: string | null
           height?: string | null
           home_gym_id?: string | null
           id?: string
           is_onboarded?: boolean | null
           is_visible?: boolean | null
           last_gem_given_at?: string | null
-          last_location?: unknown | null
+          last_location?: unknown
           last_location_updated_at?: string | null
+          marijuana?: string | null
           occupation?: string | null
           photo_urls?: string[]
+          religion?: string | null
+          smoking?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -488,76 +502,102 @@ export type Database = {
           },
         ]
       }
-      push_tokens: {
+      prompt_sections: {
         Row: {
-          id: string
-          user_id: string
-          expo_push_token: string
-          device_id: string | null
-          platform: string
-          is_active: boolean
-          last_used_at: string | null
           created_at: string
-          updated_at: string
+          display_order: number
+          id: string
+          name: string
+          subtitle: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          expo_push_token: string
-          device_id?: string | null
-          platform: string
-          is_active?: boolean
-          last_used_at?: string | null
           created_at?: string
-          updated_at?: string
+          display_order: number
+          id?: string
+          name: string
+          subtitle: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          expo_push_token?: string
-          device_id?: string | null
-          platform?: string
-          is_active?: boolean
-          last_used_at?: string | null
           created_at?: string
-          updated_at?: string
+          display_order?: number
+          id?: string
+          name?: string
+          subtitle?: string
+        }
+        Relationships: []
+      }
+      prompts: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          prompt_text: string
+          section_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order: number
+          id?: string
+          is_active?: boolean
+          prompt_text: string
+          section_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          prompt_text?: string
+          section_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "push_tokens_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "prompts_section_id_fkey"
+            columns: ["section_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "prompt_sections"
             referencedColumns: ["id"]
           },
         ]
       }
-      request_ignores: {
+      push_tokens: {
         Row: {
           created_at: string
-          sender_id: string
+          device_id: string | null
+          expo_push_token: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          platform: string
+          updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
-          sender_id: string
+          device_id?: string | null
+          expo_push_token: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          platform: string
+          updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
-          sender_id?: string
+          device_id?: string | null
+          expo_push_token?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          platform?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "request_ignores_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "request_ignores_user_id_fkey"
+            foreignKeyName: "push_tokens_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -604,6 +644,39 @@ export type Database = {
           {
             foreignKeyName: "reports_reporter_id_fkey"
             columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_ignores: {
+        Row: {
+          created_at: string
+          sender_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          sender_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          sender_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_ignores_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_ignores_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -807,6 +880,10 @@ export type Database = {
             }
             Returns: string
           }
+      create_gym_location: {
+        Args: { lat: number; lng: number }
+        Returns: unknown
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
@@ -938,10 +1015,96 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_gym_gems: {
+        Args: { p_max_distance_km?: number }
+        Returns: {
+          crush_received: number
+          engagement_score: number
+          first_messages_received: number
+          likes_received: number
+          matches_count: number
+          profile: Json
+        }[]
+      }
+      get_profile_by_id: {
+        Args: { p_profile_id: string }
+        Returns: {
+          age: number
+          alcohol: string | null
+          bio: string | null
+          created_at: string | null
+          discovery_preferences: Json | null
+          display_name: string
+          fitness_disciplines: string[]
+          gems_received_count: number
+          gender: string
+          has_kids: string | null
+          height: string | null
+          home_gym_id: string | null
+          id: string
+          is_onboarded: boolean | null
+          is_visible: boolean | null
+          last_gem_given_at: string | null
+          last_location: unknown
+          last_location_updated_at: string | null
+          marijuana: string | null
+          occupation: string | null
+          photo_urls: string[]
+          religion: string | null
+          smoking: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_user_home_gym_id: { Args: { user_id: string }; Returns: string }
+      get_user_max_distance_km: { Args: { user_id: string }; Returns: number }
+      get_user_reference_location: {
+        Args: { user_id: string }
+        Returns: unknown
+      }
+      get_viewer_location_and_max_km: {
+        Args: never
+        Returns: {
+          max_distance_km: number
+          reference_location: unknown
+        }[]
+      }
       gettransactionid: { Args: never; Returns: unknown }
-      get_gym_gems: { Args: { p_max_distance_km: number }; Returns: unknown[] }
-      get_profile_by_id: { Args: { p_profile_id: string }; Returns: Database['public']['Tables']['profiles']['Row'] }
-      give_gym_gem: { Args: { p_to_user_id: string; p_giver_today_start: string }; Returns: unknown }
+      give_gym_gem:
+        | {
+            Args: { p_giver_today_start?: string; p_to_user_id: string }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_giver_today_start?: string
+              p_message?: string
+              p_to_user_id: string
+            }
+            Returns: Json
+          }
+      increment_engagement_count: {
+        Args: { p_profile_prompt_id: string }
+        Returns: undefined
+      }
+      insert_gym_with_location: {
+        Args: {
+          p_address: string
+          p_city: string
+          p_country: string
+          p_google_place_id: string
+          p_lat: number
+          p_lng: number
+          p_name: string
+          p_state: string
+        }
+        Returns: string
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
@@ -1718,4 +1881,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

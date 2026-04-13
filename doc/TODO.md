@@ -57,9 +57,12 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [ ] Align app versioning + iOS build number for TestFlight/App Store
   - [ ] Confirm EAS production profile has correct env vars for prod services
 
-- [ ] **Notifications end-to-end**
-  - [ ] Permission prompts + token registration
-  - [ ] Deep link routing from notification tap (foreground/background/cold start)
+- [x] **Notifications end-to-end**
+  - [x] Permission prompts + token registration (useNotifications hook)
+  - [x] Deep link routing from notification tap (foreground/background/cold start)
+  - [x] Match notifications (DB trigger → edge function → Expo push)
+  - [x] Message notifications — match chat (shows sender name + preview) and message requests (anonymous)
+  - [x] Foreground query invalidation (messages, conversations, matches refresh on notification)
 
 - [ ] **Rate limiting / abuse protection**
   - [ ] Signup/login throttling
