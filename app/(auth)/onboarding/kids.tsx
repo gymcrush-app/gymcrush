@@ -1,6 +1,7 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
+import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { YesNo } from '@/types/onboarding';
 import { useNavigation } from 'expo-router';
@@ -18,6 +19,7 @@ export default function OnboardingKids() {
 
   const handleNext = () => {
     if (canContinue) {
+      track('onboarding_step_completed', { step: 'kids', index: 3 });
       (navigation as any).navigate('intent');
     }
   };

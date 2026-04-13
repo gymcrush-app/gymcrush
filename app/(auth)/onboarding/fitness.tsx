@@ -2,6 +2,7 @@ import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { FloatingActionButton } from "@/components/onboarding/FloatingActionButton"
 import { OnboardingContainer } from "@/components/onboarding/OnboardingContainer"
 import { useOnboardingStore } from "@/lib/stores/onboardingStore"
+import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import type { FitnessDiscipline } from "@/types/onboarding"
 import { useNavigation } from "expo-router"
@@ -25,6 +26,7 @@ export default function OnboardingFitness() {
 
   const handleNext = () => {
     if (canContinue) {
+      track('onboarding_step_completed', { step: 'fitness', index: 6 })
       ;(navigation as any).navigate("frequency")
     }
   }

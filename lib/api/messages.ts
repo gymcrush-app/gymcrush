@@ -3,6 +3,7 @@ import { useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
 import { filterBadWords } from '@/lib/utils/filterBadWords';
+import { track } from '@/lib/utils/analytics';
 import { useLike } from './matches';
 import type { Message, MatchWithProfile, Profile } from '@/types';
 
@@ -357,6 +358,7 @@ export function useChat(matchId: string) {
       }
     },
     onSuccess: () => {
+      track('message_sent');
       queryClient.invalidateQueries({ queryKey: ['messages', matchId] });
       queryClient.invalidateQueries({ queryKey: ['conversations', user?.id] });
     },
@@ -854,6 +856,7 @@ export function useSendMessageRequest() {
       }
     },
     onSuccess: () => {
+      track('message_sent');
       queryClient.invalidateQueries({ queryKey: ['messageRequests'] });
       queryClient.invalidateQueries({ queryKey: ['conversations', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['matches'] });

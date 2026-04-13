@@ -8,6 +8,7 @@ import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { supabase } from '@/lib/supabase';
 import { parseLocation } from '@/lib/utils/distance';
 import { fetchPlaceDetails } from '@/lib/utils/google-places';
+import { track } from '@/lib/utils/analytics';
 import { colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { GooglePlaceGym } from '@/types/onboarding';
 import { useFocusEffect } from '@react-navigation/native';
@@ -125,6 +126,7 @@ export default function OnboardingSelectHomeGym() {
   };
 
   const handleNext = () => {
+    track('onboarding_step_completed', { step: 'select-home-gym', index: 5 });
     (navigation as any).navigate('fitness');
   };
 

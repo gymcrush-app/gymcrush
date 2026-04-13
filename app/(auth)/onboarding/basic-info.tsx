@@ -8,6 +8,7 @@ import { useFilteredInput } from '@/hooks/useFilteredInput';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { supabase } from '@/lib/supabase';
+import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import { useNavigation, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -188,6 +189,7 @@ export default function OnboardingBasicInfo() {
 
   const handleSubmit = () => {
     if (validate()) {
+      track('onboarding_step_completed', { step: 'basic-info', index: 0 });
       (navigation as any).navigate('religion');
     }
   };

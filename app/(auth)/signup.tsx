@@ -2,13 +2,15 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { useAuthStore } from "@/lib/stores/authStore"
 import { useOnboardingStore } from "@/lib/stores/onboardingStore"
-import { supabase, supabaseUrl } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
+import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { signupSchema } from "@/lib/utils/validation"
+import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "@/lib/toast"
 import { Image } from "expo-image"
-import { Link, useRouter } from "expo-router"
+import { Link } from "expo-router"
 import { Eye, EyeOff } from "lucide-react-native"
 import React, { useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
@@ -32,7 +34,6 @@ type SignupFormData = {
 }
 
 export default function SignupScreen() {
-  const router = useRouter()
   const setSession = useAuthStore((s) => s.setSession);
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -58,6 +59,7 @@ export default function SignupScreen() {
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true)
+    track('signup_started')
     try {
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
@@ -67,9 +69,11 @@ export default function SignupScreen() {
       if (error) throw error
 
       if (authData.session) {
+        track('signup_completed')
         setSession(authData.session)
         // Navigation handled by AuthStateChangeHandler routing effect
       } else {
+        track('signup_completed')
         toast({
           title: "Check your email",
           message: "We sent you a confirmation link",
@@ -218,7 +222,7 @@ export default function SignupScreen() {
             numberOfLines={1}
             ellipsizeMode="middle"
           >
-            {supabaseUrl}
+            {getAppVersionLabel()}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

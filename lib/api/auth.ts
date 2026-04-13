@@ -5,7 +5,6 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
-import { useAuthStore } from '../stores/authStore';
 import { signOutAndReset } from '../utils/signOut';
 
 export function useSignUp() {
@@ -29,8 +28,6 @@ export function useSignIn() {
 }
 
 export function useSignOut() {
-  const clearSession = useAuthStore((s) => s.clearSession);
-
   return useMutation({
     mutationFn: async () => {
       await signOutAndReset();

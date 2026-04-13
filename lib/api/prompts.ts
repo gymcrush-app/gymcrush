@@ -149,7 +149,7 @@ export async function insertProfilePrompts(
 
   const { error } = await supabase
     .from('profile_prompts')
-    .insert(rows);
+    .upsert(rows, { onConflict: 'profile_id,section_id' });
 
   if (error) throw error;
 }

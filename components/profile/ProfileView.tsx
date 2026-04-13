@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ChevronRight, LogOut, Settings } from 'lucide-react-native';
 import React from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { toast } from '@/lib/toast';
 
 
@@ -25,6 +25,7 @@ interface ProfileViewProps {
   gym?: Gym | null;
   onLogout: () => void;
   onUpdateProfile: (updates: Partial<Profile>) => void;
+  isLoggingOut?: boolean;
 }
 
 const styles = StyleSheet.create({
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: ProfileViewProps) {
+export function ProfileView({ profile, gym, onLogout, onUpdateProfile, isLoggingOut }: ProfileViewProps) {
   const router = useRouter();
 
   const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -271,10 +272,15 @@ export function ProfileView({ profile, gym, onLogout, onUpdateProfile }: Profile
 
           <Pressable
             onPress={onLogout}
+            disabled={!!isLoggingOut}
             style={styles.logoutItem}
           >
-            <LogOut size={20} color={colors.destructive} style={{ marginRight: spacing[3] }} />
-            <Text style={styles.logoutText}>Log Out</Text>
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color={colors.destructive} style={{ marginRight: spacing[3] }} />
+            ) : (
+              <LogOut size={20} color={colors.destructive} style={{ marginRight: spacing[3] }} />
+            )}
+            <Text style={styles.logoutText}>{isLoggingOut ? 'Logging out…' : 'Log Out'}</Text>
           </Pressable>
 
           {__DEV__ && (

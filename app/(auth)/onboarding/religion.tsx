@@ -1,6 +1,7 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
+import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { Religion } from '@/types/onboarding';
 import { useNavigation } from 'expo-router';
@@ -29,6 +30,7 @@ export default function OnboardingReligion() {
 
   const handleNext = () => {
     if (canContinue) {
+      track('onboarding_step_completed', { step: 'religion', index: 1 });
       (navigation as any).navigate('vices');
     }
   };
@@ -37,7 +39,7 @@ export default function OnboardingReligion() {
     <OnboardingContainer currentStep={2} totalSteps={13} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>What's your faith?</Text>
+          <Text style={styles.title}>{"What's your faith?"}</Text>
           <Text style={styles.subtitle}>Select the one that best describes you</Text>
         </View>
 

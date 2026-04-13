@@ -20,6 +20,7 @@ import { useProfilePrompts } from "@/lib/api/prompts"
 import { useSendMessageRequest } from "@/lib/api/messages"
 import { useZoomPortal } from "@/lib/contexts/ZoomPortalContext"
 import { toast } from "@/lib/toast"
+import { track } from "@/lib/utils/analytics"
 import { formatDistanceKmRounded } from "@/lib/utils/distance"
 import { formatIntents } from "@/lib/utils/formatting"
 import {
@@ -33,7 +34,6 @@ import {
 import type { Profile, SwipeAction } from "@/types"
 import type { Intent } from "@/types/onboarding"
 import { BottomSheetModal } from "@gorhom/bottom-sheet"
-import { useRouter } from "expo-router"
 import { Check, ChevronUp, MoreHorizontal } from "lucide-react-native"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -496,7 +496,6 @@ export function SwipeDeck({
     messageSheetRef.current?.dismiss()
   }, [])
 
-  const router = useRouter()
   const sendMessageRequest = useSendMessageRequest()
 
   const handleSendMessage = useCallback(
@@ -520,7 +519,7 @@ export function SwipeDeck({
               : {}),
         })
         handleCloseMessageSheet()
-        setTimeout(() => router.push("/(tabs)/chat"), 500)
+        toast({ preset: "done", title: "Message sent" })
       } catch (error: any) {
         console.error("Error sending message:", error)
         toast({
@@ -530,7 +529,7 @@ export function SwipeDeck({
         })
       }
     },
-    [topProfile, sendMessageRequest, handleCloseMessageSheet, router, selectedPrompt, isImageChat],
+    [topProfile, sendMessageRequest, handleCloseMessageSheet, selectedPrompt, isImageChat],
   )
 
   const handleOpenImageChat = useCallback(() => {
@@ -563,7 +562,13 @@ export function SwipeDeck({
         {
           text: "Report & Block",
           style: "destructive",
-          onPress: () => topProfile && onReportAndBlock?.(topProfile.id),
+          onPress: () => {
+            if (topProfile) {
+              track('report_submitted');
+              track('block_user');
+              onReportAndBlock?.(topProfile.id);
+            }
+          },
         },
       ],
     )

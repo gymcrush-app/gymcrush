@@ -1,3 +1,4 @@
+import { track } from '@/lib/utils/analytics';
 import { DiscoveryFilterDropdowns, type DiscoveryFilterValues } from '@/components/discover/DiscoveryFilterDropdowns';
 import { DiscoveryPreferences, DiscoveryPreferencesContent, type DiscoveryPreferencesData } from '@/components/discover/DiscoveryPreferences';
 import { EmptyFeed } from '@/components/discover/EmptyFeed';
@@ -783,6 +784,7 @@ export default function DiscoverScreen() {
 
       try {
         if (action === 'like') {
+          track('discover_swipe_like');
           await likeMutation.mutateAsync({ toUserId: profileId });
         } else if (action === 'crush') {
           if (!checkCrushAvailability()) {
@@ -825,6 +827,7 @@ export default function DiscoverScreen() {
           // Don't advance index yet - wait to see if there's a match
           // If no match, we'll advance in handleKeepSwiping
         } else {
+          track('discover_swipe_pass');
           if (!swipeDownPassDone) {
             setSwipeDownPassDoneState(true);
             setSwipeDownPassDone();
@@ -867,6 +870,7 @@ export default function DiscoverScreen() {
         || nearbyProfiles.find(u => u.id === matchCheck.userId);
 
       if (matchedProfile) {
+        track('match_created');
         setMatchedUser(matchedProfile);
         dispatchMatchCheck({ type: 'match_found', matchedProfile });
       }
@@ -1170,8 +1174,10 @@ export default function DiscoverScreen() {
               </View>
             ) : !showDeckLoading ? (
               <EmptyFeed
-                message="You've seen everyone!"
-                onStartOver={handleStartOver}
+                message={gymCrushModeEnabled ? 'No one at your gym right now' : "You've seen everyone!"}
+                ctaLabel={gymCrushModeEnabled ? 'Search nearby' : undefined}
+                onCtaPress={gymCrushModeEnabled ? () => handleGymCrushModeChange(false) : undefined}
+                onStartOver={!gymCrushModeEnabled ? handleStartOver : undefined}
               />
             ) : null}
             {showDeckLoading ? (

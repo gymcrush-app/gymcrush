@@ -4,6 +4,7 @@ import { FilteredTextarea } from "@/components/ui/FilteredTextarea"
 import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
 import { WORKOUT_TYPE_OPTIONS } from "@/constants/fitness"
+import { track } from "@/lib/utils/analytics"
 import { useFilteredInput } from "@/hooks/useFilteredInput"
 import { useGymSearch } from "@/hooks/useGymSearch"
 import { useGymById } from "@/lib/api/gyms"
@@ -323,6 +324,7 @@ export default function EditProfileScreen() {
               ? `data:image/jpeg;base64,${asset.base64}`
               : asset.uri
           setPhotoUrls((prev) => [...prev, uri])
+          track('profile_photo_added', { source: 'edit' })
         }
       } catch {
         Alert.alert("Error", "Failed to pick image. Please try again.")
@@ -335,6 +337,7 @@ export default function EditProfileScreen() {
 
   const removePhotoByUrl = useCallback((url: string) => {
     setPhotoUrls((prev) => prev.filter((u) => u !== url))
+    track('profile_photo_removed', { source: 'edit' })
   }, [])
 
   const handlePhotoReorder = useCallback(

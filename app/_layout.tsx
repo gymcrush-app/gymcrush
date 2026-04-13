@@ -23,10 +23,12 @@ import {
   getLastNotificationResponse,
 } from '@/lib/services/notificationHandlers';
 import { handleNotificationResponse } from '@/lib/services/notificationResponseHandler';
+import { initMixpanel } from '@/config/mixpanel';
+import { identify, reset as resetAnalytics, track } from '@/lib/utils/analytics';
 
 try {
   SplashScreen.preventAutoHideAsync();
-} catch (e) {
+} catch {
   // Splash API may not be available on all platforms
 }
 
@@ -52,6 +54,11 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts(myriadProFonts);
+
+  useEffect(() => {
+    initMixpanel();
+    track('app_open');
+  }, []);
 
   if (!fontsLoaded) {
     return null;
@@ -80,7 +87,9 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
   const isOnboarded = useAuthStore((s) => s.isOnboarded);
   const isLoading = useAuthStore((s) => s.isLoading);
   const setSession = useAuthStore((s) => s.setSession);
-  const initialize = useAuthStore((s) => s.initialize);
+  const bootstrap = useAuthStore((s) => s.bootstrap);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const authResolved = useAuthStore((s) => s.authResolved);
   const clearOnboardingData = useOnboardingStore((s) => s.clearData);
   const prevUserIdRef = useRef<string | null>(null);
   const setAppReady = useAppReadyStore((s) => s.setReady);
@@ -118,17 +127,11 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
     };
   }, [router]);
 
-  // Fallback: if auth takes too long, hide splash after 5 seconds
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setAppReady();
-    }, 5000);
-    return () => clearTimeout(timeout);
-  }, [setAppReady]);
+    if (!hasHydrated) return;
 
-  useEffect(() => {
-    // Initialize auth state from persisted storage
-    initialize();
+    // Resolve initial session deterministically before routing decisions.
+    bootstrap();
 
     // Set up Supabase auth state change listener
     const {
@@ -144,43 +147,70 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
       prevUserIdRef.current = nextUserId;
 
       setSession(session);
-      
-      if (session?.user) {
-        await initialize();
+
+      // Fetch profile so routing guard can make decisions.
+      // Only do this for sign-in events (not TOKEN_REFRESHED which fires frequently).
+      // For SIGNED_IN after signup, the profile won't exist yet — initialize()
+      // handles that gracefully and clears isLoading/authResolved.
+      if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        await useAuthStore.getState().initialize();
+        const profile = useAuthStore.getState().profile;
+        identify(session.user.id, {
+          $email: session.user.email,
+          display_name: profile?.display_name,
+          is_onboarded: profile?.is_onboarded ?? false,
+        });
+      } else if (!session) {
+        // Signed out — ensure resolved state + reset analytics identity
+        resetAnalytics();
+        useAuthStore.setState({ isLoading: false, authResolved: true });
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [initialize, setSession, clearOnboardingData]);
+  }, [bootstrap, hasHydrated, setSession, clearOnboardingData]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
+    if (!authResolved) return;
     if (isLoading) return;
+
+    // Profile may be null for brand-new signups — authResolved + !isLoading
+    // (checked above) already guarantee the profile fetch has completed.
 
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
 
+    // Keep splash up until we are on the *final* route for the resolved auth state.
+    // This prevents a brief flash of a restored screen (e.g. onboarding home gym) before redirect.
     if (!session) {
-      if (!inAuthGroup) {
+      const onAuthScreen = inAuthGroup && (segments[1] === 'login' || segments[1] === 'signup');
+      if (!onAuthScreen) {
         router.replace('/(auth)/login');
+        return;
       }
-    } else if (session && !isOnboarded) {
-      if (!inAuthGroup || segments[1] !== 'onboarding') {
+    } else if (!isOnboarded) {
+      const onOnboarding = inAuthGroup && segments[1] === 'onboarding';
+      if (!onOnboarding) {
         router.replace('/(auth)/onboarding');
+        return;
       }
-    } else if (session && isOnboarded) {
-      if (!inTabsGroup) {
+    } else {
+      const onTabs = inTabsGroup;
+      if (!onTabs) {
         router.replace('/(tabs)/discover');
+        return;
       }
     }
 
-    // Auth is resolved and routing decision made — hide splash on next frame
+    // Auth is resolved and we are on the correct route — hide splash on next frame.
     if (!hasRouted.current) {
       hasRouted.current = true;
       requestAnimationFrame(() => setAppReady());
     }
-  }, [session, isOnboarded, isLoading, segments, router, setAppReady]);
+  }, [session, isOnboarded, isLoading, authResolved, hasHydrated, segments, router, setAppReady]);
 
   return <>{children}</>;
 }

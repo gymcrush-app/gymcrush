@@ -2,6 +2,7 @@ import { FloatingActionButton } from '@/components/onboarding/FloatingActionButt
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { Switch } from '@/components/ui/Switch';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
+import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import { useNavigation } from 'expo-router';
 import React from 'react';
@@ -18,6 +19,7 @@ export default function OnboardingGymPreferences() {
 
   const handleNext = () => {
     if (canContinue) {
+      track('onboarding_step_completed', { step: 'gym-preferences', index: 8 });
       (navigation as any).navigate('prompt-section', { sectionIndex: '0' });
     }
   };

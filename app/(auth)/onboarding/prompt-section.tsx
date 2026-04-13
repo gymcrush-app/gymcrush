@@ -3,6 +3,7 @@ import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer
 import { FilteredTextarea } from '@/components/ui/FilteredTextarea';
 import { usePromptSections } from '@/lib/api/prompts';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
+import { track } from '@/lib/utils/analytics';
 import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { PromptAnswer } from '@/types/onboarding';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
@@ -35,6 +36,16 @@ export default function PromptSectionScreen() {
   );
   const [answer, setAnswer] = useState(existingAnswer?.answer ?? '');
   const textareaRef = useRef<TextInput>(null);
+
+  // Reset state when navigating to a different prompt slot
+  const prevSlotIdx = useRef(slotIdx);
+  if (prevSlotIdx.current !== slotIdx) {
+    prevSlotIdx.current = slotIdx;
+    const next = data.prompts[slotIdx] ?? null;
+    setSelectedThemeId(next?.sectionId ?? null);
+    setSelectedPromptId(next?.promptId ?? null);
+    setAnswer(next?.answer ?? '');
+  }
 
   // Collect promptIds already chosen in OTHER slots (not this one)
   const usedPromptIds = useMemo(() => {
@@ -87,6 +98,8 @@ export default function PromptSectionScreen() {
     const updatedPrompts = [...data.prompts];
     updatedPrompts[slotIdx] = newEntry;
     updateData({ prompts: updatedPrompts });
+
+    track('onboarding_step_completed', { step: 'prompt-section', index: 9 + slotIdx });
 
     if (slotIdx < TOTAL_PROMPT_SCREENS - 1) {
       (navigation as any).navigate('prompt-section', { sectionIndex: String(slotIdx + 1) });
@@ -144,31 +157,43 @@ export default function PromptSectionScreen() {
           })}
         </View>
 
-        {/* Questions list */}
+        {/* Questions list — show only selected prompt when one is chosen */}
         {selectedThemeId && (
           <View style={styles.questionsList}>
-            {availableQuestions.map((prompt) => {
-              const isSelected = selectedPromptId === prompt.id;
-              return (
+            {selectedPromptId ? (
+              // Show only the selected prompt (tap to deselect and pick another)
+              (() => {
+                const prompt = availableQuestions.find((p) => p.id === selectedPromptId)
+                  ?? sections.flatMap((s) => s.prompts).find((p) => p.id === selectedPromptId);
+                if (!prompt) return null;
+                return (
+                  <Pressable
+                    key={prompt.id}
+                    onPress={() => {
+                      setSelectedPromptId(null);
+                      setAnswer('');
+                    }}
+                    style={[styles.questionOption, styles.questionOptionSelected]}
+                  >
+                    <Text style={[styles.questionOptionText, styles.questionOptionTextSelected]}>
+                      {prompt.prompt_text}
+                    </Text>
+                  </Pressable>
+                );
+              })()
+            ) : (
+              availableQuestions.map((prompt) => (
                 <Pressable
                   key={prompt.id}
                   onPress={() => handleSelectPrompt(prompt.id)}
-                  style={[
-                    styles.questionOption,
-                    isSelected && styles.questionOptionSelected,
-                  ]}
+                  style={[styles.questionOption]}
                 >
-                  <Text
-                    style={[
-                      styles.questionOptionText,
-                      isSelected && styles.questionOptionTextSelected,
-                    ]}
-                  >
+                  <Text style={[styles.questionOptionText]}>
                     {prompt.prompt_text}
                   </Text>
                 </Pressable>
-              );
-            })}
+              ))
+            )}
           </View>
         )}
 

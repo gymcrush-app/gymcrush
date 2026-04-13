@@ -1,6 +1,7 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
+import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import type { YesNoSometimes } from '@/types/onboarding';
 import { useNavigation } from 'expo-router';
@@ -28,7 +29,11 @@ function ViceSection({ label, value, onSelect }: ViceSectionProps) {
               onPress={() => onSelect(option)}
               style={[styles.pill, isSelected && styles.pillSelected]}
             >
-              <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
+              <Text
+                style={[styles.pillText, isSelected && styles.pillTextSelected]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 {option}
               </Text>
             </Pressable>
@@ -49,6 +54,7 @@ export default function OnboardingVices() {
 
   const handleNext = () => {
     if (canContinue) {
+      track('onboarding_step_completed', { step: 'vices', index: 2 });
       (navigation as any).navigate('kids');
     }
   };

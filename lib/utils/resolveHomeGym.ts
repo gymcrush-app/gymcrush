@@ -1,7 +1,7 @@
 /**
  * Resolve home gym from onboarding-style selected gym data (Google Place JSON).
- * Calls create-gym edge function which looks up by google_place_id or creates the gym;
- * avoids client-side gyms read so RLS/visibility is not an issue.
+ * Looks up by google_place_id or creates the gym using the insert_gym_with_location
+ * RPC (SECURITY DEFINER — bypasses RLS).
  */
 
 import { supabase } from '@/lib/supabase';
@@ -15,8 +15,7 @@ export interface SelectedGymPayload {
 
 /**
  * Resolve a selected gym (from onboarding JSON) to our database gym id.
- * Uses the create-gym edge function (lookup-or-create) so the server handles
- * gyms with service role and returns the id.
+ * Looks up by google_place_id first; if not found, creates via RPC.
  * @param selectedGymJson - JSON string of first selected gym: { id, name, address, location? }
  * @returns Database gym id, or null if none selected / resolution fails
  */
@@ -29,112 +28,71 @@ export async function resolveHomeGym(selectedGymJson: string): Promise<string | 
     const address =
       typeof gymData?.address === 'string' ? gymData.address.trim() : '';
 
-    if (!googlePlaceId) {
-      if (__DEV__) console.log('[resolveHomeGym] Missing or invalid id (google_place_id) in payload');
-      return null;
-    }
-
-    if (!name) {
-      if (__DEV__) console.log('[resolveHomeGym] Missing or empty name in payload');
-      return null;
-    }
-
-    if (!address) {
-      if (__DEV__) console.log('[resolveHomeGym] Missing or empty address in payload; create-gym requires formatted_address');
+    if (!googlePlaceId || !name || !address) {
+      if (__DEV__) console.log('[resolveHomeGym] Missing required field', { googlePlaceId, name, address });
       return null;
     }
 
     if (__DEV__) {
-      console.log('[resolveHomeGym] Calling create-gym with:', {
-        google_place_id: googlePlaceId,
-        name,
-        formatted_address: address,
-        addressLength: address.length,
-        hasLocation: !!gymData.location,
-      });
+      console.log('[resolveHomeGym] Resolving gym:', { googlePlaceId, name, hasLocation: !!gymData.location });
     }
 
-    // Use cached session first so we don't hang on refreshSession() (which can block if Auth is slow)
-    const { data: sessionData } = await supabase.auth.getSession();
-    let accessToken = sessionData?.session?.access_token;
-    if (!accessToken) {
-      if (__DEV__) console.log('[resolveHomeGym] No auth session');
-      return null;
-    }
-    console.log('[resolveHomeGym] auth done hasToken=true');
+    // 1. Check if gym already exists
+    const { data: existingGym } = await supabase
+      .from('gyms')
+      .select('id')
+      .eq('google_place_id', googlePlaceId)
+      .single();
 
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) {
-      if (__DEV__) console.log('[resolveHomeGym] Missing EXPO_PUBLIC_SUPABASE_URL or ANON_KEY');
-      return null;
+    if (existingGym?.id) {
+      if (__DEV__) console.log('[resolveHomeGym] Found existing gym:', existingGym.id);
+      return existingGym.id;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    // 2. Parse address for city/state/country
+    const parts = address.split(',').map((s) => s.trim());
+    let city = 'Unknown';
+    let state = 'Unknown';
+    let country = 'Unknown';
 
-    console.log('[resolveHomeGym] fetch start');
-    let response: Response;
-    try {
-      response = await fetch(`${supabaseUrl}/functions/v1/create-gym`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-          'apikey': supabaseAnonKey,
-        },
-        body: JSON.stringify({
-          google_place_id: googlePlaceId,
-          name,
-          formatted_address: address,
-          location: gymData.location,
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeoutId);
+    if (parts.length >= 4) {
+      country = parts[parts.length - 1];
+      state = parts[parts.length - 2];
+      city = parts[parts.length - 3];
+    } else if (parts.length >= 3) {
+      city = parts[parts.length - 2];
+      state = parts[parts.length - 1];
+    } else if (parts.length === 2) {
+      city = parts[1];
     }
 
-    console.log('[resolveHomeGym] fetch done status=', response.status);
-    const result = await response.json().catch((e) => {
-      console.log('[resolveHomeGym] response.json error', e);
-      return {};
-    });
+    const lng = gymData.location?.lng ?? 0;
+    const lat = gymData.location?.lat ?? 0;
 
-    console.log('[resolveHomeGym] create-gym response:', {
-      status: response.status,
-      ok: response.ok,
-      resultId: result?.id ?? '(none)',
-      resultError: result?.error,
-      resultKeys: typeof result === 'object' && result ? Object.keys(result) : [],
-    });
-
-    if (response.ok && result?.id) {
-      if (__DEV__) console.log('[resolveHomeGym] Resolved gym id:', result.id);
-      return result.id;
-    }
-
-    if (__DEV__) {
-      console.warn(
-        '[resolveHomeGym] create-gym failed:',
-        'status',
-        response.status,
-        'body',
-        result
-      );
-      if (response.status === 400) {
-        console.warn('[resolveHomeGym] Likely missing required fields: google_place_id, name, formatted_address');
+    // 3. Create gym via SECURITY DEFINER RPC (bypasses RLS)
+    const { data: gymId, error: rpcError } = await supabase.rpc(
+      'insert_gym_with_location',
+      {
+        p_google_place_id: googlePlaceId,
+        p_name: name,
+        p_address: address,
+        p_city: city,
+        p_state: state,
+        p_country: country,
+        p_lng: lng,
+        p_lat: lat,
       }
-    }
-    return null;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const isAbort = err instanceof Error && err.name === 'AbortError';
-    console.log(
-      '[resolveHomeGym] Error:',
-      isAbort ? 'fetch timeout (15s)' : message,
-      err
     );
+
+    if (rpcError) {
+      if (__DEV__) console.warn('[resolveHomeGym] RPC error:', rpcError);
+      return null;
+    }
+
+    if (__DEV__) console.log('[resolveHomeGym] Created gym:', gymId);
+    return gymId;
+  } catch (err) {
+    if (__DEV__) console.warn('[resolveHomeGym] Error:', err);
     return null;
   }
 }

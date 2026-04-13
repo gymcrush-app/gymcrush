@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { useAuthStore } from "@/lib/stores/authStore"
-import { supabase, supabaseUrl } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
+import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { loginSchema } from "@/lib/utils/validation"
+import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "@/lib/toast"
@@ -59,10 +61,12 @@ export default function LoginScreen() {
       if (error) throw error
 
       if (authData.session) {
+        track('login_success')
         setSession(authData.session)
         // Navigation will be handled by root layout based on auth state
       }
     } catch (error: any) {
+      track('login_failed', { error: error?.message })
       Alert.alert("Login failed", error?.message ?? "Something went wrong.")
     } finally {
       setIsLoading(false)
@@ -227,7 +231,7 @@ export default function LoginScreen() {
             numberOfLines={1}
             ellipsizeMode="middle"
           >
-            {supabaseUrl}
+            {getAppVersionLabel()}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

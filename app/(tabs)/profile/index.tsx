@@ -80,6 +80,7 @@ export default function ProfileScreen() {
         gym={gym || null}
         onLogout={handleLogout}
         onUpdateProfile={handleUpdateProfile}
+        isLoggingOut={signOut.isPending}
       />
     </SafeAreaView>
   );

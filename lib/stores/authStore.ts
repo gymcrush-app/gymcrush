@@ -14,12 +14,15 @@ interface AuthState {
   profile: Profile | null;
   isOnboarded: boolean;
   isLoading: boolean;
+  hasHydrated: boolean;
+  authResolved: boolean;
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
   setOnboarded: (isOnboarded: boolean) => void;
   clearSession: () => void;
   initialize: () => Promise<void>;
+  bootstrap: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -30,12 +33,12 @@ export const useAuthStore = create<AuthState>()(
       profile: null,
       isOnboarded: false,
       isLoading: true,
+      hasHydrated: false,
+      authResolved: false,
 
       setSession: (session) => {
         set({ session, user: session?.user ?? null });
-        if (session?.user) {
-          get().initialize();
-        } else {
+        if (!session?.user) {
           set({ profile: null, isOnboarded: false });
         }
       },
@@ -63,14 +66,17 @@ export const useAuthStore = create<AuthState>()(
           session: null, 
           user: null, 
           profile: null, 
-          isOnboarded: false 
+          isOnboarded: false,
+          authResolved: true,
+          isLoading: false,
         });
       },
 
       initialize: async () => {
         const { session } = get();
         if (!session?.user) {
-          set({ isLoading: false });
+          // Session absence is a valid resolved state, but only after bootstrap.
+          set({ isLoading: false, authResolved: true });
           return;
         }
 
@@ -88,11 +94,37 @@ export const useAuthStore = create<AuthState>()(
           set({ 
             profile: profile ?? null,
             isOnboarded: profile?.is_onboarded ?? false,
-            isLoading: false 
+            isLoading: false,
+            authResolved: true,
           });
         } catch (error) {
           console.error('Error initializing auth:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, authResolved: true });
+        }
+      },
+
+      bootstrap: async () => {
+        // Run once on app start after zustand has rehydrated.
+        // Ensures routing decisions are based on a definitive session check.
+        set({ isLoading: true, authResolved: false });
+
+        try {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error('Error restoring session:', error);
+          }
+
+          const nextSession = data?.session ?? null;
+          get().setSession(nextSession);
+
+          if (nextSession?.user) {
+            await get().initialize();
+          } else {
+            set({ isLoading: false, authResolved: true });
+          }
+        } catch (e) {
+          console.error('Error during auth bootstrap:', e);
+          set({ isLoading: false, authResolved: true });
         }
       },
     }),
@@ -105,6 +137,9 @@ export const useAuthStore = create<AuthState>()(
         profile: state.profile,
         isOnboarded: state.isOnboarded,
       }),
+      onRehydrateStorage: () => (state) => {
+        useAuthStore.setState({ hasHydrated: true });
+      },
     }
   )
 );

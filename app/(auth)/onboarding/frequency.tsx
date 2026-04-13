@@ -1,6 +1,7 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
+import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import { useNavigation } from 'expo-router';
 import React from 'react';
@@ -17,6 +18,7 @@ export default function OnboardingFrequency() {
 
   const handleNext = () => {
     if (canContinue) {
+      track('onboarding_step_completed', { step: 'frequency', index: 7 });
       (navigation as any).navigate('gym-preferences');
     }
   };

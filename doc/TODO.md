@@ -1,61 +1,120 @@
-# TODO audit — remaining work
+# v1 iOS App Store release — knockdown list
 
-Single prioritized list of genuine TODOs after audit. Work down in order; remove or update items as you complete them.
-
----
-
-## High
-
-- [ ] **Apple OAuth** — `app/(auth)/login.tsx`  
-  Implement Apple Sign-In. Required for iOS App Store if you offer Apple Sign-In.
-
-- [ ] **Google OAuth** — `app/(auth)/login.tsx`  
-  Implement Google Sign-In if you offer it.
+Single prioritized list. Work top-to-bottom; delete items as they’re completed. Add **Owner** + **Target date** as you go.
 
 ---
 
-## Medium
+## Ship blockers (must be done before submission)
 
-- [ ] **bracelet_status** — `components/profile/ProfileView.tsx`  
-  Add `bracelet_status` field to database and persist (currently local state only).
+- [ ] **RLS review + hardening (Supabase)**
+  - [ ] Verify signed-out users cannot read/write protected tables
+  - [ ] Verify signed-in users cannot read/write other users’ data (profiles/messages/matches/etc.)
+  - [ ] Verify storage policies (avatars/photos) prevent cross-user writes
+  - [ ] Confirm no service-role keys are shipped to the client
 
-- [x] **DiscoveryPreferences selectedGym** — `components/discover/DiscoveryPreferences.tsx`  
-  When preferences are loaded, `selectedGym` is stored as a gym ID; the UI needs the full Gym (name, address) to show "Your gym: Gold's Gym". Fetch gym by ID (e.g. `useGymById(loadedPrefs.selectedGym)`) and call `setSelectedGym(gym)` so the selected-gym block displays when reopening the modal.
+- [ ] **RevenueCat integration (IAP / subscriptions)**
+  - [ ] Add RevenueCat SDK + configure iOS app in RevenueCat
+  - [ ] Create IAP/subscription products in App Store Connect and sync to RevenueCat
+  - [ ] Define entitlements + offerings
+  - [ ] Implement purchase flow + restore purchases + entitlement gating
 
-- [ ] **Sentry** — `config/sentry.ts`  
-  Initialize Sentry with full production config (release tracking, etc.).
+- [ ] **Sentry production setup** — `config/sentry.ts`
+  - [ ] Initialize Sentry on app start (DSN via env)
+  - [ ] Add production config (release tracking/sourcemaps/environment separation/PII scrubbing)
 
-- [ ] **Mixpanel** — `config/mixpanel.ts`  
-  Ensure Mixpanel is initialized on app start and wired in `app/_layout.tsx` if needed.
+- [x] **Mixpanel production setup + core events** — `config/mixpanel.ts`, `lib/utils/analytics.ts`
+  - [x] Initialize Mixpanel on app start
+  - [x] Add `identify(userId)` after login and set core user traits
+  - [x] Add minimum viable funnel events (see “Analytics events” below)
+
+- [ ] **iOS permission strings (required for image picker)**
+  - [ ] Add `NSPhotoLibraryUsageDescription` (image picker is used)
+  - [ ] Add `NSCameraUsageDescription` if camera is used now or planned
+  - [ ] Add `NSUserTrackingUsageDescription` only if implementing ATT/Meta SDK tracking
+
+- [ ] **Auth UX decision: implement or remove OAuth buttons** — `app/(auth)/login.tsx`
+  - [ ] Apple OAuth: currently stubbed (“Coming soon”)
+  - [ ] Google OAuth: currently stubbed (“Coming soon”)
+  - [ ] If offering any third‑party sign-in, ensure Apple Sign‑In is offered too (App Store guideline)
+
+- [ ] **Account deletion (App Store requirement for account-based apps)**
+  - [ ] In-app delete account flow
+  - [ ] Backend delete/anonymize strategy consistent with privacy policy
+
+- [ ] **UGC safety: report/block + moderation**
+  - [ ] Verify report/block works end-to-end
+  - [ ] Decide moderation approach (manual vs automated) and implement accordingly
 
 ---
 
-## Low
+## High priority (strongly recommended for v1)
 
-- [ ] **CrushSignalButton** — `components/discover/CrushSignalButton.tsx`  
-  Wire onPress, disabled state, and cooldown timer (appStore.checkCrushAvailability, recordCrushSignal).
+- [ ] **Remove debug info from UI** — `app/(auth)/login.tsx`
+  - [ ] `supabaseUrl` is currently rendered on the login screen (remove for production)
 
-- [x] **GymSearchInput** — `components/onboarding/GymSearchInput.tsx`  
-  Currently a stub (Input + local query state only). Add debouncing (e.g. 300ms), wire `useSearchGyms(query)`, and show a dropdown of results; on select, call `onSelectGym(gym)` and optionally show selected gym chip.
+- [ ] **Versioning sanity**
+  - [ ] Align app versioning + iOS build number for TestFlight/App Store
+  - [ ] Confirm EAS production profile has correct env vars for prod services
 
-- [ ] **ProfileCard** — `components/profile/ProfileCard.tsx`  
-  Not done: still a stub (only renders `display_name`). No PhotoCarousel, overlay, FitnessBadges, ApproachBadge, or bio. Implement full card if you need this component elsewhere; currently the app uses SwipeDeck for discover cards.
+- [ ] **Notifications end-to-end**
+  - [ ] Permission prompts + token registration
+  - [ ] Deep link routing from notification tap (foreground/background/cold start)
+
+- [ ] **Rate limiting / abuse protection**
+  - [ ] Signup/login throttling
+  - [ ] Messaging/likes throttling
+
+---
+
+## Analytics events (minimum viable)
+
+- [x] `app_open`
+- [x] `signup_started`, `signup_completed`
+- [x] `login_success`, `login_failed`
+- [x] `onboarding_step_completed` (include step name/index)
+- [x] `profile_photo_added`, `profile_photo_removed`
+- [x] `discover_swipe_like`, `discover_swipe_pass`
+- [x] `match_created`
+- [x] `message_sent`
+- [ ] `paywall_viewed`, `purchase_started`, `purchase_success`, `purchase_failed`, `restore_started`, `restore_success`
+- [x] `report_submitted`, `block_user`
+
+---
+
+## “Facebook pixel id” / Meta tracking
+
+- [ ] **Decide which tracking you need**
+  - [ ] Web landing site: Meta Pixel (pixel id) belongs on web, not iOS
+  - [ ] iOS attribution: integrate Meta SDK + App Events (and ATT prompt if needed)
+
+---
+
+## Existing app stubs / incomplete pieces (from prior audit)
+
+- [ ] **bracelet_status** — `components/profile/ProfileView.tsx`
+  - Add `bracelet_status` field to database and persist (currently local state only).
+
+- [ ] **CrushSignalButton** — `components/discover/CrushSignalButton.tsx`
+  - Wire onPress, disabled state, and cooldown timer (appStore.checkCrushAvailability, recordCrushSignal).
+
+- [ ] **ProfileCard** — `components/profile/ProfileCard.tsx`
+  - Still a stub (renders `display_name` only). Implement only if you actually need this component; discover uses **SwipeDeck**.
 
 ---
 
 ## Optional (edge functions / polish)
 
-- [ ] **moderate-image** — `supabase/functions/moderate-image/index.ts`  
-  Implement image moderation in edge function.
+- [ ] **moderate-image** — `supabase/functions/moderate-image/index.ts`
+  - Implement image moderation edge function (only if you’re enforcing automated moderation).
 
-- [ ] **check-match** — `supabase/functions/check-match/index.ts`  
-  Optional. Your DB trigger already creates a match when mutual likes exist. This edge function would be an explicit API: given `from_user_id` and `to_user_id`, check for mutual like and create match if missing, then return the match. Only implement if you need that from the client or another service (e.g. immediate response without waiting for the trigger).
+- [ ] **check-match** — `supabase/functions/check-match/index.ts`
+  - Optional. DB trigger already creates a match when mutual likes exist.
 
-- [ ] **handle-crush-signal** — `supabase/functions/handle-crush-signal/index.ts`  
-  Implement crush signal handler in edge function.
+- [ ] **handle-crush-signal** — `supabase/functions/handle-crush-signal/index.ts`
+  - Implement crush signal handler edge function (if needed for server-side enforcement).
 
 ---
 
 ## Obsolete / skip
 
-- **SwipeCard** — `components/discover/SwipeCard.tsx` is unused; discover uses **SwipeDeck** instead. No need to implement SwipeCard unless you want a separate reusable card component. Consider removing the file or leaving as a stub.
+- **SwipeCard** — `components/discover/SwipeCard.tsx` is unused; discover uses **SwipeDeck** instead.

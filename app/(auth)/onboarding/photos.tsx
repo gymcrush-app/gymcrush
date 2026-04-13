@@ -1,6 +1,7 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
+import { track } from '@/lib/utils/analytics';
 import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -56,6 +57,7 @@ export default function OnboardingPhotos() {
       if (!result.canceled && result.assets[0]) {
         const newPhotos = [...data.photos, result.assets[0].uri];
         updateData({ photos: newPhotos });
+        track('profile_photo_added', { source: 'onboarding', count: newPhotos.length });
       }
     } catch {
       Alert.alert('Error', 'Failed to pick image. Please try again.');
@@ -67,13 +69,14 @@ export default function OnboardingPhotos() {
   const removePhoto = (index: number) => {
     const newPhotos = data.photos.filter((_, i) => i !== index);
     updateData({ photos: newPhotos });
+    track('profile_photo_removed', { source: 'onboarding', count: newPhotos.length });
   };
 
   const canContinue = data.photos.length >= MIN_PHOTOS;
 
   const handleNext = () => {
     if (canContinue) {
-      // Navigate to complete step
+      track('onboarding_step_completed', { step: 'photos', index: 12 });
       (navigation as any).navigate('complete');
     }
   };
