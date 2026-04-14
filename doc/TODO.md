@@ -98,7 +98,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 ## UI / UX polish
 
 - [x] **Add race to profile and info box**
-- [ ] **Add icons to info items**
+- [x] **Add icons to info items**
 - [ ] **Fix card stretching and overlap layout**
 - [x] **Change background on prompt Q/A**
   - Note: discover card already has a `card` background so prompt boxes blend in there; on profile views the page background is black so the `card`-colored prompt boxes are distinct. May revisit discover card prompt styling later.

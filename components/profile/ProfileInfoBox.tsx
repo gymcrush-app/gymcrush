@@ -1,7 +1,11 @@
 import { Text } from '@/components/ui/Text';
 import { borderRadius, colors, spacing } from '@/theme';
+import { Briefcase, Heart, MapPin, Ruler } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+
+const ICON_SIZE = 14;
+const ICON_COLOR = colors.mutedForeground;
 
 interface ProfileInfoBoxProps {
   height: string | null;
@@ -20,20 +24,28 @@ export const ProfileInfoBox = React.memo<ProfileInfoBoxProps>(({
     <View style={styles.infoBox}>
       <View style={styles.grid}>
         <View style={styles.cell}>
-          <Text variant="mutedXSmall" style={styles.label}>HEIGHT</Text>
-          <Text variant="bodySmall" weight="semibold">{height ?? '—'}</Text>
+          <View style={styles.iconRow}>
+            <Ruler size={ICON_SIZE} color={ICON_COLOR} />
+            <Text variant="bodySmall" weight="semibold">{height ?? '—'}</Text>
+          </View>
         </View>
         <View style={styles.cell}>
-          <Text variant="mutedXSmall" style={styles.label}>OCCUPATION</Text>
-          <Text variant="bodySmall" weight="semibold">{occupation ?? '—'}</Text>
+          <View style={styles.iconRow}>
+            <Briefcase size={ICON_SIZE} color={ICON_COLOR} />
+            <Text variant="bodySmall" weight="semibold">{occupation ?? '—'}</Text>
+          </View>
         </View>
         <View style={styles.cell}>
-          <Text variant="mutedXSmall" style={styles.label}>INTENT</Text>
-          <Text variant="bodySmall" weight="semibold">{intent}</Text>
+          <View style={styles.iconRow}>
+            <Heart size={ICON_SIZE} color={ICON_COLOR} />
+            <Text variant="bodySmall" weight="semibold">{intent}</Text>
+          </View>
         </View>
         <View style={styles.cell}>
-          <Text variant="mutedXSmall" style={styles.label}>CITY</Text>
-          <Text variant="bodySmall" weight="semibold">{city ?? '—'}</Text>
+          <View style={styles.iconRow}>
+            <MapPin size={ICON_SIZE} color={ICON_COLOR} />
+            <Text variant="bodySmall" weight="semibold">{city ?? '—'}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -58,7 +70,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: '40%',
   },
-  label: {
-    marginBottom: spacing[1],
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
   },
 });
