@@ -83,6 +83,7 @@ export function mapOnboardingDataToProfile(
     smoking: onboardingData.smoking ?? null,
     marijuana: onboardingData.marijuana ?? null,
     has_kids: onboardingData.hasKids ?? null,
+    ethnicity: onboardingData.ethnicity,
   };
 }
 
@@ -114,6 +115,7 @@ export function mapProfileToOnboardingData(
     smoking: (profile as any).smoking ?? null,
     marijuana: (profile as any).marijuana ?? null,
     hasKids: (profile as any).has_kids ?? null,
+    ethnicity: Array.isArray((profile as any).ethnicity) ? (profile as any).ethnicity : [],
     interestedInGender: (() => {
       const g = discoveryPrefs?.genders as string[] | undefined;
       if (!Array.isArray(g) || g.length === 0) return null;
