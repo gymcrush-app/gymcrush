@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button"
 import { Chip } from "@/components/ui/Chip"
+import { GymCrushSliderMarker } from "@/components/ui/GymCrushSliderMarker"
 import { Select } from "@/components/ui/Select"
 import { useSearchGyms, useGymById } from "@/lib/api/gyms"
 import { useProfile } from "@/lib/api/profiles"
@@ -292,8 +293,7 @@ export function DiscoveryPreferencesContent({
               selectedStyle={styles.distanceSelectedTrack}
               unselectedStyle={styles.distanceUnselectedTrack}
               trackStyle={styles.distanceTrack}
-              markerStyle={styles.distanceMarker}
-              pressedMarkerStyle={styles.distancePressedMarker}
+              customMarker={GymCrushSliderMarker}
             />
             <View style={styles.distanceRangeLabels}>
               <Text style={styles.rangeLabel}>{MIN_DISTANCE_MILES}</Text>
@@ -494,8 +494,7 @@ function AgeRangeSection({
           selectedStyle={styles.distanceSelectedTrack}
           unselectedStyle={styles.distanceUnselectedTrack}
           trackStyle={styles.distanceTrack}
-          markerStyle={styles.distanceMarker}
-          pressedMarkerStyle={styles.distancePressedMarker}
+          customMarker={GymCrushSliderMarker}
         />
         <View style={styles.distanceRangeLabels}>
           <Text style={styles.rangeLabel}>{MIN}</Text>
@@ -589,19 +588,6 @@ const styles = StyleSheet.create({
   },
   distanceUnselectedTrack: {
     backgroundColor: colors.muted,
-  },
-  distanceMarker: {
-    height: 24,
-    width: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  distancePressedMarker: {
-    height: 28,
-    width: 28,
-    borderRadius: 14,
   },
   distanceRangeLabels: {
     flexDirection: "row",

@@ -1,5 +1,6 @@
 import { FilterTriggerButton } from '@/components/ui/FilterTriggerButton';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { GymCrushSliderMarker } from '@/components/ui/GymCrushSliderMarker';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
@@ -142,8 +143,7 @@ export function FilterRangeSliderContent({
             selectedStyle={styles.selectedTrack}
             unselectedStyle={styles.unselectedTrack}
             trackStyle={styles.track}
-            markerStyle={styles.marker}
-            pressedMarkerStyle={styles.pressedMarker}
+            customMarker={GymCrushSliderMarker}
           />
         </View>
 
@@ -206,19 +206,6 @@ const styles = StyleSheet.create({
   },
   unselectedTrack: {
     backgroundColor: colors.muted,
-  },
-  marker: {
-    height: 24,
-    width: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  pressedMarker: {
-    height: 28,
-    width: 28,
-    borderRadius: 14,
   },
   rangeLabels: {
     flexDirection: 'row',

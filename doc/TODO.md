@@ -50,12 +50,14 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 
 ## High priority (strongly recommended for v1)
 
-- [ ] **Remove debug info from UI** — `app/(auth)/login.tsx`
-  - [ ] `supabaseUrl` is currently rendered on the login screen (remove for production)
+- [ ] **Review login screen footer text** — `app/(auth)/login.tsx`
+  - [ ] Decide whether to keep `getAppVersionLabel()` visible or remove for production
 
-- [ ] **Versioning sanity**
-  - [ ] Align app versioning + iOS build number for TestFlight/App Store
-  - [ ] Confirm EAS production profile has correct env vars for prod services
+- [ ] **Versioning + EAS production config**
+  - [ ] Set v1 version string in `app.json` (currently `0.1.0`)
+  - [ ] Align iOS build number for TestFlight/App Store
+  - [ ] Add `EXPO_PUBLIC_MIXPANEL_TOKEN` to EAS production profile env vars
+  - [ ] Confirm all prod env vars are set (Supabase, Sentry, Mixpanel, Google Places)
 
 - [x] **Notifications end-to-end**
   - [x] Permission prompts + token registration (useNotifications hook)
@@ -64,8 +66,8 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [x] Message notifications — match chat (shows sender name + preview) and message requests (anonymous)
   - [x] Foreground query invalidation (messages, conversations, matches refresh on notification)
 
-- [ ] **Rate limiting / abuse protection**
-  - [ ] Signup/login throttling
+- [ ] **Rate limiting / abuse protection** _(may tie to paid tier — revisit after RevenueCat)_
+  - [ ] Signup/login throttling (Supabase built-in covers basics)
   - [ ] Messaging/likes throttling
 
 ---
@@ -90,6 +92,17 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [ ] **Decide which tracking you need**
   - [ ] Web landing site: Meta Pixel (pixel id) belongs on web, not iOS
   - [ ] iOS attribution: integrate Meta SDK + App Events (and ATT prompt if needed)
+
+---
+
+## UI / UX polish
+
+- [ ] **Add race to profile and info box**
+- [ ] **Add icons to info items**
+- [ ] **Fix card stretching and overlap layout**
+- [ ] **Change background on prompt Q/A**
+- [x] **Add GC logo to slider**
+- [ ] **Add flick-to-swipe-away UX**
 
 ---
 
