@@ -4,6 +4,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
 interface ProfileLifestyleBoxProps {
+  ethnicity: string[] | null;
   religion: string | null;
   alcohol: string | null;
   smoking: string | null;
@@ -12,14 +13,25 @@ interface ProfileLifestyleBoxProps {
 }
 
 export const ProfileLifestyleBox = React.memo<ProfileLifestyleBoxProps>(({
+  ethnicity,
   religion,
   alcohol,
   smoking,
   marijuana,
   hasKids,
 }) => {
+  const ethnicityDisplay = ethnicity && ethnicity.length > 0
+    ? ethnicity.join(', ')
+    : '—';
+
   return (
     <View style={styles.infoBox}>
+      <View style={styles.row}>
+        <View style={styles.cell}>
+          <Text variant="mutedXSmall" style={styles.label}>ETHNICITY</Text>
+          <Text variant="bodySmall" weight="semibold">{ethnicityDisplay}</Text>
+        </View>
+      </View>
       <View style={styles.row}>
         <View style={styles.cell}>
           <Text variant="mutedXSmall" style={styles.label}>RELIGION</Text>
