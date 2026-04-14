@@ -4,7 +4,7 @@ import { Briefcase, Heart, MapPin, Ruler } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-const ICON_SIZE = 14;
+const ICON_SIZE = 20;
 const ICON_COLOR = colors.mutedForeground;
 
 interface ProfileInfoBoxProps {

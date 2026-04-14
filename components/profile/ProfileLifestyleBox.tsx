@@ -1,10 +1,10 @@
 import { Text } from '@/components/ui/Text';
 import { borderRadius, colors, spacing } from '@/theme';
-import { Baby, BookOpen, Cigarette, Globe, Leaf, Wine } from 'lucide-react-native';
+import { Baby, Beer, BookOpen, Cannabis, Cigarette, Globe } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-const ICON_SIZE = 14;
+const ICON_SIZE = 20;
 const ICON_COLOR = colors.mutedForeground;
 
 interface ProfileLifestyleBoxProps {
@@ -37,8 +37,6 @@ export const ProfileLifestyleBox = React.memo<ProfileLifestyleBoxProps>(({
             <Text variant="bodySmall" weight="semibold">{ethnicityDisplay}</Text>
           </View>
         </View>
-      </View>
-      <View style={styles.row}>
         <View style={styles.cell}>
           <View style={styles.iconRow}>
             <BookOpen size={ICON_SIZE} color={ICON_COLOR} />
@@ -55,7 +53,7 @@ export const ProfileLifestyleBox = React.memo<ProfileLifestyleBoxProps>(({
       <View style={styles.row}>
         <View style={styles.cell}>
           <View style={styles.iconRow}>
-            <Wine size={ICON_SIZE} color={ICON_COLOR} />
+            <Beer size={ICON_SIZE} color={ICON_COLOR} />
             <Text variant="bodySmall" weight="semibold">{alcohol ?? '—'}</Text>
           </View>
         </View>
@@ -67,7 +65,7 @@ export const ProfileLifestyleBox = React.memo<ProfileLifestyleBoxProps>(({
         </View>
         <View style={styles.cell}>
           <View style={styles.iconRow}>
-            <Leaf size={ICON_SIZE} color={ICON_COLOR} />
+            <Cannabis size={ICON_SIZE} color={ICON_COLOR} />
             <Text variant="bodySmall" weight="semibold">{marijuana ?? '—'}</Text>
           </View>
         </View>
