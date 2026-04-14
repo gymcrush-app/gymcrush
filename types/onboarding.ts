@@ -50,6 +50,18 @@ export type ApproachPreference = "yes" | "sometimes" | "no"
 
 export type Religion = 'Atheist' | 'Jewish' | 'Muslim' | 'Christian' | 'Catholic' | 'Buddhist' | 'Hindu' | 'Sikh' | 'Spiritual' | 'Other';
 
+export type Ethnicity =
+  | 'Black / African Descent'
+  | 'White / Caucasian'
+  | 'Hispanic / Latino'
+  | 'Asian'
+  | 'South Asian'
+  | 'Middle Eastern'
+  | 'Native American'
+  | 'Pacific Islander'
+  | 'Other'
+  | 'Prefer not to say';
+
 export type YesNoSometimes = 'Yes' | 'No' | 'Sometimes';
 
 export type YesNo = 'Yes' | 'No';
@@ -78,6 +90,7 @@ export interface OnboardingData {
   smoking: YesNoSometimes | null;
   marijuana: YesNoSometimes | null;
   hasKids: YesNo | null;
+  ethnicity: Ethnicity[];
   email: string
   password: string
   intents: Intent[]
@@ -103,6 +116,7 @@ export const INITIAL_ONBOARDING_DATA: OnboardingData = {
   smoking: null,
   marijuana: null,
   hasKids: null,
+  ethnicity: [],
   email: "",
   password: "",
   intents: [],

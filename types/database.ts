@@ -420,6 +420,7 @@ export type Database = {
           bio: string | null
           created_at: string | null
           discovery_preferences: Json | null
+          ethnicity: string[]
           display_name: string
           fitness_disciplines: string[]
           gems_received_count: number
@@ -446,6 +447,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
+          ethnicity?: string[]
           display_name: string
           fitness_disciplines?: string[]
           gems_received_count?: number
@@ -472,6 +474,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
+          ethnicity?: string[]
           display_name?: string
           fitness_disciplines?: string[]
           gems_received_count?: number
