@@ -754,6 +754,7 @@ export function SwipeDeck({
 
               {/* 5. Lifestyle info box */}
               <ProfileLifestyleBox
+                ethnicity={Array.isArray((topProfile as any).ethnicity) ? (topProfile as any).ethnicity : null}
                 religion={(topProfile as any).religion ?? null}
                 alcohol={(topProfile as any).alcohol ?? null}
                 smoking={(topProfile as any).smoking ?? null}

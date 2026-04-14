@@ -207,6 +207,7 @@ export function OtherUserProfileContent({
 
           {/* 5. Lifestyle info box */}
           <ProfileLifestyleBox
+            ethnicity={Array.isArray((profile as any).ethnicity) ? (profile as any).ethnicity : null}
             religion={(profile as any).religion ?? null}
             alcohol={(profile as any).alcohol ?? null}
             smoking={(profile as any).smoking ?? null}
