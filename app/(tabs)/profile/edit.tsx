@@ -197,6 +197,7 @@ export default function EditProfileScreen() {
   const [smoking, setSmoking] = useState<string>('')
   const [marijuana, setMarijuana] = useState<string>('')
   const [hasKids, setHasKids] = useState<string>('')
+  const [ethnicity, setEthnicity] = useState<string[]>([])
 
   const displayNameInput = useFilteredInput({
     value: displayName,
@@ -225,6 +226,7 @@ export default function EditProfileScreen() {
     setSmoking((profile as any).smoking ?? '')
     setMarijuana((profile as any).marijuana ?? '')
     setHasKids((profile as any).has_kids ?? '')
+    setEthnicity(Array.isArray((profile as any).ethnicity) ? (profile as any).ethnicity : [])
     skipFirstSaveRef.current = true
   }, [profile, parseHeight])
 
@@ -284,6 +286,12 @@ export default function EditProfileScreen() {
   const toggleDiscipline = useCallback((value: string) => {
     setDisciplines((prev) =>
       prev.includes(value) ? prev.filter((d) => d !== value) : [...prev, value],
+    )
+  }, [])
+
+  const toggleEthnicity = useCallback((value: string) => {
+    setEthnicity((prev) =>
+      prev.includes(value) ? prev.filter((e) => e !== value) : [...prev, value],
     )
   }, [])
 
@@ -514,6 +522,7 @@ export default function EditProfileScreen() {
             ...(smoking ? { smoking } : {}),
             ...(marijuana ? { marijuana } : {}),
             ...(hasKids ? { has_kids: hasKids } : {}),
+            ethnicity,
           }
           await updateProfile.mutateAsync(updates)
         } catch (err: unknown) {
@@ -576,6 +585,7 @@ export default function EditProfileScreen() {
     smoking,
     marijuana,
     hasKids,
+    ethnicity,
   ])
 
   if (profileLoading || !profile) {
@@ -732,6 +742,44 @@ export default function EditProfileScreen() {
                 placeholder="Select..."
                 options={yesNoOptions}
               />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Ethnicity</Text>
+              <View style={styles.disciplineWrap}>
+                {[
+                  'Black / African Descent',
+                  'White / Caucasian',
+                  'Hispanic / Latino',
+                  'Asian',
+                  'South Asian',
+                  'Middle Eastern',
+                  'Native American',
+                  'Pacific Islander',
+                  'Other',
+                  'Prefer not to say',
+                ].map((opt) => {
+                  const selected = ethnicity.includes(opt)
+                  return (
+                    <Pressable
+                      key={opt}
+                      onPress={() => toggleEthnicity(opt)}
+                      style={[
+                        styles.disciplineChip,
+                        selected && styles.disciplineChipSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.disciplineChipText,
+                          selected && styles.disciplineChipTextSelected,
+                        ]}
+                      >
+                        {opt}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
             </View>
           </View>
 
