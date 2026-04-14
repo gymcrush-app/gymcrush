@@ -82,7 +82,7 @@ export default function OnboardingPhotos() {
   };
 
   return (
-    <OnboardingContainer currentStep={13} totalSteps={13} showBack={true}>
+    <OnboardingContainer currentStep={14} totalSteps={14} showBack={true}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>

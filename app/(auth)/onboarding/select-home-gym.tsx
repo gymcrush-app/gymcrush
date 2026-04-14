@@ -131,7 +131,7 @@ export default function OnboardingSelectHomeGym() {
   };
 
   return (
-    <OnboardingContainer currentStep={6} totalSteps={13} showBack={true}>
+    <OnboardingContainer currentStep={7} totalSteps={14} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Where do you train?</Text>

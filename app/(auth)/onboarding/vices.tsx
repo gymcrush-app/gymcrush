@@ -60,7 +60,7 @@ export default function OnboardingVices() {
   };
 
   return (
-    <OnboardingContainer currentStep={3} totalSteps={13} showBack={true}>
+    <OnboardingContainer currentStep={4} totalSteps={14} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Your lifestyle</Text>

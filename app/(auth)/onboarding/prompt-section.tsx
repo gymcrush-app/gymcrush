@@ -10,7 +10,7 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-const TOTAL_STEPS = 13;
+const TOTAL_STEPS = 14;
 const TOTAL_PROMPT_SCREENS = 3;
 
 export default function PromptSectionScreen() {

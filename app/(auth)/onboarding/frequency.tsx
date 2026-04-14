@@ -24,7 +24,7 @@ export default function OnboardingFrequency() {
   };
 
   return (
-    <OnboardingContainer currentStep={8} totalSteps={13} showBack={true}>
+    <OnboardingContainer currentStep={9} totalSteps={14} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>
