@@ -3,54 +3,62 @@ import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
-import type { Religion } from '@/types/onboarding';
+import type { Ethnicity } from '@/types/onboarding';
 import { useNavigation } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-const RELIGION_OPTIONS: Religion[] = [
-  'Atheist',
-  'Jewish',
-  'Muslim',
-  'Christian',
-  'Catholic',
-  'Buddhist',
-  'Hindu',
-  'Sikh',
-  'Spiritual',
+const ETHNICITY_OPTIONS: Ethnicity[] = [
+  'Black / African Descent',
+  'White / Caucasian',
+  'Hispanic / Latino',
+  'Asian',
+  'South Asian',
+  'Middle Eastern',
+  'Native American',
+  'Pacific Islander',
   'Other',
+  'Prefer not to say',
 ];
 
-export default function OnboardingReligion() {
+export default function OnboardingEthnicity() {
   const navigation = useNavigation();
   const data = useOnboardingStore((s) => s.data);
   const updateData = useOnboardingStore((s) => s.updateData);
 
-  const canContinue = data.religion !== null;
+  const canContinue = data.ethnicity.length > 0;
+
+  const toggle = (option: Ethnicity) => {
+    const current = data.ethnicity;
+    const next = current.includes(option)
+      ? current.filter((e) => e !== option)
+      : [...current, option];
+    updateData({ ethnicity: next });
+  };
 
   const handleNext = () => {
     if (canContinue) {
-      track('onboarding_step_completed', { step: 'religion', index: 1 });
-      (navigation as any).navigate('ethnicity');
+      track('onboarding_step_completed', { step: 'ethnicity', index: 2 });
+      (navigation as any).navigate('vices');
     }
   };
 
   return (
-    <OnboardingContainer currentStep={2} totalSteps={13} showBack={true}>
+    <OnboardingContainer currentStep={3} totalSteps={14} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>{"What's your faith?"}</Text>
-          <Text style={styles.subtitle}>Select the one that best describes you</Text>
+          <Text style={styles.title}>{"What's your ethnicity?"}</Text>
+          <Text style={styles.subtitle}>Select all that apply</Text>
         </View>
 
         <View style={styles.content}>
           <View style={styles.pillRow}>
-            {RELIGION_OPTIONS.map((option) => {
-              const isSelected = data.religion === option;
+            {ETHNICITY_OPTIONS.map((option) => {
+              const isSelected = data.ethnicity.includes(option);
               return (
                 <Pressable
                   key={option}
-                  onPress={() => updateData({ religion: option })}
+                  onPress={() => toggle(option)}
                   style={[styles.pill, isSelected && styles.pillSelected]}
                 >
                   <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
