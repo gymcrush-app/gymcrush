@@ -1,15 +1,15 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { signInWithApple } from "@/lib/auth/appleSignIn"
 import { useAuthStore } from "@/lib/stores/authStore"
 import { useOnboardingStore } from "@/lib/stores/onboardingStore"
 import { supabase } from "@/lib/supabase"
+import { toast } from "@/lib/toast"
+import { track } from "@/lib/utils/analytics"
 import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { signupSchema } from "@/lib/utils/validation"
-import { signInWithApple } from "@/lib/auth/appleSignIn"
-import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "@/lib/toast"
 import { Image } from "expo-image"
 import { Link } from "expo-router"
 import { Eye, EyeOff } from "lucide-react-native"
@@ -35,7 +35,7 @@ type SignupFormData = {
 }
 
 export default function SignupScreen() {
-  const setSession = useAuthStore((s) => s.setSession);
+  const setSession = useAuthStore((s) => s.setSession)
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -60,16 +60,19 @@ export default function SignupScreen() {
 
   const handleAppleSignUp = async () => {
     setIsLoading(true)
-    track('signup_started', { method: 'apple' })
+    track("signup_started", { method: "apple" })
     try {
       const { session } = await signInWithApple()
       if (session) {
-        track('signup_completed', { method: 'apple' })
+        track("signup_completed", { method: "apple" })
         setSession(session)
       }
     } catch (error: any) {
-      if (error?.code === 'ERR_REQUEST_CANCELED') return
-      Alert.alert("Apple Sign In failed", error?.message ?? "Something went wrong.")
+      if (error?.code === "ERR_REQUEST_CANCELED") return
+      Alert.alert(
+        "Apple Sign In failed",
+        error?.message ?? "Something went wrong.",
+      )
     } finally {
       setIsLoading(false)
     }
@@ -77,7 +80,7 @@ export default function SignupScreen() {
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true)
-    track('signup_started')
+    track("signup_started")
     try {
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
@@ -87,11 +90,11 @@ export default function SignupScreen() {
       if (error) throw error
 
       if (authData.session) {
-        track('signup_completed')
+        track("signup_completed")
         setSession(authData.session)
         // Navigation handled by AuthStateChangeHandler routing effect
       } else {
-        track('signup_completed')
+        track("signup_completed")
         toast({
           title: "Check your email",
           message: "We sent you a confirmation link",
@@ -155,6 +158,7 @@ export default function SignupScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
+                  spellCheck={false}
                 />
               )}
             />

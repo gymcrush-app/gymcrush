@@ -56,7 +56,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [ ] **Versioning + EAS production config**
   - [ ] Set v1 version string in `app.json` (currently `0.1.0`)
   - [ ] Align iOS build number for TestFlight/App Store
-  - [ ] Add `EXPO_PUBLIC_MIXPANEL_TOKEN` to EAS production profile env vars
+  - [x] Add `EXPO_PUBLIC_MIXPANEL_TOKEN` to EAS production profile env vars
   - [ ] Confirm all prod env vars are set (Supabase, Sentry, Mixpanel, Google Places)
 
 - [x] **Notifications end-to-end**
