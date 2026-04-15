@@ -54,6 +54,7 @@ const styles = StyleSheet.create({
     transform: [{ translateY: -8 }],
   },
   highlightedCard: {
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.primary,
     borderRadius: borderRadius.xl,

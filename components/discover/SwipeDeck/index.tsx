@@ -78,7 +78,7 @@ const CARD_EXIT_MS = 180
 /** Brief pause after tick before advancing to next profile */
 const TICK_DISPLAY_MS = 500
 const BACK_CARD_SCALE = 0.97
-const BACK_CARD_PEEK = 14
+const BACK_CARD_PEEK = 0
 const BACK_CARD_OPACITY = 0.7
 /** Logo starting opacity -- fades to 1.0 as it grows */
 const START_OPACITY = 0.3
@@ -182,6 +182,7 @@ export function SwipeDeck({
   const photoContainerRef = useAnimatedRef<Animated.View>()
 
   // Card animation values
+  const pullDownAmount = useSharedValue(0)
   const translateY = useSharedValue(0)
   const opacity = useSharedValue(1)
   const isDismissing = useSharedValue(false)
@@ -235,6 +236,7 @@ export function SwipeDeck({
       // Overscroll at top → pass visual (pull down, y < 0)
       if (y < 0) {
         const pullDown = -y
+        pullDownAmount.value = pullDown
         translateY.value = pullDown
         crushImageSize.value = 0
         const maxSize = SCREEN_WIDTH * 0.8
@@ -258,8 +260,9 @@ export function SwipeDeck({
       }
 
       // Normal scroll range — reset card position
-      if (translateY.value !== 0) {
+      if (translateY.value !== 0 || pullDownAmount.value !== 0) {
         translateY.value = 0
+        pullDownAmount.value = 0
         dropImageSize.value = 0
         crushImageSize.value = 0
       }
@@ -284,6 +287,7 @@ export function SwipeDeck({
           // Trigger pass — card snaps back, logos fade
           dropImageSize.value = withTiming(0, { duration: 200 })
           translateY.value = withTiming(0, { duration: 200 })
+          pullDownAmount.value = withTiming(0, { duration: 200 })
           runOnJS(triggerPass)()
           return
         }
@@ -310,6 +314,7 @@ export function SwipeDeck({
 
       // Not triggered — reset (bounce will snap scroll back)
       translateY.value = withTiming(0, { duration: 200 })
+      pullDownAmount.value = withTiming(0, { duration: 200 })
       dropImageSize.value = withTiming(0, { duration: 150 })
       crushImageSize.value = withTiming(0, { duration: 150 })
     },
@@ -405,9 +410,10 @@ export function SwipeDeck({
   }))
 
   const animatedBackCardStyle = useAnimatedStyle(() => {
+    const pull = Math.max(pullDownAmount.value, Math.abs(translateY.value))
     const progress = Math.min(
       1,
-      Math.abs(translateY.value) / Math.max(1, SWIPE_THRESHOLD),
+      pull / Math.max(1, SWIPE_THRESHOLD),
     )
     const scale = BACK_CARD_SCALE + (1 - BACK_CARD_SCALE) * progress
     const op = BACK_CARD_OPACITY + (1 - BACK_CARD_OPACITY) * progress
@@ -446,6 +452,7 @@ export function SwipeDeck({
     setShowTick(false)
     crushImageSize.value = 0
     dropImageSize.value = 0
+    pullDownAmount.value = 0
     translateY.value = 0
     opacity.value = 1
     isDismissing.value = false
@@ -887,6 +894,7 @@ const styles = StyleSheet.create({
   stackContainer: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
   },
   backCard: {
     ...StyleSheet.absoluteFillObject,
