@@ -43,7 +43,7 @@ import {
   Text,
   View,
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 const MIN_PHOTOS = 3
 const MAX_PHOTOS = APP.MAX_PHOTOS
@@ -57,6 +57,7 @@ export default function EditProfileScreen() {
     isLoading: profileLoading,
     error: profileError,
   } = useProfile()
+  const insets = useSafeAreaInsets()
   const updateProfile = useUpdateProfile()
   const {
     data: currentGym,
@@ -1002,63 +1003,73 @@ export default function EditProfileScreen() {
         backgroundStyle={{ backgroundColor: colors.card }}
         handleIndicatorStyle={{ backgroundColor: colors.muted }}
         enablePanDownToClose
+        enableContentPanningGesture={false}
       >
-        <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-          <View style={{ padding: spacing[6], gap: spacing[4], paddingBottom: spacing[28] }}>
-            {editingPrompt && promptSections && (() => {
-              const section = promptSections.find((s) => s.id === editingPrompt.section_id)
-              if (!section) return null
-              return (
-                <>
-                  <Text style={styles.promptSheetTitle}>{section.name}</Text>
-                  <Text style={styles.promptSheetSubtitle}>{section.subtitle}</Text>
-                  <View style={{ gap: spacing[2] }}>
-                    {section.prompts.map((p) => {
-                      const isSelected = editPromptId === p.id
-                      return (
-                        <Pressable
-                          key={p.id}
-                          onPress={() => {
-                            setEditPromptId(p.id)
-                            if (p.id !== editingPrompt.prompt_id) {
-                              setEditAnswer('')
-                            }
-                          }}
-                          style={[
-                            styles.promptOption,
-                            isSelected && styles.promptOptionSelected,
-                          ]}
-                        >
-                          <Text style={[
-                            styles.promptOptionText,
-                            isSelected && styles.promptOptionTextSelected,
-                          ]}>
-                            {p.prompt_text}
-                          </Text>
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-                  {editPromptId && (
-                    <FilteredTextarea
-                      placeholder="Your answer..."
-                      value={editAnswer}
-                      onChangeText={setEditAnswer}
-                      maxLength={APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH}
-                      showCharCount
-                    />
-                  )}
-                  <Button
-                    onPress={handleSavePrompt}
-                    disabled={!editPromptId || !editAnswer.trim() || upsertPrompt.isPending}
-                  >
-                    {upsertPrompt.isPending ? 'Saving...' : 'Save'}
-                  </Button>
-                </>
-              )
-            })()}
+        <View style={{ flex: 1 }}>
+          <BottomSheetScrollView showsVerticalScrollIndicator={false}>
+            <View style={{ padding: spacing[6], gap: spacing[4] }}>
+              {editingPrompt && promptSections && (() => {
+                const section = promptSections.find((s) => s.id === editingPrompt.section_id)
+                if (!section) return null
+                return (
+                  <>
+                    <Text style={styles.promptSheetTitle}>{section.name}</Text>
+                    <Text style={styles.promptSheetSubtitle}>{section.subtitle}</Text>
+                    <View style={{ gap: spacing[2] }}>
+                      {[...section.prompts].sort((a, b) => {
+                        const aSelected = a.id === editingPrompt.prompt_id ? -1 : 0
+                        const bSelected = b.id === editingPrompt.prompt_id ? -1 : 0
+                        return aSelected - bSelected
+                      }).map((p) => {
+                        const isSelected = editPromptId === p.id
+                        return (
+                          <Pressable
+                            key={p.id}
+                            onPress={() => {
+                              setEditPromptId(p.id)
+                              if (p.id !== editingPrompt.prompt_id) {
+                                setEditAnswer('')
+                              }
+                            }}
+                            style={[
+                              styles.promptOption,
+                              isSelected && styles.promptOptionSelected,
+                            ]}
+                          >
+                            <Text style={[
+                              styles.promptOptionText,
+                              isSelected && styles.promptOptionTextSelected,
+                            ]}>
+                              {p.prompt_text}
+                            </Text>
+                          </Pressable>
+                        )
+                      })}
+                    </View>
+                  </>
+                )
+              })()}
+            </View>
+          </BottomSheetScrollView>
+
+          {/* Fixed input + save at bottom */}
+          <View style={[styles.promptSheetFooter, { paddingBottom: insets.bottom + 100 }, !editPromptId && { opacity: 0.4 }]}>
+            <FilteredTextarea
+              placeholder={editPromptId ? "Your answer..." : "Select a prompt above..."}
+              value={editAnswer}
+              onChangeText={setEditAnswer}
+              maxLength={APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH}
+              showCharCount
+              editable={!!editPromptId}
+            />
+            <Button
+              onPress={handleSavePrompt}
+              disabled={!editPromptId || !editAnswer.trim() || upsertPrompt.isPending}
+            >
+              {upsertPrompt.isPending ? 'Saving...' : 'Save'}
+            </Button>
           </View>
-        </BottomSheetScrollView>
+        </View>
       </BottomSheet>
     </SafeAreaView>
   )
@@ -1311,5 +1322,18 @@ const styles = StyleSheet.create({
   },
   promptOptionTextSelected: {
     color: colors.primary,
+  },
+  promptSheetFooter: {
+    padding: spacing[6],
+    paddingTop: spacing[5],
+    gap: spacing[4],
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 })
