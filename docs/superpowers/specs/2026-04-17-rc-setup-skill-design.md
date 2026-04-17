@@ -163,7 +163,7 @@ Ordered creation:
    - `gymcrush_plus_3month` — THREE_MONTHS, groupLevel 1
    - `gymcrush_plus_annual` — ONE_YEAR, groupLevel 1
 4. **Per-subscription localizations (en-US)** — `POST /v1/subscriptionLocalizations` with user-facing `name` + `description`.
-5. **Prices** — `POST /v1/subscriptionPrices` with ASC price points; base territory USA at $14.99 / $29.99 / $83.99; `preserveCurrentPrice: false`; auto-calculate other territories.
+5. **Prices** — `POST /v1/subscriptionPrices` with ASC price points. ASC requires resolved price-point IDs, not raw dollar amounts: before creating prices, the skill calls `GET /v1/subscriptions/{id}/pricePoints?filter[territory]=USA` and picks the point closest to each target price ($14.99, $29.99, $83.99). `preserveCurrentPrice: false`; auto-calculate other territories from USA base.
 6. **Intro offers** — `POST /v1/subscriptionIntroductoryOffers` with `offerMode: FREE_TRIAL`, `duration: ONE_WEEK`, all territories.
 7. **Review screenshot + notes** — `POST /v1/subscriptionAppStoreReviewScreenshots` with a generic placeholder PNG bundled in the skill. User replaces later.
 8. **App-level server notifications URL** — `PATCH /v1/apps/{id}` setting `appStoreServerNotificationsV2Url` (prod + sandbox). Points Apple → RC, not our Supabase fn.
@@ -259,10 +259,12 @@ Event handling:
 |---|---|
 | `INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `UNCANCELLATION` | upsert with fresh `expires_at`; clear `unsubscribe_detected_at` + `billing_issues_detected_at` |
 | `CANCELLATION` | set `unsubscribe_detected_at`; keep access until `expires_at` |
-| `EXPIRATION` | set `expires_at = now()` (or trust RC's timestamp) |
+| `EXPIRATION` | upsert with `expires_at = RC event's expiration timestamp` (trust RC, not `now()`) |
 | `BILLING_ISSUE` | set `billing_issues_detected_at` |
-| `SUBSCRIBER_ALIAS` | no-op (Supabase user ID is the App User ID from day one) |
-| `TEST` | log to events table, return 200 |
+| `SUBSCRIBER_ALIAS` | no-op on `plus_entitlements`; event still logged to `revenuecat_events` like all events |
+| `TEST` | log to events table only, return 200 |
+
+Every event lands in `revenuecat_events` (that's the idempotency + audit layer). The table above describes the additional write to `plus_entitlements`.
 
 ### Wire RC webhook to deployed URL
 
@@ -288,13 +290,13 @@ Adds Expo config plugin entry to `app.json` under `plugins`. `expo-dev-client` a
 - Subscribes to Supabase auth changes (reuses existing auth hook)
 - On sign-in: `await Purchases.logIn(user.id)`
 - On sign-out: `await Purchases.logOut()`
-- React Context exposes `{ customerInfo, isPlus, offerings, refresh }`
+- Writes `{ customerInfo, isPlus, offerings }` to a Zustand store (`lib/revenuecat/store.ts`) — matches the app's existing state pattern; no new React Context layer.
 
 Dropped into `app/_layout.tsx` wrapping children. Scaffold uses a marker comment so re-runs don't duplicate.
 
 ### `hooks/use-is-plus.ts` — canonical entitlement check
 
-Reads RC `CustomerInfo` first (fast, SDK-cached); falls back to Supabase `is_plus(auth.uid())` RPC if SDK not ready. Returns `false` while loading — fail closed.
+Thin hook that reads `isPlus` from the Zustand store written by the provider. The provider keeps the store in sync with RC `CustomerInfo` events; store falls back to Supabase `is_plus(auth.uid())` RPC on cold start before RC SDK is ready. Returns `false` while loading — fail closed.
 
 Server-trusted version: `lib/revenuecat/require-plus.ts` — for edge functions, calls `is_plus` RPC with the caller's JWT. Feature gates in any server-side edge function import this, not the client hook.
 
