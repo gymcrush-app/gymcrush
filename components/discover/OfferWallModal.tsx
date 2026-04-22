@@ -1,15 +1,101 @@
 import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import React from 'react'
+import * as WebBrowser from 'expo-web-browser'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
+import { PACKAGE_TYPE } from 'react-native-purchases'
+
+const TERMS_URL = 'https://gymcrushdating.com/terms'
+const PRIVACY_URL = 'https://gymcrushdating.com/privacy'
 
 interface OfferWallModalProps {
   visible: boolean
   onClose: () => void
-  onCtaPress?: () => void
+  /** Called when the user taps the CTA with the selected package. */
+  onPurchase?: (pkg: PurchasesPackage) => void | Promise<void>
+  /** Called when the user taps "Restore Purchases". */
+  onRestore?: () => void | Promise<void>
+  /** Live RC offering — packages rendered into the plan cards. */
+  offering?: PurchasesOffering | null
 }
 
-export function OfferWallModal({ visible, onClose, onCtaPress }: OfferWallModalProps) {
+const PLAN_LABELS: Record<string, string> = {
+  MONTHLY: '1 Month',
+  THREE_MONTH: '3 Months',
+  ANNUAL: '12 Months',
+}
+
+function findPkg(
+  offering: PurchasesOffering | null | undefined,
+  type: PACKAGE_TYPE,
+): PurchasesPackage | null {
+  return offering?.availablePackages.find((p) => p.packageType === type) ?? null
+}
+
+/** Format a USD price computed per-month from an annual/3-month package. */
+function perMonth(pkg: PurchasesPackage, months: number): string {
+  return `$${(pkg.product.price / months).toFixed(2)}`
+}
+
+/** "Save XX%" vs paying monthly for the same duration. */
+function savingsPct(pkg: PurchasesPackage, monthly: PurchasesPackage, months: number): number {
+  const baseline = monthly.product.price * months
+  if (baseline <= 0) return 0
+  return Math.round((1 - pkg.product.price / baseline) * 100)
+}
+
+export function OfferWallModal({
+  visible,
+  onClose,
+  onPurchase,
+  onRestore,
+  offering,
+}: OfferWallModalProps) {
+  const { monthlyPkg, threeMonthPkg, annualPkg } = useMemo(
+    () => ({
+      monthlyPkg: findPkg(offering, PACKAGE_TYPE.MONTHLY),
+      threeMonthPkg: findPkg(offering, PACKAGE_TYPE.THREE_MONTH),
+      annualPkg: findPkg(offering, PACKAGE_TYPE.ANNUAL),
+    }),
+    [offering],
+  )
+
+  // Pre-select the featured (annual) package; fall back to monthly if missing.
+  const defaultSelectedId = annualPkg?.identifier ?? monthlyPkg?.identifier ?? null
+  const [selectedId, setSelectedId] = useState<string | null>(defaultSelectedId)
+
+  // Reset selection when the offering changes (or initially arrives).
+  useEffect(() => {
+    setSelectedId(defaultSelectedId)
+  }, [defaultSelectedId])
+
+  useEffect(() => {
+    if (!offering) return
+    console.log('[OfferWall] offering packages', {
+      offering: offering.identifier,
+      monthly: monthlyPkg?.product.priceString,
+      threeMonth: threeMonthPkg?.product.priceString,
+      annual: annualPkg?.product.priceString,
+    })
+  }, [offering, monthlyPkg, threeMonthPkg, annualPkg])
+
+  const selectedPkg =
+    [annualPkg, monthlyPkg, threeMonthPkg].find((p) => p?.identifier === selectedId) ?? null
+
+  const handleCta = () => {
+    if (!selectedPkg) {
+      onClose()
+      return
+    }
+    if (onPurchase) void onPurchase(selectedPkg)
+    else onClose()
+  }
+
+  const isAnnualSelected = selectedId === annualPkg?.identifier
+  const isMonthlySelected = selectedId === monthlyPkg?.identifier
+  const isThreeMonthSelected = selectedId === threeMonthPkg?.identifier
+
   return (
     <Modal
       visible={visible}
@@ -45,58 +131,142 @@ export function OfferWallModal({ visible, onClose, onCtaPress }: OfferWallModalP
               <Text style={styles.offerWallTitle}>GymCrush+</Text>
               <Text style={styles.offerWallSubtitle}>Unlock premium features to level up your connections</Text>
 
-              <View style={styles.offerWallFeaturedCard}>
-                <View style={styles.offerWallBadge}>
-                  <Text style={styles.offerWallBadgeText}>MOST POPULAR</Text>
-                </View>
-                <Text style={styles.offerWallPlanName}>6 Months</Text>
-                <Text style={styles.offerWallPlanPrice}>$14.99<Text style={styles.offerWallPlanPer}>/mo</Text></Text>
-                <Text style={styles.offerWallPlanSave}>Save 50% - billed $89.94</Text>
+              <View style={styles.trialBanner}>
+                <MaterialCommunityIcons name="gift-outline" size={18} color={colors.primary} />
+                <Text style={styles.trialBannerText}>
+                  Try free for 7 days — cancel anytime
+                </Text>
               </View>
 
+              {annualPkg && (
+                <Pressable
+                  onPress={() => setSelectedId(annualPkg.identifier)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Select 12 months"
+                  style={[
+                    styles.offerWallFeaturedCard,
+                    isAnnualSelected && styles.offerWallCardSelected,
+                  ]}
+                >
+                  <View style={styles.offerWallBadge}>
+                    <Text style={styles.offerWallBadgeText}>BEST VALUE</Text>
+                  </View>
+                  <Text style={styles.offerWallPlanNameFeatured}>12 Months</Text>
+                  <Text style={styles.offerWallPlanPriceFeatured}>
+                    {perMonth(annualPkg, 12)}
+                    <Text style={styles.offerWallPlanPerFeatured}>/mo</Text>
+                  </Text>
+                  {monthlyPkg && (
+                    <Text style={styles.offerWallPlanSaveFeatured}>
+                      Save {savingsPct(annualPkg, monthlyPkg, 12)}% — billed {annualPkg.product.priceString}/year
+                    </Text>
+                  )}
+                </Pressable>
+              )}
+
               <View style={styles.offerWallPlansRow}>
-                <View style={styles.offerWallPlanCard}>
-                  <Text style={styles.offerWallPlanName}>1 Month</Text>
-                  <Text style={styles.offerWallPlanPrice}>$29.99<Text style={styles.offerWallPlanPer}>/mo</Text></Text>
-                </View>
-                <View style={styles.offerWallPlanCard}>
-                  <Text style={styles.offerWallPlanName}>12 Months</Text>
-                  <Text style={styles.offerWallPlanPrice}>$9.99<Text style={styles.offerWallPlanPer}>/mo</Text></Text>
-                  <Text style={styles.offerWallPlanSave}>Best value</Text>
-                </View>
+                {monthlyPkg && (
+                  <Pressable
+                    onPress={() => setSelectedId(monthlyPkg.identifier)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Select 1 month"
+                    style={[
+                      styles.offerWallPlanCard,
+                      isMonthlySelected && styles.offerWallCardSelected,
+                    ]}
+                  >
+                    <Text style={styles.offerWallPlanName}>1 Month</Text>
+                    <Text style={styles.offerWallPlanPrice}>
+                      {monthlyPkg.product.priceString}
+                      <Text style={styles.offerWallPlanPer}>/mo</Text>
+                    </Text>
+                  </Pressable>
+                )}
+                {threeMonthPkg && (
+                  <Pressable
+                    onPress={() => setSelectedId(threeMonthPkg.identifier)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Select 3 months"
+                    style={[
+                      styles.offerWallPlanCard,
+                      isThreeMonthSelected && styles.offerWallCardSelected,
+                    ]}
+                  >
+                    <Text style={styles.offerWallPlanName}>3 Months</Text>
+                    <Text style={styles.offerWallPlanPrice}>
+                      {perMonth(threeMonthPkg, 3)}
+                      <Text style={styles.offerWallPlanPer}>/mo</Text>
+                    </Text>
+                    {monthlyPkg && (
+                      <Text style={styles.offerWallPlanSave}>
+                        Save {savingsPct(threeMonthPkg, monthlyPkg, 3)}%
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
               </View>
 
               <View style={styles.offerWallFeatures}>
                 <Text style={styles.offerWallFeaturesTitle}>What you get</Text>
-                {[
-                  'Unlimited Crushes per day',
-                  'See who liked you',
-                  'Priority in Gym Gems rankings',
-                  'Read receipts in chat',
-                  'Profile boost (1x per week)',
-                ].map((feature) => (
-                  <View key={feature} style={styles.offerWallFeatureRow}>
-                    <Text style={styles.offerWallCheck}>✓</Text>
-                    <Text style={styles.offerWallFeatureText}>{feature}</Text>
-                  </View>
-                ))}
+                <View style={styles.offerWallFeaturesGrid}>
+                  {[
+                    'Filter by home gym',
+                    'Send unlimited gems to Gym Gems',
+                  ].map((feature) => (
+                    <View key={feature} style={styles.offerWallFeatureRow}>
+                      <Text style={styles.offerWallCheck}>✓</Text>
+                      <Text style={styles.offerWallFeatureText}>{feature}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
 
               <Pressable
                 style={({ pressed }) => [styles.offerWallCta, pressed && styles.offerWallCtaPressed]}
-                onPress={onCtaPress ?? onClose}
+                onPress={handleCta}
+                disabled={!selectedPkg}
               >
-                <Text style={styles.offerWallCtaText}>Start Free Trial</Text>
+                <Text style={styles.offerWallCtaText}>
+                  Start Free Trial
+                  {selectedPkg && ` — ${PLAN_LABELS[selectedPkg.packageType] ?? selectedPkg.packageType}`}
+                </Text>
               </Pressable>
-              <Text style={styles.offerWallDisclaimer}>7-day free trial, cancel anytime</Text>
-              <Pressable
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="Not now"
-                style={({ pressed }) => [styles.offerWallNotNow, pressed && styles.offerWallNotNowPressed]}
-              >
-                <Text style={styles.offerWallNotNowText}>Not now</Text>
-              </Pressable>
+              <Text style={styles.offerWallDisclaimer}>
+                After your 7-day trial, your plan auto-renews. Cancel anytime in Settings.
+              </Text>
+
+              <View style={styles.legalRow}>
+                {onRestore && (
+                  <>
+                    <Pressable
+                      onPress={() => void onRestore()}
+                      accessibilityRole="link"
+                      accessibilityLabel="Restore purchases"
+                      hitSlop={8}
+                    >
+                      <Text style={styles.legalLink}>Restore</Text>
+                    </Pressable>
+                    <Text style={styles.legalDot}>·</Text>
+                  </>
+                )}
+                <Pressable
+                  onPress={() => void WebBrowser.openBrowserAsync(TERMS_URL)}
+                  accessibilityRole="link"
+                  accessibilityLabel="Terms of Service"
+                  hitSlop={8}
+                >
+                  <Text style={styles.legalLink}>Terms</Text>
+                </Pressable>
+                <Text style={styles.legalDot}>·</Text>
+                <Pressable
+                  onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
+                  accessibilityRole="link"
+                  accessibilityLabel="Privacy Policy"
+                  hitSlop={8}
+                >
+                  <Text style={styles.legalLink}>Privacy</Text>
+                </Pressable>
+              </View>
             </View>
           </ScrollView>
         </View>
@@ -172,7 +342,24 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     textAlign: 'center',
     marginTop: spacing[2],
-    marginBottom: spacing[6],
+    marginBottom: spacing[4],
+  },
+  trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    backgroundColor: `${colors.primary}1A`, // ~10% tint
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    alignSelf: 'center',
+    marginBottom: spacing[5],
+  },
+  trialBannerText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
   },
   offerWallFeaturedCard: {
     backgroundColor: colors.primary,
@@ -180,6 +367,11 @@ const styles = StyleSheet.create({
     padding: spacing[5],
     alignItems: 'center',
     marginBottom: spacing[3],
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  offerWallCardSelected: {
+    borderColor: colors.foreground,
   },
   offerWallBadge: {
     backgroundColor: colors.primaryForeground,
@@ -194,6 +386,29 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 1,
   },
+  offerWallPlanNameFeatured: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.primaryForeground,
+    marginBottom: spacing[1],
+  },
+  offerWallPlanPriceFeatured: {
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    color: colors.primaryForeground,
+  },
+  offerWallPlanPerFeatured: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.normal,
+    color: colors.primaryForeground,
+    opacity: 0.75,
+  },
+  offerWallPlanSaveFeatured: {
+    fontSize: fontSize.xs,
+    color: colors.primaryForeground,
+    opacity: 0.85,
+    marginTop: spacing[1],
+  },
   offerWallPlansRow: {
     flexDirection: 'row',
     gap: spacing[3],
@@ -205,6 +420,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing[4],
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   offerWallPlanName: {
     fontSize: fontSize.lg,
@@ -236,11 +453,17 @@ const styles = StyleSheet.create({
     color: colors.foreground,
     marginBottom: spacing[3],
   },
+  offerWallFeaturesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
   offerWallFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[3],
-    paddingVertical: spacing[2],
+    gap: spacing[2],
+    paddingVertical: spacing[1],
+    paddingRight: spacing[2],
+    width: '50%',
   },
   offerWallCheck: {
     fontSize: fontSize.base,
@@ -248,7 +471,8 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
   },
   offerWallFeatureText: {
-    fontSize: fontSize.base,
+    flex: 1,
+    fontSize: fontSize.sm,
     color: colors.foreground,
   },
   offerWallCta: {
@@ -270,19 +494,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.mutedForeground,
     textAlign: 'center',
+    paddingHorizontal: spacing[4],
   },
-  offerWallNotNow: {
-    marginTop: spacing[4],
-    paddingVertical: spacing[2],
+  legalRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    marginTop: spacing[4],
   },
-  offerWallNotNowPressed: {
-    opacity: 0.7,
-  },
-  offerWallNotNowText: {
+  legalLink: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    color: colors.mutedForeground,
+    textDecorationLine: 'underline',
+  },
+  legalDot: {
+    fontSize: fontSize.sm,
     color: colors.mutedForeground,
   },
 })

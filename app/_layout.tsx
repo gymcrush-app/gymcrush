@@ -25,6 +25,7 @@ import {
 import { handleNotificationResponse, getNotificationData } from '@/lib/services/notificationResponseHandler';
 import { initMixpanel } from '@/config/mixpanel';
 import { identify, reset as resetAnalytics, track } from '@/lib/utils/analytics';
+import { RevenueCatProvider } from '@/lib/revenueCat/provider';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -91,7 +92,9 @@ export default Sentry.wrap(function RootLayout() {
           <StatusBar style="light" />
           <ZoomPortalProvider>
             <AuthStateChangeHandler>
-              <Slot />
+              <RevenueCatProvider>
+                <Slot />
+              </RevenueCatProvider>
             </AuthStateChangeHandler>
           </ZoomPortalProvider>
         </QueryClientProvider>
@@ -229,7 +232,10 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
       }
     } else {
       const onTabs = inTabsGroup;
-      if (!onTabs) {
+      // Cast: typedRoutes union regenerates on next `expo start`, after which
+      // 'paywall' will be a valid segment literal.
+      const onPaywall = (segments[0] as string) === 'paywall';
+      if (!onTabs && !onPaywall) {
         router.replace('/(tabs)/discover');
         return;
       }

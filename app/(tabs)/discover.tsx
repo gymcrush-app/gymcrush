@@ -9,6 +9,7 @@ import {
 } from "@/components/discover/DiscoveryPreferences"
 import { EmptyFeed } from "@/components/discover/EmptyFeed"
 import { MatchModal } from "@/components/discover/MatchModal"
+import { OfferWallModal } from "@/components/discover/OfferWallModal"
 import { SwipeDeck } from "@/components/discover/SwipeDeck"
 import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { Button } from "@/components/ui/Button"
@@ -19,6 +20,9 @@ import {
   MIN_DISTANCE_MILES,
   TOOLTIP_ADJUST_PREFERENCES,
 } from "@/constants"
+import { useIsPlus } from "@/hooks/useIsPlus"
+import { useRevenueCatStore } from "@/lib/stores/revenueCatStore"
+import Purchases from "react-native-purchases"
 import { useGymById, useGymsByIds } from "@/lib/api/gyms"
 import {
   useCheckMatch,
@@ -404,6 +408,10 @@ export default function DiscoverScreen() {
   const { data: currentProfile } = useProfile()
   const checkCrushAvailability = useAppStore((s) => s.checkCrushAvailability)
   const updateDiscoveryPreferencesMutation = useUpdateDiscoveryPreferences()
+  const isPlus = useIsPlus()
+  const currentOffering = useRevenueCatStore((s) => s.currentOffering)
+  const simulateDevPurchase = useRevenueCatStore((s) => s.simulateDevPurchase)
+  const [isOfferWallVisible, setIsOfferWallVisible] = useState(false)
 
   // Bottom sheet for preferences – now a modal so it doesn't compete with slider state
   const [isPreferencesModalVisible, setIsPreferencesModalVisible] =
@@ -580,7 +588,7 @@ export default function DiscoverScreen() {
     setFilters((prev) => ({ ...prev, workoutTypes: [] }))
   }, [])
 
-  const handleGymCrushModeChange = useCallback(async (open: boolean) => {
+  const applyGymCrushMode = useCallback(async (open: boolean) => {
     setGymCrushModeEnabled(open)
     setCurrentIndex(0)
     setSkippedIndex(0)
@@ -602,6 +610,14 @@ export default function DiscoverScreen() {
       console.error("Failed to persist gym crush mode:", e)
     }
   }, [])
+
+  const handleGymCrushModeChange = useCallback(async (open: boolean) => {
+    if (open && !isPlus) {
+      setIsOfferWallVisible(true)
+      return
+    }
+    await applyGymCrushMode(open)
+  }, [isPlus, applyGymCrushMode])
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -1629,6 +1645,71 @@ export default function DiscoverScreen() {
           onKeepSwiping={handleKeepSwiping}
         />
       )}
+
+      {/* Paywall (OfferWall) — opens when a gated feature is tapped */}
+      <OfferWallModal
+        visible={isOfferWallVisible}
+        onClose={() => setIsOfferWallVisible(false)}
+        offering={currentOffering}
+        onPurchase={async (pkg) => {
+          const isDevMock =
+            (currentOffering?.metadata as { dev_mock?: boolean } | undefined)?.dev_mock === true
+          if (isDevMock) {
+            simulateDevPurchase(pkg.product.identifier)
+            setIsOfferWallVisible(false)
+            await applyGymCrushMode(true)
+            return
+          }
+
+          // Real purchase: one attempt + one silent retry, then toast + dismiss.
+          const attempt = async () => {
+            const result = await Purchases.purchasePackage(pkg)
+            const active = result.customerInfo.entitlements.active.plus?.isActive === true
+            if (!active) throw new Error("purchase completed but entitlement not active")
+            return result
+          }
+
+          try {
+            await attempt()
+          } catch (err) {
+            const userCancelled =
+              (err as { userCancelled?: boolean }).userCancelled === true
+            if (userCancelled) return
+            console.warn("[OfferWall] purchase failed, retrying once", err)
+            try {
+              await attempt()
+            } catch (err2) {
+              console.warn("[OfferWall] purchase retry failed", err2)
+              toast({
+                title: "Purchase couldn't complete",
+                message: "Please try again in a moment.",
+                preset: "error",
+              })
+              setIsOfferWallVisible(false)
+              return
+            }
+          }
+
+          setIsOfferWallVisible(false)
+          await applyGymCrushMode(true)
+        }}
+        onRestore={async () => {
+          try {
+            const customerInfo = await Purchases.restorePurchases()
+            const active = customerInfo.entitlements.active.plus?.isActive === true
+            if (active) {
+              toast({ title: "Welcome back to GymCrush+" })
+              setIsOfferWallVisible(false)
+              await applyGymCrushMode(true)
+            } else {
+              toast({ title: "No active subscription found", preset: "error" })
+            }
+          } catch (err) {
+            console.warn("[OfferWall] restore failed", err)
+            toast({ title: "Couldn't restore purchases", preset: "error" })
+          }
+        }}
+      />
     </SafeAreaView>
   )
 }
