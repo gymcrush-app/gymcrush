@@ -11,6 +11,7 @@ import { EmptyFeed } from "@/components/discover/EmptyFeed"
 import { MatchModal } from "@/components/discover/MatchModal"
 import { OfferWallModal } from "@/components/discover/OfferWallModal"
 import { SwipeDeck } from "@/components/discover/SwipeDeck"
+import { DiscoverActionBar } from "@/components/discover/DiscoverActionBar"
 import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { Button } from "@/components/ui/Button"
 import { FilterRangeSliderContent } from "@/components/ui/FilterRangeSlider"
@@ -1580,6 +1581,13 @@ export default function DiscoverScreen() {
               <View style={styles.deckLoadingOverlay} pointerEvents="box-none">
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
+            ) : null}
+            {(hasMainFeed || hasSkippedToShow) && currentUser ? (
+              <DiscoverActionBar
+                onSkip={() => console.log("[ActionBar] Skip tapped")}
+                onCrush={() => console.log("[ActionBar] Crush tapped")}
+                onLike={() => console.log("[ActionBar] Like tapped")}
+              />
             ) : null}
           </View>
         )}
