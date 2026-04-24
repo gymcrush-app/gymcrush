@@ -13,10 +13,17 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [ ] Confirm no service-role keys are shipped to the client
 
 - [ ] **RevenueCat integration (IAP / subscriptions)**
-  - [ ] Add RevenueCat SDK + configure iOS app in RevenueCat
-  - [ ] Create IAP/subscription products in App Store Connect and sync to RevenueCat
-  - [ ] Define entitlements + offerings
-  - [ ] Implement purchase flow + restore purchases + entitlement gating
+  - [x] Add RevenueCat SDK + configure iOS app in RevenueCat
+  - [x] Create IAP/subscription products in App Store Connect and sync to RevenueCat
+  - [x] Define entitlements + offerings
+  - [x] Implement purchase flow + restore purchases + entitlement gating
+  - [ ] **BLOCKED ON CLIENT (ASC):** Offerings return `CONFIGURATION_ERROR` in preview build 0.1.0+11 (Sentry GYM-CRUSH-E, 2026-04-23). RC SDK initializes fine and logIn succeeds — the failure is ASC-side. Root cause per `https://rev.cat/why-are-offerings-empty`:
+    - [ ] **Client: sign Paid Applications Agreement** — ASC → Business → Agreements. Must show **Active**. Requires Account Holder login.
+    - [ ] **Client: complete Tax forms + Banking info** — agreement stays inactive without these, even if signed.
+    - [ ] Verify **In-App Purchase** capability is checked on the App ID (developer.apple.com → Identifiers → `com.gymcrushdating.app`).
+    - [ ] Verify each IAP product is in **"Ready to Submit"** state on ASC (not "Missing Metadata").
+    - [ ] Verify RC dashboard Bundle ID + product Store Identifiers exactly match ASC.
+  - [x] Paywall UI: fallback info panel when offerings fail ("Pending App Store Connect paid apps agreement and tax info") — shipped so preview builds are usable without subs.
 
 - [x] **Sentry production setup** — `config/sentry.ts`
   - [x] Initialize Sentry on app start (DSN via env)
@@ -33,9 +40,16 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [ ] Add `NSUserTrackingUsageDescription` only if implementing ATT/Meta SDK tracking
 
 - [x] **Auth UX decision: implement or remove OAuth buttons** — `app/(auth)/login.tsx`
-  - [x] Apple OAuth: native Sign in with Apple via `expo-apple-authentication` + Supabase `signInWithIdToken`
-  - [ ] Google OAuth: currently stubbed (“Coming soon”) — requires Google Cloud OAuth client setup
+  - [x] Apple OAuth: native Sign in with Apple via `expo-apple-authentication` + Supabase `signInWithIdToken` — verified working in preview build 0.1.0+11 (2026-04-23)
+  - [x] Google OAuth: native Google Sign-In via `@react-native-google-signin/google-signin` + Supabase `signInWithIdToken` — verified working on simulator (2026-04-23). Web + iOS client IDs both configured in Supabase → Auth → Providers → Google. Note: `ios/GymCrush/Info.plist` was manually patched with the Google reversed-client URL scheme; `npx expo prebuild --clean --platform ios` will regenerate it from the plugin config — EAS cloud builds re-prebuild fresh so they already pick this up automatically.
   - [x] If offering any third‑party sign-in, ensure Apple Sign‑In is offered too (App Store guideline)
+
+- [x] **Password reset flow (email/password accounts)** — `app/(auth)/reset-password.tsx`, `app/_layout.tsx`, `lib/stores/authStore.ts`
+  - [x] "Forgot password?" on login passes `redirectTo: gymcrush://reset-password` to Supabase
+  - [x] New `/reset-password` screen (password + confirm, min 8 chars, match check) calls `supabase.auth.updateUser`, then signs out and routes back to login
+  - [x] `_layout.tsx` listens for `PASSWORD_RECOVERY` auth event + `inPasswordRecovery` flag in authStore overrides the normal routing guard
+  - [x] Supabase → Authentication → URL Configuration → Redirect URLs includes `gymcrush://reset-password`
+  - [ ] **BLOCKED on Resend SMTP** (see item below) — email delivery fails with `535 Invalid username`. Code path is complete; once SMTP is valid the flow works end-to-end.
 
 - [x] **Account deletion (App Store requirement for account-based apps)**
   - [x] In-app delete account flow (two-step confirmation in ProfileView)
@@ -70,6 +84,19 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [ ] Signup/login throttling (Supabase built-in covers basics)
   - [ ] Messaging/likes throttling
 
+- [ ] **Supabase custom SMTP (Resend) — BLOCKED ON CLIENT**
+  - Current state: password reset emails fail with `535 Invalid username` (SMTP auth rejected). Custom SMTP is partially/incorrectly configured in Supabase. Built-in Supabase email is rate-limited (~3/hr) and sends from `noreply@mail.app.supabase.io` — not acceptable for production.
+  - [ ] Verify domain in Resend dashboard (DNS records: SPF, DKIM, DMARC) — e.g. `mail.gymcrush.com` or `gymcrushdating.app`
+  - [ ] Client: Supabase Dashboard → Authentication → Emails → SMTP Settings → Enable Custom SMTP with:
+    - Host: `smtp.resend.com`
+    - Port: `465` (TLS) or `587` (STARTTLS)
+    - Username: `resend`
+    - Password: `RESEND_API_KEY` value from `.env` (starts with `re_`)
+    - Sender email: address at the verified Resend domain
+    - Sender name: `GymCrush`
+  - [ ] Test: trigger password reset → email should arrive from branded sender and deep-link back into the app
+  - [ ] Also review + brand these Supabase email templates: Confirm signup, Magic link, Invite, Reset password, Change email
+
 ---
 
 ## Analytics events (minimum viable)
@@ -82,7 +109,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [x] `discover_swipe_like`, `discover_swipe_pass`
 - [x] `match_created`
 - [x] `message_sent`
-- [ ] `paywall_viewed`, `purchase_started`, `purchase_success`, `purchase_failed`, `restore_started`, `restore_success`
+- [x] `paywall_viewed`, `purchase_started`, `purchase_success`, `purchase_failed`, `restore_started`, `restore_success`
 - [x] `report_submitted`, `block_user`
 
 ---
@@ -103,7 +130,10 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [x] **Change background on prompt Q/A**
   - Note: discover card already has a `card` background so prompt boxes blend in there; on profile views the page background is black so the `card`-colored prompt boxes are distinct. May revisit discover card prompt styling later.
 - [x] **Add GC logo to slider**
-- [ ] **Add flick-to-swipe-away UX**
+- [ ] ~~**Add flick-to-swipe-away UX**~~ — obsoleted by Hinge-style FAB redesign (swipe gestures removed in favor of tap-to-act action bar)
+- [ ] **Haptics on FAB button tap (Discover)** — trigger light impact on X/Gem, medium impact on Heart when tapped in `DiscoverActionBar`. Use `expo-haptics`.
+- [ ] **Button-tap feedback animation (Discover FAB)** — spring scale + glow ring on Heart/Gem tap for the "endorphin hit" moment. Coordinate timing with exit transition.
+- [ ] **Keyboard-driven actions for accessibility (Discover)** — wire hardware keyboard shortcuts (e.g. ←/→/↑) to X/Heart/Gem for external-keyboard users. Not currently an app-wide pattern; deferred until broader a11y pass.
 
 ---
 
@@ -112,8 +142,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [ ] **bracelet_status** — `components/profile/ProfileView.tsx`
   - Add `bracelet_status` field to database and persist (currently local state only).
 
-- [ ] **CrushSignalButton** — `components/discover/CrushSignalButton.tsx`
-  - Wire onPress, disabled state, and cooldown timer (appStore.checkCrushAvailability, recordCrushSignal).
+- [x] ~~**CrushSignalButton**~~ — superseded by Gem FAB in `DiscoverActionBar` (Hinge-style redesign). `CrushSignalButton.tsx` is scheduled for deletion.
 
 - [ ] **ProfileCard** — `components/profile/ProfileCard.tsx`
   - Still a stub (renders `display_name` only). Implement only if you actually need this component; discover uses **SwipeDeck**.
