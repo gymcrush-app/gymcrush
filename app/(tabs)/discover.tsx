@@ -12,6 +12,7 @@ import { MatchModal } from "@/components/discover/MatchModal"
 import { OfferWallModal } from "@/components/discover/OfferWallModal"
 import { ProfileView, type ProfileViewHandle } from "@/components/discover/ProfileView"
 import { DiscoverActionBar } from "@/components/discover/DiscoverActionBar"
+import { MessageBottomSheet } from "@/components/discover/ProfileView/MessageBottomSheet"
 import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { Button } from "@/components/ui/Button"
 import { FilterRangeSliderContent } from "@/components/ui/FilterRangeSlider"
@@ -27,11 +28,11 @@ import Purchases from "react-native-purchases"
 import { useGymById, useGymsByIds } from "@/lib/api/gyms"
 import {
   useCheckMatch,
-  useCrushSignal,
   useLike,
   useLikedProfileIds,
   useMatches,
 } from "@/lib/api/matches"
+import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
 import {
   useDiscoverProfiles,
   useNearbyProfiles,
@@ -62,6 +63,7 @@ import type {
 import type { FitnessDiscipline } from "@/types/onboarding"
 import BottomSheet, {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -388,7 +390,6 @@ export default function DiscoverScreen() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { data: currentProfile } = useProfile()
-  const checkCrushAvailability = useAppStore((s) => s.checkCrushAvailability)
   const updateDiscoveryPreferencesMutation = useUpdateDiscoveryPreferences()
   const isPlus = useIsPlus()
   const currentOffering = useRevenueCatStore((s) => s.currentOffering)
@@ -630,6 +631,17 @@ export default function DiscoverScreen() {
   const deckScrollYShared = useSharedValue(0)
   const profileViewRef = useRef<ProfileViewHandle>(null)
   const [isTransitioning, setIsTransitioning] = useState(false)
+
+  // Gym Gem message sheet state — tapping the Gem FAB opens a bottom sheet
+  // to attach a message, mirroring the Gym Gems screen UX.
+  const gemSheetRef = useRef<BottomSheetModal>(null)
+  const [gemTargetProfileId, setGemTargetProfileId] = useState<string | null>(null)
+  const [gemMessageText, setGemMessageText] = useState("")
+  const [gemSheetIndex, setGemSheetIndex] = useState(-1)
+  const gemSheetSnapPoints = useMemo(() => ["50%", "90%"], [])
+  const { hasGemToday } = useDailyGem()
+  const giveGemMutation = useGiveGymGem()
+  const [isSendingGem, setIsSendingGem] = useState(false)
 
   // Load preferences, swiped, and skipped profiles on mount
   useEffect(() => {
@@ -940,7 +952,6 @@ export default function DiscoverScreen() {
 
   // Mutations
   const likeMutation = useLike()
-  const crushMutation = useCrushSignal()
   const reportAndBlockMutation = useReportAndBlock()
   // Only check for match when actively checking and have valid user IDs
   const matchCheckUserId =
@@ -965,21 +976,10 @@ export default function DiscoverScreen() {
         if (action === "like") {
           track("discover_swipe_like")
           await likeMutation.mutateAsync({ toUserId: profileId })
-        } else if (action === "crush") {
-          if (!checkCrushAvailability()) {
-            toast({
-              preset: "error",
-              title: "Crush signal unavailable",
-              message:
-                "You can only send one crush signal per day. Try again tomorrow!",
-            })
-            return
-          }
-          await crushMutation.mutateAsync({ toUserId: profileId })
         }
 
-        // Check for match after like/crush (before moving to next profile)
-        if (action === "like" || action === "crush") {
+        // Check for match after like (before moving to next profile)
+        if (action === "like") {
           // Start match check — don't add to swipedProfiles yet
           dispatchMatchCheck({
             type: "start_check",
@@ -1042,8 +1042,6 @@ export default function DiscoverScreen() {
       skippedProfiles,
       isSkippedMode,
       likeMutation,
-      crushMutation,
-      checkCrushAvailability,
       currentProfile?.id,
       queryClient,
     ],
@@ -1294,6 +1292,99 @@ export default function DiscoverScreen() {
       }
     },
     [isTransitioning, currentUser, handleSwipe],
+  )
+
+  // --- Gym Gem (formerly crush signal) — tap opens message sheet ---
+  const handleOpenGemSheet = useCallback(() => {
+    if (!currentUser || isTransitioning) return
+    if (!hasGemToday) {
+      toast({
+        preset: "error",
+        title: "No gem left today",
+        message: "You can only send one gem per day. Try again tomorrow!",
+      })
+      return
+    }
+    setGemTargetProfileId(currentUser.id)
+    gemSheetRef.current?.present()
+  }, [currentUser, isTransitioning, hasGemToday])
+
+  const handleCloseGemSheet = useCallback(() => {
+    setGemTargetProfileId(null)
+    setGemMessageText("")
+    gemSheetRef.current?.dismiss()
+  }, [])
+
+  const handleGemSheetChange = useCallback((index: number) => {
+    setGemSheetIndex(index)
+    if (index === -1) {
+      setGemTargetProfileId(null)
+      setGemMessageText("")
+    }
+  }, [])
+
+  const handleSendGemMessage = useCallback(
+    async (content: string) => {
+      if (!content.trim() || !gemTargetProfileId || !currentUser) return
+      const profileIdAtSend = gemTargetProfileId
+      setIsSendingGem(true)
+      try {
+        const result = await giveGemMutation.mutateAsync({
+          toUserId: profileIdAtSend,
+          message: content.trim(),
+        })
+        if (!result.ok) {
+          toast({
+            preset: "error",
+            title:
+              result.error === "no_gem_available"
+                ? "No gem left today"
+                : (result.error ?? "Failed to send gem"),
+          })
+          return
+        }
+        handleCloseGemSheet()
+        // Animate out current profile, then advance index + persist.
+        if (currentUser.id === profileIdAtSend) {
+          setIsTransitioning(true)
+          const finish = () => {
+            const updatedSwiped = [...swipedProfiles, profileIdAtSend]
+            setSwipedProfiles(updatedSwiped)
+            saveSwipedProfile(profileIdAtSend, updatedSwiped)
+            if (isSkippedMode) {
+              setSkippedProfiles(skippedProfiles.filter((id) => id !== profileIdAtSend))
+              removeSkippedProfile(profileIdAtSend, skippedProfiles)
+              setSkippedIndex((prev) => prev + 1)
+            } else {
+              setCurrentIndex((prev) => prev + 1)
+            }
+            setTimeout(() => setIsTransitioning(false), 0)
+          }
+          if (profileViewRef.current) {
+            profileViewRef.current.runExitAnimation(finish)
+          } else {
+            finish()
+          }
+        }
+      } catch (err: any) {
+        toast({
+          preset: "error",
+          title: "Failed to send gem",
+          message: err?.message || "Please try again.",
+        })
+      } finally {
+        setIsSendingGem(false)
+      }
+    },
+    [
+      gemTargetProfileId,
+      currentUser,
+      giveGemMutation,
+      handleCloseGemSheet,
+      swipedProfiles,
+      skippedProfiles,
+      isSkippedMode,
+    ],
   )
 
   const handleStartOver = useCallback(async () => {
@@ -1550,10 +1641,10 @@ export default function DiscoverScreen() {
             {(hasMainFeed || hasSkippedToShow) && currentUser ? (
               <DiscoverActionBar
                 onSkip={() => runTransitionThenSwipe("pass")}
-                onCrush={() => runTransitionThenSwipe("crush")}
+                onCrush={handleOpenGemSheet}
                 onLike={() => runTransitionThenSwipe("like")}
                 scrollY={deckScrollYShared}
-                disabled={isTransitioning}
+                disabled={isTransitioning || isSendingGem}
               />
             ) : null}
           </View>
@@ -1609,6 +1700,23 @@ export default function DiscoverScreen() {
           </View>
         </BottomSheetScrollView>
       </BottomSheet>
+
+      {/* Gym Gem message sheet — opens when Gem FAB is tapped */}
+      <MessageBottomSheet
+        bottomSheetRef={gemSheetRef}
+        selectedPrompt={null}
+        isImageChat={true}
+        messageText={gemMessageText}
+        profileName={currentUser?.display_name ?? ""}
+        snapPoints={gemSheetSnapPoints}
+        bottomSheetIndex={gemSheetIndex}
+        onMessageTextChange={setGemMessageText}
+        onClose={handleCloseGemSheet}
+        onSend={handleSendGemMessage}
+        onChange={handleGemSheetChange}
+        headerText={currentUser ? `Send ${currentUser.display_name} a Gym Gem ✦` : undefined}
+        sendLabel="Send Gem"
+      />
 
       {/* Match Modal */}
       {currentProfile && matchedUser && (
