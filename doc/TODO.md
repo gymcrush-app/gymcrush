@@ -134,6 +134,8 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [ ] **Haptics on FAB button tap (Discover)** — trigger light impact on X/Gem, medium impact on Heart when tapped in `DiscoverActionBar`. Use `expo-haptics`.
 - [ ] **Button-tap feedback animation (Discover FAB)** — spring scale + glow ring on Heart/Gem tap for the "endorphin hit" moment. Coordinate timing with exit transition.
 - [ ] **Keyboard-driven actions for accessibility (Discover)** — wire hardware keyboard shortcuts (e.g. ←/→/↑) to X/Heart/Gem for external-keyboard users. Not currently an app-wide pattern; deferred until broader a11y pass.
+- [ ] **Confirm with client: does a Gym Gem count as a like?** — Currently the Discover Gem FAB sends a gym gem via `useGiveGymGem` with no match-check. If gems should also match people (like a "super-like"), we'd need to either (a) also insert a like row server-side when a gem is given, or (b) trigger `useCheckMatch` on gem send. If client confirms gems should trigger matches, wire a MatchModal path through `handleSendGemMessage` in `app/(tabs)/discover.tsx`.
+- [ ] **Delete unused `useCrushSignal`** — `lib/api/matches.ts:50`. Was used by the old Discover Gem FAB; replaced by `useGiveGymGem` after the FAB redesign. Confirm no remaining callers (`grep -r useCrushSignal`) and delete the hook and its types.
 
 ---
 
@@ -142,10 +144,10 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [ ] **bracelet_status** — `components/profile/ProfileView.tsx`
   - Add `bracelet_status` field to database and persist (currently local state only).
 
-- [x] ~~**CrushSignalButton**~~ — superseded by Gem FAB in `DiscoverActionBar` (Hinge-style redesign). `CrushSignalButton.tsx` is scheduled for deletion.
+- [x] ~~**CrushSignalButton**~~ — superseded by Gem FAB in `DiscoverActionBar`, deleted.
 
 - [ ] **ProfileCard** — `components/profile/ProfileCard.tsx`
-  - Still a stub (renders `display_name` only). Implement only if you actually need this component; discover uses **SwipeDeck**.
+  - Still a stub (renders `display_name` only). Implement only if you actually need this component; discover uses **ProfileView** (`components/discover/ProfileView`).
 
 ---
 
