@@ -58,7 +58,7 @@ import Tooltip from "react-native-walkthrough-tooltip"
 import { MessageBottomSheet } from "./MessageBottomSheet"
 import { ProfileDetailSheet } from "./ProfileDetailSheet"
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window")
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 /** RNGH ScrollView wrapped with Reanimated for gesture coordination */
 const AnimatedGHScrollView = Animated.createAnimatedComponent(GHScrollView)
@@ -150,18 +150,17 @@ export const SwipeDeck = React.forwardRef<SwipeDeckHandle, SwipeDeckProps>(
 
   React.useImperativeHandle(ref, () => ({
     runExitAnimation: (onComplete: () => void) => {
+      // Card flies fully off the top of the screen. Full opacity held so
+      // the user sees the card leave rather than dissolve. Easing.in gives
+      // a "gathers speed" feel (accelerates toward the exit).
       translateY.value = withTiming(
-        -40,
-        { duration: 220, easing: Easing.out(Easing.cubic) },
+        -SCREEN_HEIGHT,
+        { duration: 320, easing: Easing.in(Easing.cubic) },
         (finished) => {
           "worklet"
           if (finished) runOnJS(onComplete)()
         },
       )
-      opacity.value = withTiming(0, {
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-      })
     },
   }))
 
@@ -306,15 +305,15 @@ export const SwipeDeck = React.forwardRef<SwipeDeckHandle, SwipeDeckProps>(
       return
     }
 
-    // Real profile change: start below, animate up.
-    translateY.value = 40
+    // Real profile change: new card flies up from below and fades in.
+    translateY.value = 120
     opacity.value = 0
     translateY.value = withTiming(0, {
-      duration: 220,
+      duration: 280,
       easing: Easing.out(Easing.cubic),
     })
     opacity.value = withTiming(1, {
-      duration: 220,
+      duration: 280,
       easing: Easing.out(Easing.cubic),
     })
 
