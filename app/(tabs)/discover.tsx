@@ -1016,25 +1016,23 @@ export default function DiscoverScreen() {
             profile: currentUser,
           })
 
-          // Invalidate and refetch the match check query after a short delay
-          // to allow the database trigger to complete creating the match
+          // Match-check runs immediately post-mutation. likeMutation.mutateAsync
+          // awaits the server response which includes the trigger-created match
+          // row (if any). No defensive delay needed — if tests surface a race,
+          // restore a short delay here.
           if (currentProfile?.id) {
-            setTimeout(() => {
-              // Invalidate both possible query key orders
-              queryClient.invalidateQueries({
-                queryKey: ["match", currentProfile.id, profileId],
-              })
-              queryClient.invalidateQueries({
-                queryKey: ["match", profileId, currentProfile.id],
-              })
-              // Refetch the match check query
-              queryClient.refetchQueries({
-                queryKey: ["match", currentProfile.id, profileId],
-              })
-              queryClient.refetchQueries({
-                queryKey: ["match", profileId, currentProfile.id],
-              })
-            }, 200) // 200ms delay to allow database trigger to complete
+            queryClient.invalidateQueries({
+              queryKey: ["match", currentProfile.id, profileId],
+            })
+            queryClient.invalidateQueries({
+              queryKey: ["match", profileId, currentProfile.id],
+            })
+            queryClient.refetchQueries({
+              queryKey: ["match", currentProfile.id, profileId],
+            })
+            queryClient.refetchQueries({
+              queryKey: ["match", profileId, currentProfile.id],
+            })
           }
 
           // Don't advance index yet - wait to see if there's a match
