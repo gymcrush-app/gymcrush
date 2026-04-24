@@ -39,7 +39,7 @@ export function DiscoverActionBar({
           accessibilityLabel="Skip"
         >
           <Image
-            source={require("../../assets/images/X Button.png")}
+            source={require("../../assets/images/x-button.png")}
             style={styles.xIcon}
             resizeMode="contain"
           />
@@ -55,7 +55,7 @@ export function DiscoverActionBar({
           accessibilityLabel="Crush signal"
         >
           <Image
-            source={require("../../assets/images/Gem Button.png")}
+            source={require("../../assets/images/gem-button.png")}
             style={styles.gemIcon}
             resizeMode="contain"
           />
@@ -71,7 +71,7 @@ export function DiscoverActionBar({
           accessibilityLabel="Like"
         >
           <Image
-            source={require("../../assets/images/Heart Button.png")}
+            source={require("../../assets/images/heart-button.png")}
             style={styles.heartIcon}
             resizeMode="contain"
           />
