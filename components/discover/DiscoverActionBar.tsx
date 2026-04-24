@@ -2,12 +2,15 @@ import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
 import React from "react"
 import { Image, Pressable, StyleSheet, View } from "react-native"
+import type { SharedValue } from "react-native-reanimated"
 
 interface DiscoverActionBarProps {
   onSkip: () => void
   onCrush: () => void
   onLike: () => void
   disabled?: boolean
+  /** Shared scroll offset; reserved for scroll-driven animation (Task 8). */
+  scrollY?: SharedValue<number>
 }
 
 export function DiscoverActionBar({
@@ -15,6 +18,7 @@ export function DiscoverActionBar({
   onCrush,
   onLike,
   disabled = false,
+  scrollY: _scrollY,
 }: DiscoverActionBarProps) {
   return (
     <View

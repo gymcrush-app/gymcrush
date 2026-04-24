@@ -85,6 +85,7 @@ import {
   Text,
   View,
 } from "react-native"
+import { useSharedValue } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 import Tooltip from "react-native-walkthrough-tooltip"
 
@@ -626,6 +627,7 @@ export default function DiscoverScreen() {
   const [tooltipStep, setTooltipStep] = useState<number | null>(null)
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [deckScrollY, setDeckScrollY] = useState(0)
+  const deckScrollYShared = useSharedValue(0)
 
   // Load preferences, swiped, and skipped profiles on mount
   useEffect(() => {
@@ -1498,6 +1500,7 @@ export default function DiscoverScreen() {
                   onScrollStateChange={handleDeckScrollStateChange}
                   onReportAndBlock={handleReportAndBlock}
                   distances={deckDistances}
+                  scrollY={deckScrollYShared}
                 />
               </View>
             ) : !showDeckLoading ? (
@@ -1526,6 +1529,7 @@ export default function DiscoverScreen() {
                 onSkip={() => currentUser && handleSwipe("pass")}
                 onCrush={() => currentUser && handleSwipe("crush")}
                 onLike={() => currentUser && handleSwipe("like")}
+                scrollY={deckScrollYShared}
               />
             ) : null}
           </View>

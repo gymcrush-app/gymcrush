@@ -45,6 +45,7 @@ import Animated, {
   cancelAnimation,
   measure,
   runOnJS,
+  type SharedValue,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -73,6 +74,8 @@ interface SwipeDeckProps {
   onScrollStateChange?: (state: { scrollY: number; isAtTop: boolean }) => void
   onReportAndBlock?: (profileId: string) => void
   distances?: Map<string, number | null>
+  /** Optional shared value the parent can read to drive scroll-linked UI. */
+  scrollY?: SharedValue<number>
 }
 
 export function SwipeDeck({
@@ -84,6 +87,7 @@ export function SwipeDeck({
   onScrollStateChange,
   onReportAndBlock,
   distances,
+  scrollY: externalScrollY,
 }: SwipeDeckProps) {
   const topProfile = profiles[0]
   const { data: profileGym } = useGymById(topProfile?.home_gym_id || "")
@@ -163,7 +167,11 @@ export function SwipeDeck({
         0,
         event.contentSize.height - event.layoutMeasurement.height,
       )
-      scrollY.value = Math.max(0, Math.min(y, maxScroll))
+      const clamped = Math.max(0, Math.min(y, maxScroll))
+      scrollY.value = clamped
+      if (externalScrollY) {
+        externalScrollY.value = clamped
+      }
       runOnJS(notifyScrollState)(y)
     },
   })
@@ -249,6 +257,9 @@ export function SwipeDeck({
     translateY.value = 0
     opacity.value = 1
     scrollY.value = 0
+    if (externalScrollY) {
+      externalScrollY.value = 0
+    }
     scrollRef.current?.scrollTo?.({ y: 0, animated: false })
     messageSheetRef.current?.dismiss()
     detailSheetRef.current?.dismiss()
