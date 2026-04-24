@@ -1,12 +1,11 @@
 /**
- * Matches API — TanStack Query hooks for likes, crush signals, and matches.
- * useLike, useCrushSignal, useMatches, useCheckMatch.
+ * Matches API — TanStack Query hooks for likes and matches.
+ * useLike, useMatches, useCheckMatch.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
-import { useAppStore } from '../stores/appStore';
 import type { Match, MatchWithProfile } from '@/types';
 
 export function useLike() {
@@ -30,51 +29,6 @@ export function useLike() {
         return { from_user_id: user.id, to_user_id: toUserId, toUserId };
       }
       if (error) throw error;
-      return { ...data, toUserId };
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['matches'] });
-      queryClient.invalidateQueries({ queryKey: ['likedProfileIds', user?.id] });
-      if (data.from_user_id && data.toUserId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['match', data.from_user_id, data.toUserId] 
-        });
-        queryClient.invalidateQueries({ 
-          queryKey: ['match', data.toUserId, data.from_user_id] 
-        });
-      }
-    },
-  });
-}
-
-export function useCrushSignal() {
-  const user = useAuthStore((s) => s.user);
-  const checkCrushAvailability = useAppStore((s) => s.checkCrushAvailability);
-  const recordCrushSignal = useAppStore((s) => s.recordCrushSignal);
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ toUserId }: { toUserId: string }) => {
-      if (!user) throw new Error('Not authenticated');
-      if (!checkCrushAvailability()) {
-        throw new Error('Crush signal cooldown active. Try again tomorrow.');
-      }
-      const { data, error } = await supabase
-        .from('likes')
-        .insert({
-          from_user_id: user.id,
-          to_user_id: toUserId,
-          is_crush_signal: true,
-        })
-        .select()
-        .single();
-      // Already sent crush (unique constraint) — treat as success so we still run match check
-      if (error?.code === '23505') {
-        recordCrushSignal();
-        return { from_user_id: user.id, to_user_id: toUserId, toUserId };
-      }
-      if (error) throw error;
-      recordCrushSignal();
       return { ...data, toUserId };
     },
     onSuccess: (data) => {

@@ -135,7 +135,6 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [ ] **Button-tap feedback animation (Discover FAB)** — spring scale + glow ring on Heart/Gem tap for the "endorphin hit" moment. Coordinate timing with exit transition.
 - [ ] **Keyboard-driven actions for accessibility (Discover)** — wire hardware keyboard shortcuts (e.g. ←/→/↑) to X/Heart/Gem for external-keyboard users. Not currently an app-wide pattern; deferred until broader a11y pass.
 - [ ] **Confirm with client: does a Gym Gem count as a like?** — Currently the Discover Gem FAB sends a gym gem via `useGiveGymGem` with no match-check. If gems should also match people (like a "super-like"), we'd need to either (a) also insert a like row server-side when a gem is given, or (b) trigger `useCheckMatch` on gem send. If client confirms gems should trigger matches, wire a MatchModal path through `handleSendGemMessage` in `app/(tabs)/discover.tsx`.
-- [ ] **Delete unused `useCrushSignal`** — `lib/api/matches.ts:50`. Was used by the old Discover Gem FAB; replaced by `useGiveGymGem` after the FAB redesign. Confirm no remaining callers (`grep -r useCrushSignal`) and delete the hook and its types.
 
 ---
 
