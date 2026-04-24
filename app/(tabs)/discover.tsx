@@ -92,8 +92,6 @@ const STORAGE_KEY_PREFERENCES = APP.STORAGE_KEYS.DISCOVERY_PREFERENCES
 const STORAGE_KEY_SWIPED = APP.STORAGE_KEYS.SWIPED_PROFILES
 const STORAGE_KEY_SKIPPED = APP.STORAGE_KEYS.SKIPPED_PROFILES
 const STORAGE_KEY_TOOLTIPS_SEEN = APP.STORAGE_KEYS.DISCOVER_TOOLTIPS_SEEN
-const STORAGE_KEY_SWIPE_DOWN_PASS_DONE =
-  APP.STORAGE_KEYS.DISCOVER_SWIPE_DOWN_PASS_DONE
 
 const MIN_DISTANCE_KM = Math.round(milesToKm(MIN_DISTANCE_MILES))
 const MAX_DISTANCE_KM = 160 // 100 miles
@@ -203,24 +201,6 @@ const setTooltipsSeen = async (): Promise<void> => {
     await AsyncStorage.setItem(STORAGE_KEY_TOOLTIPS_SEEN, "true")
   } catch (error) {
     console.error("Failed to save tooltips seen:", error)
-  }
-}
-
-const getSwipeDownPassDone = async (): Promise<boolean> => {
-  try {
-    const stored = await AsyncStorage.getItem(STORAGE_KEY_SWIPE_DOWN_PASS_DONE)
-    return stored === "true"
-  } catch (error) {
-    console.error("Failed to load swipe-down pass done:", error)
-    return false
-  }
-}
-
-const setSwipeDownPassDone = async (): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEY_SWIPE_DOWN_PASS_DONE, "true")
-  } catch (error) {
-    console.error("Failed to save swipe-down pass done:", error)
   }
 }
 
@@ -641,11 +621,10 @@ export default function DiscoverScreen() {
     matchCheckReducer,
     MATCH_CHECK_INITIAL,
   )
-  // Tooltip walkthrough: null = inactive, 0-4 = sequential steps
-  // 0=filter, 1=photoSwipe, 2=imageComment, 3=swipeDown, 4=swipeUp
+  // Tooltip walkthrough: null = inactive, 0-2 = sequential steps
+  // 0=filter, 1=photoSwipe, 2=imageComment
   const [tooltipStep, setTooltipStep] = useState<number | null>(null)
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [swipeDownPassDone, setSwipeDownPassDoneState] = useState(false)
   const [deckScrollY, setDeckScrollY] = useState(0)
 
   // Load preferences, swiped, and skipped profiles on mount
@@ -662,18 +641,6 @@ export default function DiscoverScreen() {
       setSkippedProfiles(loadedSkipped)
     }
     loadData()
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    const run = async () => {
-      const done = await getSwipeDownPassDone()
-      if (!cancelled) setSwipeDownPassDoneState(done)
-    }
-    run()
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   // Re-load preferences from AsyncStorage when screen gains focus (e.g. after changing gender in Settings)
@@ -750,7 +717,7 @@ export default function DiscoverScreen() {
     setTooltipStep((prev) => {
       if (prev === null) return null
       const next = prev + 1
-      if (next >= 5) {
+      if (next >= 3) {
         setTooltipsSeen()
         return null
       }
@@ -1039,10 +1006,6 @@ export default function DiscoverScreen() {
           // If no match, we'll advance in handleKeepSwiping
         } else {
           track("discover_swipe_pass")
-          if (!swipeDownPassDone) {
-            setSwipeDownPassDoneState(true)
-            setSwipeDownPassDone()
-          }
           // For pass actions, save to swiped and to skipped list, then move to next profile
           const updatedSwiped = [...swipedProfiles, profileId]
           setSwipedProfiles(updatedSwiped)
@@ -1079,7 +1042,6 @@ export default function DiscoverScreen() {
       checkCrushAvailability,
       currentProfile?.id,
       queryClient,
-      swipeDownPassDone,
     ],
   )
 
