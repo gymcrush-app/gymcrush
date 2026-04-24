@@ -101,11 +101,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 24,
-    paddingHorizontal: 24,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 24,
+    gap: 12,
   },
   button: {
     alignItems: "center",
