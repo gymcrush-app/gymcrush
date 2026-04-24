@@ -1584,9 +1584,9 @@ export default function DiscoverScreen() {
             ) : null}
             {(hasMainFeed || hasSkippedToShow) && currentUser ? (
               <DiscoverActionBar
-                onSkip={() => console.log("[ActionBar] Skip tapped")}
-                onCrush={() => console.log("[ActionBar] Crush tapped")}
-                onLike={() => console.log("[ActionBar] Like tapped")}
+                onSkip={() => currentUser && handleSwipe("pass")}
+                onCrush={() => currentUser && handleSwipe("crush")}
+                onLike={() => currentUser && handleSwipe("like")}
               />
             ) : null}
           </View>
