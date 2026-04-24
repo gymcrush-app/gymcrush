@@ -10,7 +10,7 @@ import {
 import { EmptyFeed } from "@/components/discover/EmptyFeed"
 import { MatchModal } from "@/components/discover/MatchModal"
 import { OfferWallModal } from "@/components/discover/OfferWallModal"
-import { SwipeDeck, type SwipeDeckHandle } from "@/components/discover/SwipeDeck"
+import { ProfileView, type ProfileViewHandle } from "@/components/discover/ProfileView"
 import { DiscoverActionBar } from "@/components/discover/DiscoverActionBar"
 import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { Button } from "@/components/ui/Button"
@@ -628,7 +628,7 @@ export default function DiscoverScreen() {
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [deckScrollY, setDeckScrollY] = useState(0)
   const deckScrollYShared = useSharedValue(0)
-  const swipeDeckRef = useRef<SwipeDeckHandle>(null)
+  const profileViewRef = useRef<ProfileViewHandle>(null)
   const [isTransitioning, setIsTransitioning] = useState(false)
 
   // Load preferences, swiped, and skipped profiles on mount
@@ -1124,7 +1124,7 @@ export default function DiscoverScreen() {
   }, [filteredUsers.length])
 
   // After match check resolves: show modal (match) or advance (no-match).
-  // Previously the SwipeDeck drove this via its exit-animation callback; now
+  // Previously the ProfileView drove this via its exit-animation callback; now
   // that the action bar is tap-driven we handle it directly here.
   useEffect(() => {
     if (matchCheck.status !== "result") return
@@ -1282,13 +1282,13 @@ export default function DiscoverScreen() {
       setIsTransitioning(true)
       const finish = () => {
         handleSwipe(action)
-        // Entry animation runs via SwipeDeck's profile-change effect; clear
+        // Entry animation runs via ProfileView's profile-change effect; clear
         // the guard on the next tick so re-tap is blocked until after the
         // new profile has had a chance to mount.
         setTimeout(() => setIsTransitioning(false), 0)
       }
-      if (swipeDeckRef.current) {
-        swipeDeckRef.current.runExitAnimation(finish)
+      if (profileViewRef.current) {
+        profileViewRef.current.runExitAnimation(finish)
       } else {
         finish()
       }
@@ -1513,8 +1513,8 @@ export default function DiscoverScreen() {
                     </Text>
                   </View>
                 )}
-                <SwipeDeck
-                  ref={swipeDeckRef}
+                <ProfileView
+                  ref={profileViewRef}
                   profiles={deckProfiles}
                   showPhotoSwipeTooltip={tooltipStep === 1}
                   showImageCommentTooltip={tooltipStep === 2}

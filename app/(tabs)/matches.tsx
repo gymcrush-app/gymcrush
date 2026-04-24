@@ -1,5 +1,5 @@
 import { GymGemCard } from "@/components/gymGems/GymGemCard"
-import { MessageBottomSheet } from "@/components/discover/SwipeDeck/MessageBottomSheet"
+import { MessageBottomSheet } from "@/components/discover/ProfileView/MessageBottomSheet"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Text } from "@/components/ui/Text"

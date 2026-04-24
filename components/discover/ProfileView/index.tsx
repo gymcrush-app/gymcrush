@@ -67,7 +67,7 @@ const ZOOM_SPRING = { damping: 40, stiffness: 300 }
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
 
-interface SwipeDeckProps {
+interface ProfileViewProps {
   profiles: Profile[]
   showPhotoSwipeTooltip?: boolean
   showImageCommentTooltip?: boolean
@@ -80,13 +80,13 @@ interface SwipeDeckProps {
   scrollY?: SharedValue<number>
 }
 
-export interface SwipeDeckHandle {
+export interface ProfileViewHandle {
   /** Play the exit animation (fade + slide up). onComplete fires after. */
   runExitAnimation: (onComplete: () => void) => void
 }
 
-export const SwipeDeck = React.forwardRef<SwipeDeckHandle, SwipeDeckProps>(
-  function SwipeDeck(
+export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>(
+  function ProfileView(
     {
       profiles,
       showPhotoSwipeTooltip = false,
