@@ -43,6 +43,7 @@ import {
 } from "react-native-gesture-handler"
 import Animated, {
   cancelAnimation,
+  Easing,
   measure,
   runOnJS,
   type SharedValue,
@@ -51,6 +52,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated"
 import Tooltip from "react-native-walkthrough-tooltip"
 import { MessageBottomSheet } from "./MessageBottomSheet"
@@ -78,17 +80,26 @@ interface SwipeDeckProps {
   scrollY?: SharedValue<number>
 }
 
-export function SwipeDeck({
-  profiles,
-  showPhotoSwipeTooltip = false,
-  showImageCommentTooltip = false,
-  onPhotoSwipeTooltipClose,
-  onImageCommentTooltipClose,
-  onScrollStateChange,
-  onReportAndBlock,
-  distances,
-  scrollY: externalScrollY,
-}: SwipeDeckProps) {
+export interface SwipeDeckHandle {
+  /** Play the exit animation (fade + slide up). onComplete fires after. */
+  runExitAnimation: (onComplete: () => void) => void
+}
+
+export const SwipeDeck = React.forwardRef<SwipeDeckHandle, SwipeDeckProps>(
+  function SwipeDeck(
+    {
+      profiles,
+      showPhotoSwipeTooltip = false,
+      showImageCommentTooltip = false,
+      onPhotoSwipeTooltipClose,
+      onImageCommentTooltipClose,
+      onScrollStateChange,
+      onReportAndBlock,
+      distances,
+      scrollY: externalScrollY,
+    },
+    ref,
+  ) {
   const topProfile = profiles[0]
   const { data: profileGym } = useGymById(topProfile?.home_gym_id || "")
   const { data: profilePrompts } = useProfilePrompts(topProfile?.id)
@@ -133,9 +144,26 @@ export function SwipeDeck({
   const photoCarouselRef = useRef<PhotoCarouselRef>(null)
   const photoContainerRef = useAnimatedRef<Animated.View>()
 
-  // Card animation values (reused for exit/entry transition in Task 9)
+  // Card animation values — used for exit/entry transition on profile change
   const translateY = useSharedValue(0)
   const opacity = useSharedValue(1)
+
+  React.useImperativeHandle(ref, () => ({
+    runExitAnimation: (onComplete: () => void) => {
+      translateY.value = withTiming(
+        -40,
+        { duration: 220, easing: Easing.out(Easing.cubic) },
+        (finished) => {
+          "worklet"
+          if (finished) runOnJS(onComplete)()
+        },
+      )
+      opacity.value = withTiming(0, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+      })
+    },
+  }))
 
   // Zoom portal
   const {
@@ -250,21 +278,47 @@ export function SwipeDeck({
   }))
 
   // --- Reset on profile change ---
+  // First mount snaps in without animation; subsequent changes run the
+  // entry animation (fade + slight upward slide) to pair with the parent-
+  // triggered exit animation.
+  const previousProfileIdRef = useRef<string | undefined>(topProfile?.id)
+
   useEffect(() => {
+    const newId = topProfile?.id
+    const oldId = previousProfileIdRef.current
+
     setSelectedPrompt(null)
     setIsImageChat(false)
     setMessageText("")
-    translateY.value = 0
-    opacity.value = 1
-    scrollY.value = 0
-    if (externalScrollY) {
-      externalScrollY.value = 0
-    }
-    scrollRef.current?.scrollTo?.({ y: 0, animated: false })
     messageSheetRef.current?.dismiss()
     detailSheetRef.current?.dismiss()
-    // Notify parent header is visible
+
+    scrollY.value = 0
+    if (externalScrollY) externalScrollY.value = 0
+    scrollRef.current?.scrollTo?.({ y: 0, animated: false })
     onScrollStateChange?.({ scrollY: 0, isAtTop: true })
+
+    if (newId === undefined || oldId === undefined || newId === oldId) {
+      // First mount or same profile — snap to visible.
+      translateY.value = 0
+      opacity.value = 1
+      previousProfileIdRef.current = newId
+      return
+    }
+
+    // Real profile change: start below, animate up.
+    translateY.value = 40
+    opacity.value = 0
+    translateY.value = withTiming(0, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    })
+    opacity.value = withTiming(1, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+    })
+
+    previousProfileIdRef.current = newId
   }, [topProfile?.id])
 
   // --- Keyboard handling for message sheet ---
@@ -549,7 +603,8 @@ export function SwipeDeck({
       />
     </View>
   )
-}
+  },
+)
 
 const styles = StyleSheet.create({
   container: {

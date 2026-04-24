@@ -10,7 +10,7 @@ import {
 import { EmptyFeed } from "@/components/discover/EmptyFeed"
 import { MatchModal } from "@/components/discover/MatchModal"
 import { OfferWallModal } from "@/components/discover/OfferWallModal"
-import { SwipeDeck } from "@/components/discover/SwipeDeck"
+import { SwipeDeck, type SwipeDeckHandle } from "@/components/discover/SwipeDeck"
 import { DiscoverActionBar } from "@/components/discover/DiscoverActionBar"
 import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { Button } from "@/components/ui/Button"
@@ -628,6 +628,8 @@ export default function DiscoverScreen() {
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [deckScrollY, setDeckScrollY] = useState(0)
   const deckScrollYShared = useSharedValue(0)
+  const swipeDeckRef = useRef<SwipeDeckHandle>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   // Load preferences, swiped, and skipped profiles on mount
   useEffect(() => {
@@ -1274,6 +1276,26 @@ export default function DiscoverScreen() {
     [],
   )
 
+  const runTransitionThenSwipe = useCallback(
+    (action: SwipeAction) => {
+      if (isTransitioning || !currentUser) return
+      setIsTransitioning(true)
+      const finish = () => {
+        handleSwipe(action)
+        // Entry animation runs via SwipeDeck's profile-change effect; clear
+        // the guard on the next tick so re-tap is blocked until after the
+        // new profile has had a chance to mount.
+        setTimeout(() => setIsTransitioning(false), 0)
+      }
+      if (swipeDeckRef.current) {
+        swipeDeckRef.current.runExitAnimation(finish)
+      } else {
+        finish()
+      }
+    },
+    [isTransitioning, currentUser, handleSwipe],
+  )
+
   const handleStartOver = useCallback(async () => {
     setSwipedProfiles([])
     setSkippedProfiles([])
@@ -1492,6 +1514,7 @@ export default function DiscoverScreen() {
                   </View>
                 )}
                 <SwipeDeck
+                  ref={swipeDeckRef}
                   profiles={deckProfiles}
                   showPhotoSwipeTooltip={tooltipStep === 1}
                   showImageCommentTooltip={tooltipStep === 2}
@@ -1526,10 +1549,11 @@ export default function DiscoverScreen() {
             ) : null}
             {(hasMainFeed || hasSkippedToShow) && currentUser ? (
               <DiscoverActionBar
-                onSkip={() => currentUser && handleSwipe("pass")}
-                onCrush={() => currentUser && handleSwipe("crush")}
-                onLike={() => currentUser && handleSwipe("like")}
+                onSkip={() => runTransitionThenSwipe("pass")}
+                onCrush={() => runTransitionThenSwipe("crush")}
+                onLike={() => runTransitionThenSwipe("like")}
                 scrollY={deckScrollYShared}
+                disabled={isTransitioning}
               />
             ) : null}
           </View>
