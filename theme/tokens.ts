@@ -133,7 +133,6 @@ export const APP = {
     SWIPED_PROFILES: 'gymcrush_swiped_profiles',
     SKIPPED_PROFILES: 'gymcrush_skipped_profiles',
     DISCOVER_TOOLTIPS_SEEN: 'gymcrush_discover_tooltips_seen',
-    DISCOVER_SWIPE_DOWN_PASS_DONE: 'gymcrush_discover_swipe_down_pass_done',
     LAST_LOCATION_SYNC: 'gymcrush_last_location_sync_v1',
     DEV_LOCATION_OVERRIDE: 'gymcrush_dev_location_override',
     AUTH: 'auth-storage',

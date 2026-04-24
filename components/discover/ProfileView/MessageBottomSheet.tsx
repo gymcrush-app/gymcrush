@@ -29,6 +29,8 @@ interface MessageBottomSheetProps {
   headerText?: string;
   /** Override the send button label. */
   sendLabel?: string;
+  /** When true, allow sending with empty message (text is optional). */
+  allowEmpty?: boolean;
 }
 
 const renderBackdrop = (props: any) => (
@@ -54,12 +56,14 @@ export function MessageBottomSheet({
   onChange,
   headerText,
   sendLabel,
+  allowEmpty = false,
 }: MessageBottomSheetProps) {
   const filtered = useFilteredInput({ value: messageText, onChangeText: onMessageTextChange });
 
   const handleSend = () => {
     const content = filtered.getFilteredValue().trim();
-    if (content) onSend(content);
+    if (!content && !allowEmpty) return;
+    onSend(content);
   };
 
   return (
@@ -119,7 +123,7 @@ export function MessageBottomSheet({
                   variant="primary"
                   size="md"
                   onPress={handleSend}
-                  disabled={!filtered.value.trim()}
+                  disabled={!allowEmpty && !filtered.value.trim()}
                   style={styles.sendButton}
                 >
                   {sendLabel ?? "Send"}

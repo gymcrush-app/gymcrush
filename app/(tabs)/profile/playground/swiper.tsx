@@ -1,4 +1,4 @@
-import { SwipeDeck } from '@/components/discover/SwipeDeck'
+import { ProfileView as SwipeDeck } from '@/components/discover/ProfileView'
 import { MatchModal } from '@/components/discover/MatchModal'
 import { colors, fontSize, fontWeight, spacing, borderRadius } from '@/theme'
 import type { Profile, SwipeAction } from '@/types'

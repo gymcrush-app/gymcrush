@@ -10,7 +10,9 @@ import {
 import { EmptyFeed } from "@/components/discover/EmptyFeed"
 import { MatchModal } from "@/components/discover/MatchModal"
 import { OfferWallModal } from "@/components/discover/OfferWallModal"
-import { SwipeDeck } from "@/components/discover/SwipeDeck"
+import { ProfileView, type ProfileViewHandle } from "@/components/discover/ProfileView"
+import { DiscoverActionBar } from "@/components/discover/DiscoverActionBar"
+import { MessageBottomSheet } from "@/components/discover/ProfileView/MessageBottomSheet"
 import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { Button } from "@/components/ui/Button"
 import { FilterRangeSliderContent } from "@/components/ui/FilterRangeSlider"
@@ -26,11 +28,11 @@ import Purchases from "react-native-purchases"
 import { useGymById, useGymsByIds } from "@/lib/api/gyms"
 import {
   useCheckMatch,
-  useCrushSignal,
   useLike,
   useLikedProfileIds,
   useMatches,
 } from "@/lib/api/matches"
+import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
 import {
   useDiscoverProfiles,
   useNearbyProfiles,
@@ -61,6 +63,7 @@ import type {
 import type { FitnessDiscipline } from "@/types/onboarding"
 import BottomSheet, {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -84,6 +87,7 @@ import {
   Text,
   View,
 } from "react-native"
+import { useSharedValue } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 import Tooltip from "react-native-walkthrough-tooltip"
 
@@ -91,8 +95,6 @@ const STORAGE_KEY_PREFERENCES = APP.STORAGE_KEYS.DISCOVERY_PREFERENCES
 const STORAGE_KEY_SWIPED = APP.STORAGE_KEYS.SWIPED_PROFILES
 const STORAGE_KEY_SKIPPED = APP.STORAGE_KEYS.SKIPPED_PROFILES
 const STORAGE_KEY_TOOLTIPS_SEEN = APP.STORAGE_KEYS.DISCOVER_TOOLTIPS_SEEN
-const STORAGE_KEY_SWIPE_DOWN_PASS_DONE =
-  APP.STORAGE_KEYS.DISCOVER_SWIPE_DOWN_PASS_DONE
 
 const MIN_DISTANCE_KM = Math.round(milesToKm(MIN_DISTANCE_MILES))
 const MAX_DISTANCE_KM = 160 // 100 miles
@@ -202,24 +204,6 @@ const setTooltipsSeen = async (): Promise<void> => {
     await AsyncStorage.setItem(STORAGE_KEY_TOOLTIPS_SEEN, "true")
   } catch (error) {
     console.error("Failed to save tooltips seen:", error)
-  }
-}
-
-const getSwipeDownPassDone = async (): Promise<boolean> => {
-  try {
-    const stored = await AsyncStorage.getItem(STORAGE_KEY_SWIPE_DOWN_PASS_DONE)
-    return stored === "true"
-  } catch (error) {
-    console.error("Failed to load swipe-down pass done:", error)
-    return false
-  }
-}
-
-const setSwipeDownPassDone = async (): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEY_SWIPE_DOWN_PASS_DONE, "true")
-  } catch (error) {
-    console.error("Failed to save swipe-down pass done:", error)
   }
 }
 
@@ -406,7 +390,6 @@ export default function DiscoverScreen() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { data: currentProfile } = useProfile()
-  const checkCrushAvailability = useAppStore((s) => s.checkCrushAvailability)
   const updateDiscoveryPreferencesMutation = useUpdateDiscoveryPreferences()
   const isPlus = useIsPlus()
   const currentOffering = useRevenueCatStore((s) => s.currentOffering)
@@ -640,12 +623,25 @@ export default function DiscoverScreen() {
     matchCheckReducer,
     MATCH_CHECK_INITIAL,
   )
-  // Tooltip walkthrough: null = inactive, 0-4 = sequential steps
-  // 0=filter, 1=photoSwipe, 2=imageComment, 3=swipeDown, 4=swipeUp
+  // Tooltip walkthrough: null = inactive, 0-2 = sequential steps
+  // 0=filter, 1=photoSwipe, 2=imageComment
   const [tooltipStep, setTooltipStep] = useState<number | null>(null)
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [swipeDownPassDone, setSwipeDownPassDoneState] = useState(false)
   const [deckScrollY, setDeckScrollY] = useState(0)
+  const deckScrollYShared = useSharedValue(0)
+  const profileViewRef = useRef<ProfileViewHandle>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+
+  // Gym Gem message sheet state — tapping the Gem FAB opens a bottom sheet
+  // to attach a message, mirroring the Gym Gems screen UX.
+  const gemSheetRef = useRef<BottomSheetModal>(null)
+  const [gemTargetProfileId, setGemTargetProfileId] = useState<string | null>(null)
+  const [gemMessageText, setGemMessageText] = useState("")
+  const [gemSheetIndex, setGemSheetIndex] = useState(-1)
+  const gemSheetSnapPoints = useMemo(() => ["50%", "90%"], [])
+  const { hasGemToday } = useDailyGem()
+  const giveGemMutation = useGiveGymGem()
+  const [isSendingGem, setIsSendingGem] = useState(false)
 
   // Load preferences, swiped, and skipped profiles on mount
   useEffect(() => {
@@ -661,18 +657,6 @@ export default function DiscoverScreen() {
       setSkippedProfiles(loadedSkipped)
     }
     loadData()
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    const run = async () => {
-      const done = await getSwipeDownPassDone()
-      if (!cancelled) setSwipeDownPassDoneState(done)
-    }
-    run()
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   // Re-load preferences from AsyncStorage when screen gains focus (e.g. after changing gender in Settings)
@@ -749,7 +733,7 @@ export default function DiscoverScreen() {
     setTooltipStep((prev) => {
       if (prev === null) return null
       const next = prev + 1
-      if (next >= 5) {
+      if (next >= 3) {
         setTooltipsSeen()
         return null
       }
@@ -968,7 +952,6 @@ export default function DiscoverScreen() {
 
   // Mutations
   const likeMutation = useLike()
-  const crushMutation = useCrushSignal()
   const reportAndBlockMutation = useReportAndBlock()
   // Only check for match when actively checking and have valid user IDs
   const matchCheckUserId =
@@ -993,21 +976,10 @@ export default function DiscoverScreen() {
         if (action === "like") {
           track("discover_swipe_like")
           await likeMutation.mutateAsync({ toUserId: profileId })
-        } else if (action === "crush") {
-          if (!checkCrushAvailability()) {
-            toast({
-              preset: "error",
-              title: "Crush signal unavailable",
-              message:
-                "You can only send one crush signal per day. Try again tomorrow!",
-            })
-            return
-          }
-          await crushMutation.mutateAsync({ toUserId: profileId })
         }
 
-        // Check for match after like/crush (before moving to next profile)
-        if (action === "like" || action === "crush") {
+        // Check for match after like (before moving to next profile)
+        if (action === "like") {
           // Start match check — don't add to swipedProfiles yet
           dispatchMatchCheck({
             type: "start_check",
@@ -1015,35 +987,29 @@ export default function DiscoverScreen() {
             profile: currentUser,
           })
 
-          // Invalidate and refetch the match check query after a short delay
-          // to allow the database trigger to complete creating the match
+          // Match-check runs immediately post-mutation. likeMutation.mutateAsync
+          // awaits the server response which includes the trigger-created match
+          // row (if any). No defensive delay needed — if tests surface a race,
+          // restore a short delay here.
           if (currentProfile?.id) {
-            setTimeout(() => {
-              // Invalidate both possible query key orders
-              queryClient.invalidateQueries({
-                queryKey: ["match", currentProfile.id, profileId],
-              })
-              queryClient.invalidateQueries({
-                queryKey: ["match", profileId, currentProfile.id],
-              })
-              // Refetch the match check query
-              queryClient.refetchQueries({
-                queryKey: ["match", currentProfile.id, profileId],
-              })
-              queryClient.refetchQueries({
-                queryKey: ["match", profileId, currentProfile.id],
-              })
-            }, 200) // 200ms delay to allow database trigger to complete
+            queryClient.invalidateQueries({
+              queryKey: ["match", currentProfile.id, profileId],
+            })
+            queryClient.invalidateQueries({
+              queryKey: ["match", profileId, currentProfile.id],
+            })
+            queryClient.refetchQueries({
+              queryKey: ["match", currentProfile.id, profileId],
+            })
+            queryClient.refetchQueries({
+              queryKey: ["match", profileId, currentProfile.id],
+            })
           }
 
           // Don't advance index yet - wait to see if there's a match
           // If no match, we'll advance in handleKeepSwiping
         } else {
           track("discover_swipe_pass")
-          if (!swipeDownPassDone) {
-            setSwipeDownPassDoneState(true)
-            setSwipeDownPassDone()
-          }
           // For pass actions, save to swiped and to skipped list, then move to next profile
           const updatedSwiped = [...swipedProfiles, profileId]
           setSwipedProfiles(updatedSwiped)
@@ -1076,15 +1042,12 @@ export default function DiscoverScreen() {
       skippedProfiles,
       isSkippedMode,
       likeMutation,
-      crushMutation,
-      checkCrushAvailability,
       currentProfile?.id,
       queryClient,
-      swipeDownPassDone,
     ],
   )
 
-  // Signal match/no-match result to SwipeDeck for overlay animations
+  // Dispatch match_found or no_match once matchData arrives.
   useEffect(() => {
     if (matchCheck.status !== "checking" || !currentProfile) return
 
@@ -1093,7 +1056,6 @@ export default function DiscoverScreen() {
       matchCheck.userId !== currentProfile.id &&
       !showMatchModal
     ) {
-      // MATCH — use the stored profile from the reducer
       const matchedProfile =
         matchCheck.profile ||
         filteredUsers.find((e) => e.profile.id === matchCheck.userId)
@@ -1159,25 +1121,22 @@ export default function DiscoverScreen() {
     }
   }, [filteredUsers.length])
 
-  // Derive swipeResult for SwipeDeck from reducer state
-  const swipeResultForDeck =
-    matchCheck.status === "result" ? matchCheck.result : null
-
-  /** Called by SwipeDeck after all exit animations are done */
-  const handleSwipeComplete = useCallback(async () => {
-    if (matchCheck.status === "result" && matchCheck.result === "match") {
+  // After match check resolves: show modal (match) or advance (no-match).
+  // Previously the ProfileView drove this via its exit-animation callback; now
+  // that the action bar is tap-driven we handle it directly here.
+  useEffect(() => {
+    if (matchCheck.status !== "result") return
+    if (matchCheck.result === "match") {
       setShowMatchModal(true)
-      return // Don't advance — match modal handlers will advance
+      return
     }
-
-    // No-match — advance to next profile immediately, persist in background
-    const userId = matchCheckUserId
+    const userId = matchCheck.userId
     dispatchMatchCheck({ type: "reset" })
     advanceToNextProfile()
     if (userId) {
       markProfileAsSwiped(userId)
     }
-  }, [matchCheck, matchCheckUserId, markProfileAsSwiped, advanceToNextProfile])
+  }, [matchCheck, advanceToNextProfile, markProfileAsSwiped])
 
   const handleStartChatting = useCallback(async () => {
     const userId = matchCheckUserId
@@ -1276,15 +1235,6 @@ export default function DiscoverScreen() {
     [],
   )
 
-  const handleDeckSwipe = useCallback(
-    (profileId: string, action: SwipeAction) => {
-      if (currentUser && profileId === currentUser.id) {
-        handleSwipe(action)
-      }
-    },
-    [currentUser, handleSwipe],
-  )
-
   const handleReportAndBlock = useCallback(
     async (profileId: string) => {
       try {
@@ -1322,6 +1272,120 @@ export default function DiscoverScreen() {
       setDeckScrollY(scrollY)
     },
     [],
+  )
+
+  const runTransitionThenSwipe = useCallback(
+    (action: SwipeAction) => {
+      if (isTransitioning || !currentUser) return
+      setIsTransitioning(true)
+      const finish = () => {
+        handleSwipe(action)
+        // Entry animation runs via ProfileView's profile-change effect; clear
+        // the guard on the next tick so re-tap is blocked until after the
+        // new profile has had a chance to mount.
+        setTimeout(() => setIsTransitioning(false), 0)
+      }
+      if (profileViewRef.current) {
+        profileViewRef.current.runExitAnimation(finish)
+      } else {
+        finish()
+      }
+    },
+    [isTransitioning, currentUser, handleSwipe],
+  )
+
+  // --- Gym Gem (formerly crush signal) — tap opens message sheet ---
+  const handleOpenGemSheet = useCallback(() => {
+    if (!currentUser || isTransitioning) return
+    if (!hasGemToday) {
+      toast({
+        preset: "error",
+        title: "No gem left today",
+        message: "You can only send one gem per day. Try again tomorrow!",
+      })
+      return
+    }
+    setGemTargetProfileId(currentUser.id)
+    gemSheetRef.current?.present()
+  }, [currentUser, isTransitioning, hasGemToday])
+
+  const handleCloseGemSheet = useCallback(() => {
+    setGemTargetProfileId(null)
+    setGemMessageText("")
+    gemSheetRef.current?.dismiss()
+  }, [])
+
+  const handleGemSheetChange = useCallback((index: number) => {
+    setGemSheetIndex(index)
+    if (index === -1) {
+      setGemTargetProfileId(null)
+      setGemMessageText("")
+    }
+  }, [])
+
+  const handleSendGemMessage = useCallback(
+    async (content: string) => {
+      if (!gemTargetProfileId || !currentUser) return
+      const profileIdAtSend = gemTargetProfileId
+      const trimmed = content.trim()
+      setIsSendingGem(true)
+      try {
+        const result = await giveGemMutation.mutateAsync({
+          toUserId: profileIdAtSend,
+          message: trimmed.length > 0 ? trimmed : undefined,
+        })
+        if (!result.ok) {
+          toast({
+            preset: "error",
+            title:
+              result.error === "no_gem_available"
+                ? "No gem left today"
+                : (result.error ?? "Failed to send gem"),
+          })
+          return
+        }
+        handleCloseGemSheet()
+        // Animate out current profile, then advance index + persist.
+        if (currentUser.id === profileIdAtSend) {
+          setIsTransitioning(true)
+          const finish = () => {
+            const updatedSwiped = [...swipedProfiles, profileIdAtSend]
+            setSwipedProfiles(updatedSwiped)
+            saveSwipedProfile(profileIdAtSend, updatedSwiped)
+            if (isSkippedMode) {
+              setSkippedProfiles(skippedProfiles.filter((id) => id !== profileIdAtSend))
+              removeSkippedProfile(profileIdAtSend, skippedProfiles)
+              setSkippedIndex((prev) => prev + 1)
+            } else {
+              setCurrentIndex((prev) => prev + 1)
+            }
+            setTimeout(() => setIsTransitioning(false), 0)
+          }
+          if (profileViewRef.current) {
+            profileViewRef.current.runExitAnimation(finish)
+          } else {
+            finish()
+          }
+        }
+      } catch (err: any) {
+        toast({
+          preset: "error",
+          title: "Failed to send gem",
+          message: err?.message || "Please try again.",
+        })
+      } finally {
+        setIsSendingGem(false)
+      }
+    },
+    [
+      gemTargetProfileId,
+      currentUser,
+      giveGemMutation,
+      handleCloseGemSheet,
+      swipedProfiles,
+      skippedProfiles,
+      isSkippedMode,
+    ],
   )
 
   const handleStartOver = useCallback(async () => {
@@ -1541,23 +1605,17 @@ export default function DiscoverScreen() {
                     </Text>
                   </View>
                 )}
-                <SwipeDeck
+                <ProfileView
+                  ref={profileViewRef}
                   profiles={deckProfiles}
-                  onSwipe={handleDeckSwipe}
-                  swipeResult={swipeResultForDeck}
-                  onSwipeComplete={handleSwipeComplete}
                   showPhotoSwipeTooltip={tooltipStep === 1}
                   showImageCommentTooltip={tooltipStep === 2}
-                  showSwipeDownTooltip={tooltipStep === 3 && !swipeDownPassDone}
-                  hideSwipeDownRibbon={swipeDownPassDone}
-                  showSwipeUpTooltip={tooltipStep === 4}
                   onPhotoSwipeTooltipClose={advanceTooltip}
                   onImageCommentTooltipClose={advanceTooltip}
-                  onSwipeDownTooltipClose={advanceTooltip}
-                  onSwipeUpTooltipClose={advanceTooltip}
                   onScrollStateChange={handleDeckScrollStateChange}
                   onReportAndBlock={handleReportAndBlock}
                   distances={deckDistances}
+                  scrollY={deckScrollYShared}
                 />
               </View>
             ) : !showDeckLoading ? (
@@ -1580,6 +1638,15 @@ export default function DiscoverScreen() {
               <View style={styles.deckLoadingOverlay} pointerEvents="box-none">
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
+            ) : null}
+            {(hasMainFeed || hasSkippedToShow) && currentUser ? (
+              <DiscoverActionBar
+                onSkip={() => runTransitionThenSwipe("pass")}
+                onCrush={handleOpenGemSheet}
+                onLike={() => runTransitionThenSwipe("like")}
+                scrollY={deckScrollYShared}
+                disabled={isTransitioning || isSendingGem}
+              />
             ) : null}
           </View>
         )}
@@ -1634,6 +1701,24 @@ export default function DiscoverScreen() {
           </View>
         </BottomSheetScrollView>
       </BottomSheet>
+
+      {/* Gym Gem message sheet — opens when Gem FAB is tapped */}
+      <MessageBottomSheet
+        bottomSheetRef={gemSheetRef}
+        selectedPrompt={null}
+        isImageChat={true}
+        messageText={gemMessageText}
+        profileName={currentUser?.display_name ?? ""}
+        snapPoints={gemSheetSnapPoints}
+        bottomSheetIndex={gemSheetIndex}
+        onMessageTextChange={setGemMessageText}
+        onClose={handleCloseGemSheet}
+        onSend={handleSendGemMessage}
+        onChange={handleGemSheetChange}
+        headerText={currentUser ? `Send ${currentUser.display_name} a Gym Gem ✦` : undefined}
+        sendLabel="Send Gem"
+        allowEmpty
+      />
 
       {/* Match Modal */}
       {currentProfile && matchedUser && (

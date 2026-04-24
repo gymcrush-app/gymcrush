@@ -9,12 +9,6 @@ import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
 import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
 import { PromptItem } from "@/components/profile/PromptItem"
 import { Text } from "@/components/ui/Text"
-import {
-  getSwipeUpMatchLabel,
-  SWIPE_DOWN_LABEL,
-  TOOLTIP_SWIPE_DOWN,
-  TOOLTIP_SWIPE_UP,
-} from "@/constants"
 import { useGymById } from "@/lib/api/gyms"
 import { useProfilePrompts } from "@/lib/api/prompts"
 import { useSendMessageRequest } from "@/lib/api/messages"
@@ -28,17 +22,15 @@ import {
   fontSize,
   palette,
   spacing,
-  swipe,
 } from "@/theme"
-import type { Profile, SwipeAction } from "@/types"
+import type { Profile } from "@/types"
 import type { Intent } from "@/types/onboarding"
 import { BottomSheetModal } from "@gorhom/bottom-sheet"
-import { Check, ChevronUp, MoreHorizontal } from "lucide-react-native"
+import { MoreHorizontal } from "lucide-react-native"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   Dimensions,
-  Image,
   Keyboard,
   Pressable,
   StyleSheet,
@@ -52,10 +44,9 @@ import {
 import Animated, {
   cancelAnimation,
   Easing,
-  FadeIn,
-  FadeOut,
   measure,
   runOnJS,
+  type SharedValue,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -66,70 +57,49 @@ import Animated, {
 import Tooltip from "react-native-walkthrough-tooltip"
 import { MessageBottomSheet } from "./MessageBottomSheet"
 import { ProfileDetailSheet } from "./ProfileDetailSheet"
-import { SwipeIndicator } from "./SwipeIndicator"
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 /** RNGH ScrollView wrapped with Reanimated for gesture coordination */
 const AnimatedGHScrollView = Animated.createAnimatedComponent(GHScrollView)
 
-/** Duration of the card exit animation before advancing */
-const CARD_EXIT_MS = 180
-/** Brief pause after tick before advancing to next profile */
-const TICK_DISPLAY_MS = 500
-const BACK_CARD_SCALE = 0.97
-const BACK_CARD_PEEK = 0
-const BACK_CARD_OPACITY = 0.7
-/** Logo starting opacity -- fades to 1.0 as it grows */
-const START_OPACITY = 0.3
-/** Swipe distance (px) required to trigger like/pass */
-const SWIPE_THRESHOLD = 140
-/** Velocity (px/s) for a fast fling to trigger */
-const VELOCITY_THRESHOLD = 600
-/** Dead zone (px) before crush effect starts on swipe-up */
-const CRUSH_DEAD_ZONE = 0
-
 const ZOOM_SPRING = { damping: 40, stiffness: 300 }
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
 
-interface SwipeDeckProps {
+interface ProfileViewProps {
   profiles: Profile[]
-  onSwipe: (profileId: string, action: SwipeAction) => void
-  swipeResult?: "match" | "no-match" | null
-  onSwipeComplete?: () => void
   showPhotoSwipeTooltip?: boolean
   showImageCommentTooltip?: boolean
-  showSwipeDownTooltip?: boolean
-  hideSwipeDownRibbon?: boolean
-  showSwipeUpTooltip?: boolean
   onPhotoSwipeTooltipClose?: () => void
   onImageCommentTooltipClose?: () => void
-  onSwipeDownTooltipClose?: () => void
-  onSwipeUpTooltipClose?: () => void
   onScrollStateChange?: (state: { scrollY: number; isAtTop: boolean }) => void
   onReportAndBlock?: (profileId: string) => void
   distances?: Map<string, number | null>
+  /** Optional shared value the parent can read to drive scroll-linked UI. */
+  scrollY?: SharedValue<number>
 }
 
-export function SwipeDeck({
-  profiles,
-  onSwipe,
-  swipeResult,
-  onSwipeComplete,
-  showPhotoSwipeTooltip = false,
-  showImageCommentTooltip = false,
-  showSwipeDownTooltip = false,
-  hideSwipeDownRibbon = false,
-  showSwipeUpTooltip = false,
-  onPhotoSwipeTooltipClose,
-  onImageCommentTooltipClose,
-  onSwipeDownTooltipClose,
-  onSwipeUpTooltipClose,
-  onScrollStateChange,
-  onReportAndBlock,
-  distances,
-}: SwipeDeckProps) {
+export interface ProfileViewHandle {
+  /** Play the exit animation (fade + slide up). onComplete fires after. */
+  runExitAnimation: (onComplete: () => void) => void
+}
+
+export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>(
+  function ProfileView(
+    {
+      profiles,
+      showPhotoSwipeTooltip = false,
+      showImageCommentTooltip = false,
+      onPhotoSwipeTooltipClose,
+      onImageCommentTooltipClose,
+      onScrollStateChange,
+      onReportAndBlock,
+      distances,
+      scrollY: externalScrollY,
+    },
+    ref,
+  ) {
   const topProfile = profiles[0]
   const nextProfile = profiles[1]
   const { data: profileGym } = useGymById(topProfile?.home_gym_id || "")
@@ -156,12 +126,6 @@ export function SwipeDeck({
     }
   }, [prompts])
 
-  const [awaitingResult, setAwaitingResult] = useState(false)
-  const [showTick, setShowTick] = useState(false)
-  // Logo overlay sizes
-  const dropImageSize = useSharedValue(0)
-  const crushImageSize = useSharedValue(0)
-
   // Message bottom sheet
   const messageSheetRef = useRef<BottomSheetModal>(null)
   const [selectedPrompt, setSelectedPrompt] = useState<{
@@ -181,11 +145,25 @@ export function SwipeDeck({
   const photoCarouselRef = useRef<PhotoCarouselRef>(null)
   const photoContainerRef = useAnimatedRef<Animated.View>()
 
-  // Card animation values
-  const pullDownAmount = useSharedValue(0)
+  // Card animation values — used for exit/entry transition on profile change
   const translateY = useSharedValue(0)
   const opacity = useSharedValue(1)
-  const isDismissing = useSharedValue(false)
+
+  React.useImperativeHandle(ref, () => ({
+    runExitAnimation: (onComplete: () => void) => {
+      // Card flies fully off the top of the screen. Full opacity held so
+      // the user sees the card leave rather than dissolve. Easing.in gives
+      // a "gathers speed" feel (accelerates toward the exit).
+      translateY.value = withTiming(
+        -SCREEN_HEIGHT,
+        { duration: 320, easing: Easing.in(Easing.cubic) },
+        (finished) => {
+          "worklet"
+          if (finished) runOnJS(onComplete)()
+        },
+      )
+    },
+  }))
 
   // Zoom portal
   const {
@@ -210,131 +188,21 @@ export function SwipeDeck({
     [onScrollStateChange],
   )
 
-  const triggerPass = useCallback(() => {
-    if (topProfile) onSwipe(topProfile.id, "pass")
-  }, [topProfile, onSwipe])
-
-  const triggerLike = useCallback(() => {
-    if (topProfile) {
-      onSwipe(topProfile.id, "like")
-      setAwaitingResult(true)
-    }
-  }, [topProfile, onSwipe])
-
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      if (isDismissing.value) return
-
       const y = event.contentOffset.y
       const maxScroll = Math.max(
         0,
         event.contentSize.height - event.layoutMeasurement.height,
       )
-      scrollY.value = Math.max(0, Math.min(y, maxScroll))
+      const clamped = Math.max(0, Math.min(y, maxScroll))
+      scrollY.value = clamped
+      if (externalScrollY) {
+        externalScrollY.value = clamped
+      }
       runOnJS(notifyScrollState)(y)
-
-      // Overscroll at top → pass visual (pull down, y < 0)
-      if (y < 0) {
-        const pullDown = -y
-        pullDownAmount.value = pullDown
-        translateY.value = pullDown
-        crushImageSize.value = 0
-        const maxSize = SCREEN_WIDTH * 0.8
-        dropImageSize.value = Math.min(maxSize, 80 + pullDown * 1.5)
-        return
-      }
-
-      // Overscroll at bottom → like visual (pull up, y > maxScroll)
-      if (maxScroll > 0 && y > maxScroll) {
-        const pullUp = y - maxScroll
-        translateY.value = -pullUp
-        dropImageSize.value = 0
-        const pull = Math.max(0, pullUp - CRUSH_DEAD_ZONE)
-        if (pull > 0) {
-          const maxSize = SCREEN_WIDTH * 0.8
-          crushImageSize.value = Math.min(maxSize, 80 + pull * 1.5)
-        } else {
-          crushImageSize.value = 0
-        }
-        return
-      }
-
-      // Normal scroll range — reset card position
-      if (translateY.value !== 0 || pullDownAmount.value !== 0) {
-        translateY.value = 0
-        pullDownAmount.value = 0
-        dropImageSize.value = 0
-        crushImageSize.value = 0
-      }
-    },
-    onEndDrag: (event) => {
-      if (isDismissing.value) return
-
-      const y = event.contentOffset.y
-      const maxScroll = Math.max(
-        0,
-        event.contentSize.height - event.layoutMeasurement.height,
-      )
-      const velocity = event.velocity?.y ?? 0
-
-      // Check pass (overscroll at top)
-      if (y < 0) {
-        const pullDown = -y
-        if (
-          pullDown > SWIPE_THRESHOLD ||
-          Math.abs(velocity) > VELOCITY_THRESHOLD
-        ) {
-          // Trigger pass — card snaps back, logos fade
-          dropImageSize.value = withTiming(0, { duration: 200 })
-          translateY.value = withTiming(0, { duration: 200 })
-          pullDownAmount.value = withTiming(0, { duration: 200 })
-          runOnJS(triggerPass)()
-          return
-        }
-      }
-
-      // Check like (overscroll at bottom)
-      if (maxScroll > 0 && y > maxScroll) {
-        const pullUp = y - maxScroll
-        const effectivePull = Math.max(0, pullUp - CRUSH_DEAD_ZONE)
-        if (
-          effectivePull > SWIPE_THRESHOLD ||
-          Math.abs(velocity) > VELOCITY_THRESHOLD
-        ) {
-          isDismissing.value = true
-          crushImageSize.value = withTiming(0, { duration: 150 })
-          translateY.value = withTiming(-SCREEN_HEIGHT * 0.35, {
-            duration: CARD_EXIT_MS,
-            easing: Easing.out(Easing.quad),
-          })
-          runOnJS(triggerLike)()
-          return
-        }
-      }
-
-      // Not triggered — reset (bounce will snap scroll back)
-      translateY.value = withTiming(0, { duration: 200 })
-      pullDownAmount.value = withTiming(0, { duration: 200 })
-      dropImageSize.value = withTiming(0, { duration: 150 })
-      crushImageSize.value = withTiming(0, { duration: 150 })
     },
   })
-
-  // --- Swipe result handling ---
-  useEffect(() => {
-    if (!awaitingResult || swipeResult == null) return
-    if (swipeResult === "match") {
-      setAwaitingResult(false)
-      onSwipeComplete?.()
-    } else {
-      setShowTick(true)
-      setTimeout(() => {
-        setShowTick(false)
-        setAwaitingResult(false)
-        onSwipeComplete?.()
-      }, TICK_DISPLAY_MS)
-    }
-  }, [swipeResult, awaitingResult])
 
   // --- Gestures ---
 
@@ -409,59 +277,47 @@ export function SwipeDeck({
     opacity: opacity.value,
   }))
 
+  // Back card subtly grows + brightens as the front card moves away, so the
+  // next profile feels like it's "rising" to take the front position.
+  const BACK_CARD_RISE_THRESHOLD = SCREEN_HEIGHT * 0.15
   const animatedBackCardStyle = useAnimatedStyle(() => {
-    const pull = Math.max(pullDownAmount.value, Math.abs(translateY.value))
     const progress = Math.min(
       1,
-      pull / Math.max(1, SWIPE_THRESHOLD),
+      Math.abs(translateY.value) / BACK_CARD_RISE_THRESHOLD,
     )
-    const scale = BACK_CARD_SCALE + (1 - BACK_CARD_SCALE) * progress
-    const op = BACK_CARD_OPACITY + (1 - BACK_CARD_OPACITY) * progress
     return {
-      transform: [{ translateY: -BACK_CARD_PEEK }, { scale }],
-      opacity: op,
-    }
-  })
-
-  const dropImageAnimatedStyle = useAnimatedStyle(() => {
-    if (dropImageSize.value <= 0) return { width: 0, height: 0, opacity: 0 }
-    const progress = Math.min(1, (dropImageSize.value - 80) / (SCREEN_WIDTH * 0.5))
-    return {
-      width: dropImageSize.value,
-      height: dropImageSize.value * 0.4,
-      opacity: START_OPACITY + (1 - START_OPACITY) * progress,
-    }
-  })
-
-  const crushImageAnimatedStyle = useAnimatedStyle(() => {
-    if (crushImageSize.value <= 0) return { width: 0, height: 0, opacity: 0 }
-    const progress = Math.min(1, (crushImageSize.value - 80) / (SCREEN_WIDTH * 0.5))
-    return {
-      width: crushImageSize.value,
-      height: crushImageSize.value * 0.4,
-      opacity: START_OPACITY + (1 - START_OPACITY) * progress,
+      transform: [{ scale: 0.95 + 0.05 * progress }],
+      opacity: 0.9 + 0.1 * progress,
     }
   })
 
   // --- Reset on profile change ---
+  // First mount snaps in without animation; subsequent changes run the
+  // entry animation (fade + slight upward slide) to pair with the parent-
+  // triggered exit animation.
+  const previousProfileIdRef = useRef<string | undefined>(topProfile?.id)
+
   useEffect(() => {
+    const newId = topProfile?.id
+    const oldId = previousProfileIdRef.current
+
     setSelectedPrompt(null)
     setIsImageChat(false)
     setMessageText("")
-    setAwaitingResult(false)
-    setShowTick(false)
-    crushImageSize.value = 0
-    dropImageSize.value = 0
-    pullDownAmount.value = 0
-    translateY.value = 0
-    opacity.value = 1
-    isDismissing.value = false
-    scrollY.value = 0
-    scrollRef.current?.scrollTo?.({ y: 0, animated: false })
     messageSheetRef.current?.dismiss()
     detailSheetRef.current?.dismiss()
-    // Notify parent header is visible
+
+    scrollY.value = 0
+    if (externalScrollY) externalScrollY.value = 0
+    scrollRef.current?.scrollTo?.({ y: 0, animated: false })
     onScrollStateChange?.({ scrollY: 0, isAtTop: true })
+
+    // First mount, same profile, or real profile change — snap to visible.
+    // The back-card peek provides visual continuity during the front card's
+    // exit animation, so no additional entry animation is needed.
+    translateY.value = 0
+    opacity.value = 1
+    previousProfileIdRef.current = newId
   }, [topProfile?.id])
 
   // --- Keyboard handling for message sheet ---
@@ -610,7 +466,7 @@ export function SwipeDeck({
   return (
     <View style={styles.container}>
       <View style={styles.stackContainer}>
-        {/* Back card (next profile peeking) */}
+        {/* Back card (next profile peeking) — visible as the front card exits */}
         {nextProfile ? (
           <Animated.View
             pointerEvents="none"
@@ -647,6 +503,7 @@ export function SwipeDeck({
               showsVerticalScrollIndicator={false}
               onScroll={scrollHandler}
               scrollEventThrottle={16}
+              contentContainerStyle={{ paddingBottom: 220 }}
             >
             {/* Name row */}
             <View style={styles.nameRow}>
@@ -690,44 +547,6 @@ export function SwipeDeck({
               </View>
 
             </Animated.View>
-
-            {/* Swipe down indicator — hidden once user has swiped down */}
-            {!hideSwipeDownRibbon && (
-              <Tooltip
-                isVisible={showSwipeDownTooltip}
-                allowChildInteraction={false}
-                contentStyle={{
-                  backgroundColor: colors.primary,
-                  padding: 0,
-                  borderRadius: borderRadius.md,
-                }}
-                content={
-                  <View
-                    style={{
-                      backgroundColor: colors.primary,
-                      padding: spacing[3],
-                      borderRadius: borderRadius.md,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: palette.black,
-                        fontSize: fontSize.base,
-                      }}
-                    >
-                      {TOOLTIP_SWIPE_DOWN}
-                    </Text>
-                  </View>
-                }
-                placement="top"
-                onClose={onSwipeDownTooltipClose}
-                backgroundColor="rgba(0,0,0,0.5)"
-              >
-                <View style={{ width: "100%" }}>
-                  <SwipeIndicator direction="down" text={SWIPE_DOWN_LABEL} />
-                </View>
-              </Tooltip>
-            )}
 
             {/* Profile content — interleaved prompts + info */}
             <View style={styles.profileDetailSection}>
@@ -779,84 +598,10 @@ export function SwipeDeck({
                 />
               )}
             </View>
-
-            {/* Swipe up indicator */}
-            <Tooltip
-              isVisible={showSwipeUpTooltip}
-              allowChildInteraction={false}
-              contentStyle={{
-                backgroundColor: colors.primary,
-                padding: 0,
-                borderRadius: borderRadius.md,
-              }}
-              content={
-                <View
-                  style={{
-                    backgroundColor: colors.primary,
-                    padding: spacing[3],
-                    borderRadius: borderRadius.md,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: palette.black,
-                      fontSize: fontSize.base,
-                    }}
-                  >
-                    {TOOLTIP_SWIPE_UP}
-                  </Text>
-                </View>
-              }
-              placement="bottom"
-              onClose={onSwipeUpTooltipClose}
-              backgroundColor="rgba(0,0,0,0.5)"
-            >
-              <SwipeIndicator
-                direction="up"
-                text={getSwipeUpMatchLabel(topProfile.display_name)}
-                containerStyle="up"
-              />
-            </Tooltip>
             </AnimatedGHScrollView>
           </Animated.View>
         </GestureDetector>
       </View>
-
-      {/* Drop logo on swipe-down */}
-      <View style={styles.dropOverlayContainer} pointerEvents="none">
-        <Animated.View style={dropImageAnimatedStyle}>
-          <Image
-            source={require("@/assets/images/DropLogo.png")}
-            style={styles.overlayImage}
-            resizeMode="contain"
-          />
-        </Animated.View>
-      </View>
-
-      {/* Crush logo on swipe-up */}
-      <View style={styles.crushOverlayContainer} pointerEvents="none">
-        <Animated.View style={crushImageAnimatedStyle}>
-          <Image
-            source={require("@/assets/images/CrushLogo.png")}
-            style={styles.overlayImage}
-            resizeMode="contain"
-          />
-        </Animated.View>
-      </View>
-
-      {/* Tick overlay on no-match */}
-      {showTick && (
-        <Animated.View
-          style={styles.swipeOverlayContainer}
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
-          pointerEvents="none"
-        >
-          <View style={styles.tickCircle}>
-            <Check size={48} color={colors.primaryForeground} strokeWidth={3} />
-          </View>
-        </Animated.View>
-      )}
 
       {/* Profile detail sheet */}
       <ProfileDetailSheet
@@ -884,7 +629,8 @@ export function SwipeDeck({
       />
     </View>
   )
-}
+  },
+)
 
 const styles = StyleSheet.create({
   container: {
@@ -902,10 +648,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.border,
     overflow: "hidden",
   },
   frontCard: {
@@ -915,7 +657,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     overflow: "hidden",
-    marginTop: BACK_CARD_PEEK,
   },
   nameRow: {
     flexDirection: "row",
@@ -959,37 +700,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[3],
     gap: spacing[4],
-  },
-  dropOverlayContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 8,
-    alignItems: "center",
-    justifyContent: "flex-start",
-    paddingTop: 30 + spacing[1],
-  },
-  crushOverlayContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 8,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: spacing[1],
-  },
-  swipeOverlayContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  overlayImage: {
-    width: "100%",
-    height: "100%",
-  },
-  tickCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
   },
 })
