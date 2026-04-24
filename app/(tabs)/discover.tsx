@@ -1083,7 +1083,7 @@ export default function DiscoverScreen() {
     ],
   )
 
-  // Signal match/no-match result to SwipeDeck for overlay animations
+  // Dispatch match_found or no_match once matchData arrives.
   useEffect(() => {
     if (matchCheck.status !== "checking" || !currentProfile) return
 
@@ -1092,7 +1092,6 @@ export default function DiscoverScreen() {
       matchCheck.userId !== currentProfile.id &&
       !showMatchModal
     ) {
-      // MATCH — use the stored profile from the reducer
       const matchedProfile =
         matchCheck.profile ||
         filteredUsers.find((e) => e.profile.id === matchCheck.userId)
@@ -1158,25 +1157,22 @@ export default function DiscoverScreen() {
     }
   }, [filteredUsers.length])
 
-  // Derive swipeResult for SwipeDeck from reducer state
-  const swipeResultForDeck =
-    matchCheck.status === "result" ? matchCheck.result : null
-
-  /** Called by SwipeDeck after all exit animations are done */
-  const handleSwipeComplete = useCallback(async () => {
-    if (matchCheck.status === "result" && matchCheck.result === "match") {
+  // After match check resolves: show modal (match) or advance (no-match).
+  // Previously the SwipeDeck drove this via its exit-animation callback; now
+  // that the action bar is tap-driven we handle it directly here.
+  useEffect(() => {
+    if (matchCheck.status !== "result") return
+    if (matchCheck.result === "match") {
       setShowMatchModal(true)
-      return // Don't advance — match modal handlers will advance
+      return
     }
-
-    // No-match — advance to next profile immediately, persist in background
-    const userId = matchCheckUserId
+    const userId = matchCheck.userId
     dispatchMatchCheck({ type: "reset" })
     advanceToNextProfile()
     if (userId) {
       markProfileAsSwiped(userId)
     }
-  }, [matchCheck, matchCheckUserId, markProfileAsSwiped, advanceToNextProfile])
+  }, [matchCheck, advanceToNextProfile, markProfileAsSwiped])
 
   const handleStartChatting = useCallback(async () => {
     const userId = matchCheckUserId
@@ -1273,15 +1269,6 @@ export default function DiscoverScreen() {
       setSkippedIndex(0)
     },
     [],
-  )
-
-  const handleDeckSwipe = useCallback(
-    (profileId: string, action: SwipeAction) => {
-      if (currentUser && profileId === currentUser.id) {
-        handleSwipe(action)
-      }
-    },
-    [currentUser, handleSwipe],
   )
 
   const handleReportAndBlock = useCallback(
@@ -1542,18 +1529,10 @@ export default function DiscoverScreen() {
                 )}
                 <SwipeDeck
                   profiles={deckProfiles}
-                  onSwipe={handleDeckSwipe}
-                  swipeResult={swipeResultForDeck}
-                  onSwipeComplete={handleSwipeComplete}
                   showPhotoSwipeTooltip={tooltipStep === 1}
                   showImageCommentTooltip={tooltipStep === 2}
-                  showSwipeDownTooltip={tooltipStep === 3 && !swipeDownPassDone}
-                  hideSwipeDownRibbon={swipeDownPassDone}
-                  showSwipeUpTooltip={tooltipStep === 4}
                   onPhotoSwipeTooltipClose={advanceTooltip}
                   onImageCommentTooltipClose={advanceTooltip}
-                  onSwipeDownTooltipClose={advanceTooltip}
-                  onSwipeUpTooltipClose={advanceTooltip}
                   onScrollStateChange={handleDeckScrollStateChange}
                   onReportAndBlock={handleReportAndBlock}
                   distances={deckDistances}
