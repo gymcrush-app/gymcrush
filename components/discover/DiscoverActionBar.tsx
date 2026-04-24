@@ -2,36 +2,76 @@ import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
 import React from "react"
 import { Image, Pressable, StyleSheet, View } from "react-native"
-import type { SharedValue } from "react-native-reanimated"
+import Animated, {
+  interpolate,
+  type SharedValue,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useDerivedValue,
+} from "react-native-reanimated"
+
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 
 interface DiscoverActionBarProps {
   onSkip: () => void
   onCrush: () => void
   onLike: () => void
   disabled?: boolean
-  /** Shared scroll offset; reserved for scroll-driven animation (Task 8). */
+  /** Shared scroll offset (pt) used to drive visual intensification. */
   scrollY?: SharedValue<number>
 }
+
+/** Scroll distance (pt) over which the backdrop ramps from subtle → sharp. */
+const RAMP_DISTANCE = 300
 
 export function DiscoverActionBar({
   onSkip,
   onCrush,
   onLike,
   disabled = false,
-  scrollY: _scrollY,
+  scrollY,
 }: DiscoverActionBarProps) {
+  const intensity = useDerivedValue(() => {
+    if (!scrollY) return 1
+    const y = scrollY.value
+    return Math.max(0, Math.min(1, y / RAMP_DISTANCE))
+  })
+
+  const gradientStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(intensity.value, [0, 1], [0.4, 1]),
+  }))
+
+  const buttonRowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(intensity.value, [0, 1], [0.85, 1]),
+  }))
+
+  const blurAnimatedProps = useAnimatedProps(() => ({
+    intensity: interpolate(intensity.value, [0, 1], [15, 45]),
+  }))
+
   return (
     <View
       style={styles.container}
       pointerEvents={disabled ? "none" : "box-none"}
     >
-      <BlurView intensity={30} tint="dark" style={styles.blurLayer} />
-      <LinearGradient
-        colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.55)"]}
-        style={styles.gradientLayer}
-        pointerEvents="none"
+      <AnimatedBlurView
+        tint="dark"
+        style={styles.blurLayer}
+        animatedProps={blurAnimatedProps}
       />
-      <View style={styles.buttonRow} pointerEvents="box-none">
+      <Animated.View
+        style={[styles.gradientLayer, gradientStyle]}
+        pointerEvents="none"
+      >
+        <LinearGradient
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.55)"]}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+      <Animated.View
+        style={[styles.buttonRow, buttonRowStyle]}
+        pointerEvents="box-none"
+      >
         <Pressable
           onPress={onSkip}
           style={({ pressed }) => [
@@ -80,7 +120,7 @@ export function DiscoverActionBar({
             resizeMode="contain"
           />
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   )
 }
