@@ -101,6 +101,7 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
     ref,
   ) {
   const topProfile = profiles[0]
+  const nextProfile = profiles[1]
   const { data: profileGym } = useGymById(topProfile?.home_gym_id || "")
   const { data: profilePrompts } = useProfilePrompts(topProfile?.id)
 
@@ -276,6 +277,20 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
     opacity: opacity.value,
   }))
 
+  // Back card subtly grows + brightens as the front card moves away, so the
+  // next profile feels like it's "rising" to take the front position.
+  const BACK_CARD_RISE_THRESHOLD = SCREEN_HEIGHT * 0.15
+  const animatedBackCardStyle = useAnimatedStyle(() => {
+    const progress = Math.min(
+      1,
+      Math.abs(translateY.value) / BACK_CARD_RISE_THRESHOLD,
+    )
+    return {
+      transform: [{ scale: 0.95 + 0.05 * progress }],
+      opacity: 0.9 + 0.1 * progress,
+    }
+  })
+
   // --- Reset on profile change ---
   // First mount snaps in without animation; subsequent changes run the
   // entry animation (fade + slight upward slide) to pair with the parent-
@@ -297,26 +312,11 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
     scrollRef.current?.scrollTo?.({ y: 0, animated: false })
     onScrollStateChange?.({ scrollY: 0, isAtTop: true })
 
-    if (newId === undefined || oldId === undefined || newId === oldId) {
-      // First mount or same profile — snap to visible.
-      translateY.value = 0
-      opacity.value = 1
-      previousProfileIdRef.current = newId
-      return
-    }
-
-    // Real profile change: new card flies up from below and fades in.
-    translateY.value = 120
-    opacity.value = 0
-    translateY.value = withTiming(0, {
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-    })
-    opacity.value = withTiming(1, {
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-    })
-
+    // First mount, same profile, or real profile change — snap to visible.
+    // The back-card peek provides visual continuity during the front card's
+    // exit animation, so no additional entry animation is needed.
+    translateY.value = 0
+    opacity.value = 1
     previousProfileIdRef.current = newId
   }, [topProfile?.id])
 
@@ -466,6 +466,33 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
   return (
     <View style={styles.container}>
       <View style={styles.stackContainer}>
+        {/* Back card (next profile peeking) — visible as the front card exits */}
+        {nextProfile ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.backCard, animatedBackCardStyle]}
+          >
+            <View style={styles.nameRow}>
+              <ProfileHeader
+                displayName={nextProfile.display_name}
+                age={nextProfile.age}
+                distanceKm={null}
+                variant="compact"
+              />
+            </View>
+            <View style={[styles.photoWrapper, { height: effectiveImageHeight }]}>
+              <PhotoSection
+                photos={nextProfile.photo_urls}
+                imageHeight={effectiveImageHeight}
+                photoWidth={DISCOVER_PHOTO_WIDTH}
+                onOpenImageChat={() => {}}
+                showPhotoSwipeTooltip={false}
+                showImageCommentTooltip={false}
+              />
+            </View>
+          </Animated.View>
+        ) : null}
+
         {/* Front card */}
         <GestureDetector gesture={composedGesture}>
           <Animated.View style={[styles.frontCard, animatedCardStyle]} onLayout={handleCardLayout}>
@@ -613,6 +640,14 @@ const styles = StyleSheet.create({
   stackContainer: {
     flex: 1,
     position: "relative",
+    overflow: "hidden",
+  },
+  backCard: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
     overflow: "hidden",
   },
   frontCard: {

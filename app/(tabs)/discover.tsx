@@ -1325,13 +1325,14 @@ export default function DiscoverScreen() {
 
   const handleSendGemMessage = useCallback(
     async (content: string) => {
-      if (!content.trim() || !gemTargetProfileId || !currentUser) return
+      if (!gemTargetProfileId || !currentUser) return
       const profileIdAtSend = gemTargetProfileId
+      const trimmed = content.trim()
       setIsSendingGem(true)
       try {
         const result = await giveGemMutation.mutateAsync({
           toUserId: profileIdAtSend,
-          message: content.trim(),
+          message: trimmed.length > 0 ? trimmed : undefined,
         })
         if (!result.ok) {
           toast({
@@ -1716,6 +1717,7 @@ export default function DiscoverScreen() {
         onChange={handleGemSheetChange}
         headerText={currentUser ? `Send ${currentUser.display_name} a Gym Gem ✦` : undefined}
         sendLabel="Send Gem"
+        allowEmpty
       />
 
       {/* Match Modal */}
