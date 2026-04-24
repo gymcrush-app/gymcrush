@@ -109,7 +109,6 @@ const DEFAULT_DISCOVERY_PREFS: DiscoveryPreferencesData = {
 
 // Load initial preferences from AsyncStorage
 const getInitialPreferences = async (): Promise<DiscoveryPreferencesData> => {
-  captureException(new Error("Failed to load preferences"))
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEY_PREFERENCES)
     if (stored) {
@@ -118,6 +117,7 @@ const getInitialPreferences = async (): Promise<DiscoveryPreferencesData> => {
     }
   } catch (error) {
     console.error("Failed to load preferences:", error)
+    captureException(error instanceof Error ? error : new Error(String(error)))
   }
   return { ...DEFAULT_DISCOVERY_PREFS }
 }

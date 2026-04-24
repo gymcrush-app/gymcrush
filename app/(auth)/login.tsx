@@ -5,10 +5,10 @@ import { supabase } from "@/lib/supabase"
 import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { loginSchema } from "@/lib/utils/validation"
 import { signInWithApple } from "@/lib/auth/appleSignIn"
+import { GoogleSignInCancelled, signInWithGoogle } from "@/lib/auth/googleSignIn"
 import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontWeight, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "@/lib/toast"
 import { Image } from "expo-image"
 import { Link } from "expo-router"
 import { Eye, EyeOff } from "lucide-react-native"
@@ -93,8 +93,20 @@ export default function LoginScreen() {
   }
 
   const handleGoogleSignIn = async () => {
-    // TODO: Implement Google OAuth
-    toast({ preset: "none", title: "Google Sign In", message: "Coming soon" })
+    setIsLoading(true)
+    try {
+      const { session } = await signInWithGoogle()
+      if (session) {
+        track('login_success', { method: 'google' })
+        setSession(session)
+      }
+    } catch (error: any) {
+      if (error instanceof GoogleSignInCancelled) return
+      track('login_failed', { method: 'google', error: error?.message })
+      Alert.alert("Google Sign In failed", error?.message ?? "Something went wrong.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleForgotPassword = async () => {
@@ -105,7 +117,9 @@ export default function LoginScreen() {
     }
     setResetSending(true)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "gymcrush://reset-password",
+      })
       if (error) throw error
       Alert.alert("Check your inbox", "We sent a password reset link to " + email + ".")
     } catch (error: any) {

@@ -113,6 +113,7 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
   const bootstrap = useAuthStore((s) => s.bootstrap);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const authResolved = useAuthStore((s) => s.authResolved);
+  const inPasswordRecovery = useAuthStore((s) => s.inPasswordRecovery);
   const clearOnboardingData = useOnboardingStore((s) => s.clearData);
   const prevUserIdRef = useRef<string | null>(null);
   const setAppReady = useAppReadyStore((s) => s.setReady);
@@ -181,6 +182,14 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
 
       setSession(session);
 
+      if (event === 'PASSWORD_RECOVERY') {
+        useAuthStore.getState().setInPasswordRecovery(true);
+        // Cast: typedRoutes union regenerates on next `expo start`, after which
+        // 'reset-password' will be a valid segment literal.
+        router.replace('/(auth)/reset-password' as never);
+        return;
+      }
+
       // Fetch profile so routing guard can make decisions.
       // Only do this for sign-in events (not TOKEN_REFRESHED which fires frequently).
       // For SIGNED_IN after signup, the profile won't exist yet — initialize()
@@ -216,6 +225,23 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
 
+    // Password recovery overrides normal routing. Supabase establishes a real
+    // session during recovery, so the checks below would otherwise send the
+    // user straight to tabs.
+    if (inPasswordRecovery) {
+      // Cast: typedRoutes union regenerates on next `expo start`.
+      const onResetPassword = inAuthGroup && (segments[1] as string) === 'reset-password';
+      if (!onResetPassword) {
+        router.replace('/(auth)/reset-password' as never);
+        return;
+      }
+      if (!hasRouted.current) {
+        hasRouted.current = true;
+        requestAnimationFrame(() => setAppReady());
+      }
+      return;
+    }
+
     // Keep splash up until we are on the *final* route for the resolved auth state.
     // This prevents a brief flash of a restored screen (e.g. onboarding home gym) before redirect.
     if (!session) {
@@ -246,7 +272,7 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
       hasRouted.current = true;
       requestAnimationFrame(() => setAppReady());
     }
-  }, [session, isOnboarded, isLoading, authResolved, hasHydrated, segments, router, setAppReady]);
+  }, [session, isOnboarded, isLoading, authResolved, hasHydrated, inPasswordRecovery, segments, router, setAppReady]);
 
   return <>{children}</>;
 }

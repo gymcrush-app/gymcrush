@@ -16,10 +16,12 @@ interface AuthState {
   isLoading: boolean;
   hasHydrated: boolean;
   authResolved: boolean;
+  inPasswordRecovery: boolean;
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
   setOnboarded: (isOnboarded: boolean) => void;
+  setInPasswordRecovery: (inPasswordRecovery: boolean) => void;
   clearSession: () => void;
   initialize: () => Promise<void>;
   bootstrap: () => Promise<void>;
@@ -35,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
       hasHydrated: false,
       authResolved: false,
+      inPasswordRecovery: false,
 
       setSession: (session) => {
         set({ session, user: session?.user ?? null });
@@ -61,14 +64,17 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      setInPasswordRecovery: (inPasswordRecovery) => set({ inPasswordRecovery }),
+
       clearSession: () => {
-        set({ 
-          session: null, 
-          user: null, 
-          profile: null, 
+        set({
+          session: null,
+          user: null,
+          profile: null,
           isOnboarded: false,
           authResolved: true,
           isLoading: false,
+          inPasswordRecovery: false,
         });
       },
 

@@ -18,6 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.gymcrushdating.app",
       "buildNumber": "1",
+      "appleTeamId": "82V5W9KUUD",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "GymCrush uses your location to find gyms and gym-goers near you.",
@@ -71,6 +72,12 @@
           "url": "https://sentry.io/",
           "project": "gym-crush",
           "organization": "gymcrush"
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.281744902925-kp7ojjbkpbsvn1ue9js637f5l77e3kbr"
         }
       ]
     ],

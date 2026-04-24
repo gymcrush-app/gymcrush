@@ -15,5 +15,16 @@
     "production": {
       "autoIncrement": true
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleTeamId": "82V5W9KUUD",
+        "ascAppId": "6762858426",
+        "ascApiKeyPath": "/Users/chrischidgey/AuthKey_TR6A53JA3M.p8",
+        "ascApiKeyId": "TR6A53JA3M",
+        "ascApiKeyIssuerId": "ff8878d1-64d4-4d08-8ac4-ee0078b9304d"
+      }
+    }
   }
 }

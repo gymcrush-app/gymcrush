@@ -44,3 +44,10 @@ yarn-error.*
 /android
 
 .env.local
+
+# Claude Code local workspace
+.claude/
+
+# EAS / signing credentials — never commit
+credentials.json
+credentials/

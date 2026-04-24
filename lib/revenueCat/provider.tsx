@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useRevenueCatStore } from '@/lib/stores/revenueCatStore';
 import { buildMockOfferings } from './devMock';
@@ -26,6 +27,7 @@ export async function refetchOfferings() {
   const store = useRevenueCatStore.getState();
 
   console.log('[RC-DEBUG] calling getOfferings()...');
+  Sentry.captureMessage('[RC] refetchOfferings: calling getOfferings()', { level: 'info' });
   try {
     const offerings = await Purchases.getOfferings();
     if (!offerings.current) throw new Error('getOfferings returned null current');
@@ -33,10 +35,22 @@ export async function refetchOfferings() {
       current: offerings.current.identifier,
       currentPkgCount: offerings.current.availablePackages.length,
     });
+    Sentry.captureMessage('[RC] refetchOfferings: OK', {
+      level: 'info',
+      extra: {
+        currentOfferingId: offerings.current.identifier,
+        currentPkgCount: offerings.current.availablePackages.length,
+        allOfferingIds: Object.keys(offerings.all),
+      },
+    });
     store.setOfferings(offerings);
   } catch (err) {
     const msg = describeRcError(err);
     console.log('[RC-DEBUG] getOfferings FAILED:', msg);
+    Sentry.captureMessage('[RC] refetchOfferings: FAILED', {
+      level: 'error',
+      extra: { message: msg },
+    });
     if (__DEV__) {
       console.log('[RC-DEBUG] __DEV__ — injecting mock offerings so UI can render');
       store.setOfferings(buildMockOfferings());
@@ -70,6 +84,9 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
     if (configuredRef.current) return;
     if (!RC_IOS_KEY) {
       console.warn('[RevenueCat] EXPO_PUBLIC_RC_IOS_KEY missing; SDK not configured.');
+      Sentry.captureMessage('[RC] init: RC_IOS_KEY missing — SDK not configured', {
+        level: 'error',
+      });
       return;
     }
 
@@ -80,6 +97,13 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
     Purchases.configure({ apiKey: RC_IOS_KEY });
     configuredRef.current = true;
     setConfigured(true);
+    Sentry.captureMessage('[RC] init: configured', {
+      level: 'info',
+      extra: {
+        keyPrefix: RC_IOS_KEY.slice(0, 8),
+        keyLength: RC_IOS_KEY.length,
+      },
+    });
 
     const customerInfoListener = (info: Parameters<Parameters<typeof Purchases.addCustomerInfoUpdateListener>[0]>[0]) => {
       setCustomerInfo(info);
@@ -104,14 +128,26 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
           if (lastLoggedInUserId.current === userId) return;
           const { customerInfo } = await Purchases.logIn(userId);
           lastLoggedInUserId.current = userId;
+          Sentry.captureMessage('[RC] identity: logIn OK', {
+            level: 'info',
+            extra: {
+              userIdPrefix: userId.slice(0, 8),
+              activeEntitlements: Object.keys(customerInfo.entitlements.active),
+            },
+          });
           if (!cancelled) setCustomerInfo(customerInfo);
         } else if (lastLoggedInUserId.current) {
           await Purchases.logOut();
           lastLoggedInUserId.current = null;
+          Sentry.captureMessage('[RC] identity: logOut OK', { level: 'info' });
           if (!cancelled) resetStore();
         }
       } catch (err) {
         console.warn('[RevenueCat] identity sync failed', err);
+        Sentry.captureMessage('[RC] identity: sync FAILED', {
+          level: 'error',
+          extra: { message: describeRcError(err) },
+        });
       }
     })();
 
@@ -129,6 +165,7 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
     let cancelled = false;
     (async () => {
       console.log('[RC-DEBUG] initial fetch: calling getOfferings()...');
+      Sentry.captureMessage('[RC] initial fetch: calling getOfferings()', { level: 'info' });
       try {
         const offerings = await Purchases.getOfferings();
         if (!offerings.current) throw new Error('getOfferings returned null current');
@@ -136,10 +173,23 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
           current: offerings.current.identifier,
           currentPkgCount: offerings.current.availablePackages.length,
         });
+        Sentry.captureMessage('[RC] initial getOfferings: OK', {
+          level: 'info',
+          extra: {
+            currentOfferingId: offerings.current.identifier,
+            currentPkgCount: offerings.current.availablePackages.length,
+            allOfferingIds: Object.keys(offerings.all),
+            packageIds: offerings.current.availablePackages.map((p) => p.identifier),
+          },
+        });
         if (!cancelled) setOfferings(offerings);
       } catch (err) {
         const msg = describeRcError(err);
         console.log('[RC-DEBUG] initial getOfferings FAILED:', msg);
+        Sentry.captureMessage('[RC] initial getOfferings: FAILED', {
+          level: 'error',
+          extra: { message: msg },
+        });
         if (cancelled) return;
         if (__DEV__) {
           console.log('[RC-DEBUG] __DEV__ — injecting mock offerings so UI can render');
