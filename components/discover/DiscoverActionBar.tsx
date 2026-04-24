@@ -46,7 +46,7 @@ export function DiscoverActionBar({
   }))
 
   const blurAnimatedProps = useAnimatedProps(() => ({
-    intensity: interpolate(intensity.value, [0, 1], [15, 45]),
+    intensity: interpolate(intensity.value, [0, 1], [0, 45]),
   }))
 
   return (
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 190,
+    height: 130,
     zIndex: 11,
   },
   blurLayer: {
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 24,
+    bottom: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
