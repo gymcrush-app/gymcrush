@@ -647,7 +647,7 @@ export function SwipeDeck({
               showsVerticalScrollIndicator={false}
               onScroll={scrollHandler}
               scrollEventThrottle={16}
-              contentContainerStyle={{ paddingBottom: 140 }}
+              contentContainerStyle={{ paddingBottom: 200 }}
             >
             {/* Name row */}
             <View style={styles.nameRow}>
