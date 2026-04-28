@@ -10,7 +10,7 @@ import { useProfile, useProfileById } from "@/lib/api/profiles"
 import { useProfilePrompts } from "@/lib/api/prompts"
 import { calculateGymDistance, formatDistanceKmRounded } from "@/lib/utils/distance"
 import { formatIntents } from "@/lib/utils/formatting"
-import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
+import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import type { FitnessDiscipline, Intent } from "@/types/onboarding"
 import { Gem, X } from "lucide-react-native"
 import React, { useCallback, useMemo } from "react"
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   },
   gymGemBadgeText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
   promptSection: {

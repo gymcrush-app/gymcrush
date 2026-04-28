@@ -8,7 +8,7 @@ import { useGymGems } from "@/lib/api/gymGems"
 import { useGymsByIds } from "@/lib/api/gyms"
 import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
 import { toast } from "@/lib/toast"
-import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
+import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import type { ProfileWithScore } from "@/types"
 import { BottomSheetModal } from "@gorhom/bottom-sheet"
 import { Image } from "expo-image"
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: fontSize["2xl"],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
   },
   headerSubtitle: {
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
   gemsPillText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primaryForeground,
   },
   gemsList: {

@@ -2,7 +2,7 @@ import { FloatingActionButton } from '@/components/onboarding/FloatingActionButt
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { track } from '@/lib/utils/analytics';
-import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { APP, borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from 'expo-router';
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
   },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photoTitle: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     fontSize: fontSize.lg,
     color: colors.foreground,
   },

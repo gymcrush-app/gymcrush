@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/Input"
 import { useAuthStore } from "@/lib/stores/authStore"
 import { supabase } from "@/lib/supabase"
 import { resetPasswordSchema } from "@/lib/utils/validation"
-import { colors, fontSize, fontWeight, spacing } from "@/theme"
+import { colors, fontSize, fontFamily, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Image } from "expo-image"
 import { useRouter } from "expo-router"
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   title: {
     color: colors.foreground,
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold as "bold",
+    fontFamily: fontFamily.manropeBold as "bold",
     marginBottom: spacing[2],
   },
   subtitle: {

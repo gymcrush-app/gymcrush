@@ -1,7 +1,7 @@
+import { textStyles } from '@/lib/styles';
+import { colors, fontFamily } from '@/theme';
 import React from 'react';
 import { Text as RNText, TextStyle } from 'react-native';
-import { colors, fontWeight } from '@/theme';
-import { textStyles } from '@/lib/styles';
 
 type TextVariant =
   | 'h1'
@@ -19,10 +19,12 @@ type TextVariant =
 
 type TextColor = 'default' | 'primary' | 'secondary' | 'muted' | 'success' | 'warning' | 'destructive';
 
+type TextWeight = 'light' | 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
+
 interface TextProps {
   variant?: TextVariant;
   color?: TextColor;
-  weight?: 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
+  weight?: TextWeight;
   align?: 'left' | 'center' | 'right';
   children: React.ReactNode;
   style?: TextStyle | TextStyle[];
@@ -40,12 +42,13 @@ const colorMap: Record<TextColor, TextStyle> = {
   destructive: { color: colors.destructive },
 };
 
-const weightMap: Record<string, TextStyle> = {
-  normal: { fontWeight: fontWeight.normal },
-  medium: { fontWeight: fontWeight.medium },
-  semibold: { fontWeight: fontWeight.semibold },
-  bold: { fontWeight: fontWeight.bold },
-  extrabold: { fontWeight: fontWeight.extrabold },
+const weightFamilyMap: Record<TextWeight, string> = {
+  light: fontFamily.manropeLight,
+  normal: fontFamily.manrope,
+  medium: fontFamily.manropeMedium,
+  semibold: fontFamily.manropeSemibold,
+  bold: fontFamily.manropeBold,
+  extrabold: fontFamily.manropeExtrabold,
 };
 
 export function Text({
@@ -60,7 +63,9 @@ export function Text({
 }: TextProps) {
   const baseStyle = textStyles[variant];
   const colorStyle = colorMap[color];
-  const weightStyle = weight ? weightMap[weight] : {};
+  const weightStyle: TextStyle = weight
+    ? { fontFamily: weightFamilyMap[weight] }
+    : {};
   const alignStyle: TextStyle = { textAlign: align };
 
   return (

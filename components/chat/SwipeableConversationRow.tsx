@@ -1,6 +1,6 @@
 import { ConversationRow } from "@/components/chat/ConversationRow"
 import type { Conversation, ConversationMatch } from "@/lib/api/messages"
-import { colors, fontSize, fontWeight, spacing } from "@/theme"
+import { colors, fontSize, fontFamily, spacing } from "@/theme"
 import React, { useCallback, useRef } from "react"
 import { Alert, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import SwipeableItem, { useUnderlayParams } from "react-native-swipeable-item"
@@ -63,7 +63,7 @@ const underlayStyles = StyleSheet.create({
   },
   buttonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primaryForeground,
   },
 })

@@ -1,5 +1,5 @@
 import { BRACELET_OPTIONS } from '@/constants';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { BraceletStatus } from '@/types';
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
 });

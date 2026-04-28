@@ -116,16 +116,22 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 
 ## “Facebook pixel id” / Meta tracking
 
-- [ ] **Decide which tracking you need**
-  - [ ] Web landing site: Meta Pixel (pixel id) belongs on web, not iOS
-  - [ ] iOS attribution: integrate Meta SDK + App Events (and ATT prompt if needed)
+- [x] **iOS attribution via Meta Conversions API (server-side)** — `supabase/functions/meta-capi-event/` edge function forwards `signup_completed` (CompleteRegistration) and `purchase_success` (Purchase) from Mixpanel `track()` to Meta CAPI. PII (email, user_id) is SHA-256 hashed in the edge function before sending. Access Token stays in Supabase secrets — never on the client. No native SDK, no ATT prompt, no rebuild required.
+  - [ ] **DEPLOYMENT (one-time):** set Supabase secrets and deploy the edge function:
+    ```
+    supabase secrets set FACEBOOK_PIXEL_ID=996455392805924
+    supabase secrets set FACEBOOK_PIXEL_ACCESS_TOKEN=<token from .env>
+    supabase functions deploy meta-capi-event
+    ```
+  - [ ] **Verify in Meta Events Manager → Test Events:** in dev, pass `testEventCode` from Events Manager to `sendMetaCapiEvent` to see live events without affecting prod stats.
+- [ ] **Web landing site: Meta Pixel (pixel id)** — drops on `gymcrush.com` (or wherever the marketing page lives). Out of scope for this repo.
 
 ---
 
 ## UI / UX polish
 
 - [x] **Swap typography to Manrope (client-provided) — initial pass** — installed `@expo-google-fonts/manrope`, registered weights 300/400/500/600/700/800 in `lib/fonts.ts`, added `fontFamily.manrope*` tokens, and wired into `useFonts()` in `app/_layout.tsx`. Applied per client mapping: name → ExtraBold, age → Light, distance → Manrope (Regular) in `ProfileHeader`; prompt title → SemiBold, answer → ExtraBold in `PromptItem`; age & distance preference numbers → SemiBold in `DiscoveryPreferences`.
-- [ ] **Manrope app-wide rollout (follow-up)** — current pass only covers the spots the client called out. Audit remaining surfaces (chat, matches, settings, paywall, onboarding, system buttons) and decide whether to (a) refactor `components/ui/Text.tsx` so `weight` maps to a Manrope family (drop synthetic `fontWeight`), or (b) selectively swap per screen. Then sweep for hard-coded `System`/`Myriad Pro` `fontFamily` overrides.
+- [x] **Manrope app-wide rollout** — refactored `components/ui/Text.tsx` so `weight` prop maps to `fontFamily.manrope*` (drop synthetic `fontWeight`). Migrated `lib/styles/createStyles.ts` `textStyles` variants to use Manrope families directly. Swept ~50 files (UI primitives, chat, profile, discover, onboarding, auth) replacing `fontWeight: fontWeight.X` with `fontFamily: fontFamily.manropeY`. Inline overrides in paywall fallback panel, CensoredPreview, and CrushUnlockedOverlay also migrated. Expo template scaffolds (`+not-found.tsx`, `modal.tsx`) intentionally left alone.
 
 - [x] **Add race to profile and info box**
 - [x] **Add icons to info items**
@@ -134,8 +140,8 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - Note: discover card already has a `card` background so prompt boxes blend in there; on profile views the page background is black so the `card`-colored prompt boxes are distinct. May revisit discover card prompt styling later.
 - [x] **Add GC logo to slider**
 - [ ] ~~**Add flick-to-swipe-away UX**~~ — obsoleted by Hinge-style FAB redesign (swipe gestures removed in favor of tap-to-act action bar)
-- [ ] **Haptics on FAB button tap (Discover)** — trigger light impact on X/Gem, medium impact on Heart when tapped in `DiscoverActionBar`. Use `expo-haptics`.
-- [ ] **Button-tap feedback animation (Discover FAB)** — spring scale + glow ring on Heart/Gem tap for the "endorphin hit" moment. Coordinate timing with exit transition. _(Re-confirmed by client 2026-04-26 — animate like/crush button on Discover.)_
+- [x] **Haptics on FAB button tap (Discover)** — light impact on X/Gem, medium impact on Heart via `expo-haptics`, fired in `DiscoverActionBar` on press.
+- [x] **Button-tap feedback animation (Discover FAB)** — spring scale (0.88 → 1) + glow ring overlay on Heart/Gem/X tap for the "endorphin hit" moment. Each FAB has its own glow color (heart=primary, gem=blue, X=red).
 - [ ] **Keyboard-driven actions for accessibility (Discover)** — wire hardware keyboard shortcuts (e.g. ←/→/↑) to X/Heart/Gem for external-keyboard users. Not currently an app-wide pattern; deferred until broader a11y pass.
 - [ ] **Confirm with client: does a Gym Gem count as a like?** — Currently the Discover Gem FAB sends a gym gem via `useGiveGymGem` with no match-check. If gems should also match people (like a "super-like"), we'd need to either (a) also insert a like row server-side when a gem is given, or (b) trigger `useCheckMatch` on gem send. If client confirms gems should trigger matches, wire a MatchModal path through `handleSendGemMessage` in `app/(tabs)/discover.tsx`.
 

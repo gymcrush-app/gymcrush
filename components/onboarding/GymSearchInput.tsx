@@ -8,8 +8,8 @@ import { useSearchGyms } from '@/lib/api/gyms';
 import {
   borderRadius,
   colors,
+  fontFamily,
   fontSize,
-  fontWeight,
   spacing,
   APP,
   shadows,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   selectedName: {
     color: colors.secondaryForeground,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   selectedAddress: {
     color: colors.mutedForeground,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   resultName: {
     color: colors.foreground,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   resultAddress: {
     color: colors.mutedForeground,

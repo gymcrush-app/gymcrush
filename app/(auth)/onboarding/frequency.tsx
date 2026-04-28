@@ -2,7 +2,7 @@ import { FloatingActionButton } from '@/components/onboarding/FloatingActionButt
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { track } from '@/lib/utils/analytics';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import { useNavigation } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
   },
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   sectionTitle: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     fontSize: fontSize.lg,
     color: colors.foreground,
   },
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   frequencyLabel: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     textAlign: 'center',
     color: colors.foreground,
   },
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.primary}1A`, // 10% opacity
   },
   lifestyleLabel: {
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   lifestyleDescription: {

@@ -9,7 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { MERIDIAN_ID_COORDS, VISIBILITY_OPTIONS } from '@/constants';
 import { triggerDevLocationRefresh } from '@/lib/devLocationRefresh';
 import { formatIntents } from '@/lib/utils/formatting';
-import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { APP, borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { Gym, Profile, Visibility } from '@/types';
 import type { FitnessDiscipline, Intent } from '@/types/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
   },
   gymSubtext: {
     marginTop: spacing[1],
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary + '1A', // 10% opacity
   },
   visibilityOptionLabel: {
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     fontSize: fontSize.sm,
   },
   visibilityOptionDescription: {
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: colors.destructive,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   deleteItem: {
     width: '100%',
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     color: colors.mutedForeground,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   devSection: {
     marginTop: spacing[6],
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   devSectionTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.mutedForeground,
     marginBottom: spacing[2],
   },

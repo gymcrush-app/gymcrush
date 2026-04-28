@@ -1,6 +1,6 @@
 import { getFitnessIcon } from "@/components/icons/FitnessIcons"
 import { WORKOUT_TYPE_OPTIONS, type WorkoutTypeOption } from "@/constants"
-import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
+import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import type { FitnessDiscipline } from "@/types/onboarding"
 import React from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     textAlign: "center",
     paddingHorizontal: spacing[1],
     color: colors.foreground,

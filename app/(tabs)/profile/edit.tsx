@@ -17,8 +17,8 @@ import {
   APP,
   borderRadius,
   colors,
+  fontFamily,
   fontSize,
-  fontWeight,
   spacing,
 } from "@/theme"
 import type { Profile } from "@/types"
@@ -1094,7 +1094,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
   headerSpacer: {
@@ -1113,7 +1113,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.destructive,
     textAlign: "center",
   },
@@ -1137,7 +1137,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginBottom: spacing[3],
   },
@@ -1146,7 +1146,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
     marginBottom: spacing[2],
   },
@@ -1178,7 +1178,7 @@ const styles = StyleSheet.create({
   },
   disciplineChipText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   disciplineChipTextSelected: {
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
   },
   selectedGymName: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.primary,
   },
   selectedGymAddress: {
@@ -1240,7 +1240,7 @@ const styles = StyleSheet.create({
   },
   gymResultName: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   gymResultAddress: {
@@ -1278,7 +1278,7 @@ const styles = StyleSheet.create({
   },
   promptEditSection: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primary,
     textTransform: 'uppercase' as const,
   },
@@ -1298,7 +1298,7 @@ const styles = StyleSheet.create({
   },
   promptSheetTitle: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
   },
   promptSheetSubtitle: {

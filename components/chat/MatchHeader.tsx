@@ -3,7 +3,7 @@ import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
 import { ChevronLeft, MoreHorizontal } from 'lucide-react-native';
 import { Avatar } from '@/components/ui/Avatar';
 import type { MatchWithProfile } from '@/types';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { colors, fontSize, fontFamily, spacing } from '@/theme';
 import { useUserProfileModal } from '@/lib/contexts/UserProfileModalContext';
 
 interface MatchHeaderProps {
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginTop: spacing[2],
   },

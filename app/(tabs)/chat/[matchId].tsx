@@ -6,7 +6,7 @@ import { useChat } from '@/lib/api/messages';
 import { useReportAndBlock } from '@/lib/api/safety';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { toast } from '@/lib/toast';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { Message } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginTop: spacing[4],
   },
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primaryForeground,
   },
   emptyContainer: {
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginBottom: spacing[2],
   },

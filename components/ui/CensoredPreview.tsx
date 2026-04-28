@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, spacing } from '@/theme';
+import { colors, fontFamily, fontSize, spacing } from '@/theme';
 
 interface CensoredPreviewProps {
   filtered: string;
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: fontSize.xs,
-    fontWeight: '600',
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.mutedForeground,
     marginBottom: spacing[1],
   },

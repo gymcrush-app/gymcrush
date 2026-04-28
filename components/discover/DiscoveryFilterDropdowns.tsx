@@ -3,7 +3,7 @@ import { FilterSlider } from "@/components/ui/FilterSlider"
 import { Switch } from "@/components/ui/Switch"
 import { MAX_DISTANCE_MILES } from "@/constants"
 import { milesToKm } from "@/lib/utils/locale"
-import { colors, fontSize, fontWeight, spacing } from "@/theme"
+import { colors, fontSize, fontFamily, spacing } from "@/theme"
 import type { FitnessDiscipline } from "@/types/onboarding"
 import React from "react"
 import { StyleSheet, Text, View } from "react-native"
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   gymCrushModeLabel: {
     color: colors.primary,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     textAlign: "center",
   },
 })

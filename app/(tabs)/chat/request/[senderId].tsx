@@ -11,7 +11,7 @@ import {
 import { useLike } from '@/lib/api/matches';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { supabase } from '@/lib/supabase';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { Message } from '@/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MessageSquare } from 'lucide-react-native';
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
   actionsContainer: {
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   acceptButtonText: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primaryForeground,
   },
   declineButton: {
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   declineButtonText: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   buttonDisabled: {

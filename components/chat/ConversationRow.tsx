@@ -6,7 +6,7 @@ import { Avatar } from "@/components/ui/Avatar"
 import { UnreadDot } from "@/components/ui/UnreadDot"
 import type { Conversation } from "@/lib/api/messages"
 import { formatRelativeTime, truncateText } from "@/lib/utils/formatting"
-import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
+import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 
 const AVATAR_MD = 48
 
@@ -125,12 +125,12 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
     flex: 1,
   },
   nameUnread: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   timestamp: {
     fontSize: fontSize.xs,
@@ -143,6 +143,6 @@ const styles = StyleSheet.create({
   },
   previewUnread: {
     color: colors.foreground,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
 })

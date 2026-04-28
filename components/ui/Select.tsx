@@ -1,4 +1,4 @@
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import { ChevronDown } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.foreground,
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   modalScrollView: {
     maxHeight: 400,
@@ -188,6 +188,6 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     color: colors.primary,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
 });

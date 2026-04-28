@@ -1,4 +1,4 @@
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme'
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import * as WebBrowser from 'expo-web-browser'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   },
   offerWallTitle: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
   },
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   },
   trialBannerText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primary,
   },
   offerWallFeaturedCard: {
@@ -382,24 +382,24 @@ const styles = StyleSheet.create({
   },
   offerWallBadgeText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.primary,
     letterSpacing: 1,
   },
   offerWallPlanNameFeatured: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primaryForeground,
     marginBottom: spacing[1],
   },
   offerWallPlanPriceFeatured: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.primaryForeground,
   },
   offerWallPlanPerFeatured: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.primaryForeground,
     opacity: 0.75,
   },
@@ -425,18 +425,18 @@ const styles = StyleSheet.create({
   },
   offerWallPlanName: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginBottom: spacing[1],
   },
   offerWallPlanPrice: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
   },
   offerWallPlanPer: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.mutedForeground,
   },
   offerWallPlanSave: {
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   },
   offerWallFeaturesTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginBottom: spacing[3],
   },
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   offerWallCheck: {
     fontSize: fontSize.base,
     color: colors.primary,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
   },
   offerWallFeatureText: {
     flex: 1,
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   offerWallCtaText: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.primaryForeground,
   },
   offerWallDisclaimer: {
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   },
   legalLink: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.mutedForeground,
     textDecorationLine: 'underline',
   },

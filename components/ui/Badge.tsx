@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { colors, borderRadius, spacing, fontSize, fontWeight } from '@/theme';
+import { colors, borderRadius, spacing, fontSize, fontFamily } from '@/theme';
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.destructive,
   },
   text: {
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   textSm: {
     fontSize: fontSize.xs,

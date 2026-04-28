@@ -3,7 +3,7 @@ import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer
 import { Switch } from '@/components/ui/Switch';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { track } from '@/lib/utils/analytics';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import { useNavigation } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
   },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     gap: spacing[4],
   },
   sectionTitle: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     fontSize: fontSize.lg,
     color: colors.foreground,
   },
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.primary}1A`, // 10% opacity
   },
   optionLabel: {
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   optionDescription: {
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     marginRight: spacing[4],
   },
   switchLabel: {
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   switchDescription: {

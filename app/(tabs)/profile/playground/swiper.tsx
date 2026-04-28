@@ -1,6 +1,6 @@
 import { ProfileView as SwipeDeck } from '@/components/discover/ProfileView'
 import { MatchModal } from '@/components/discover/MatchModal'
-import { colors, fontSize, fontWeight, spacing, borderRadius } from '@/theme'
+import { colors, fontSize, fontFamily, spacing, borderRadius } from '@/theme'
 import type { Profile, SwipeAction } from '@/types'
 import { useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.mutedForeground,
   },
   deckWrapper: {

@@ -2,7 +2,7 @@ import { FloatingActionButton } from "@/components/onboarding/FloatingActionButt
 import { OnboardingContainer } from "@/components/onboarding/OnboardingContainer"
 import { useOnboardingStore } from "@/lib/stores/onboardingStore"
 import { track } from "@/lib/utils/analytics"
-import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
+import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import type { Intent } from "@/types/onboarding"
 import { useNavigation } from "expo-router"
 import React from "react"
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize["3xl"],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: "center",
   },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: colors.foreground,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     marginBottom: spacing[2],
   },
   genderRow: {
@@ -194,12 +194,12 @@ const styles = StyleSheet.create({
   },
   genderButtonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   genderButtonTextSelected: {
     color: colors.primary,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   content: {
     flex: 1,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   intentLabel: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     fontSize: fontSize.base,
   },
@@ -255,6 +255,6 @@ const styles = StyleSheet.create({
   checkmark: {
     color: colors.primaryForeground,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
   },
 })

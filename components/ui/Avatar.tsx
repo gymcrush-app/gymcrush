@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
-import { colors, borderRadius, fontWeight } from '@/theme';
+import { colors, borderRadius, fontFamily } from '@/theme';
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: colors.mutedForeground,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
 });
 

@@ -6,7 +6,7 @@
  */
 
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { colors, spacing, borderRadius, fontSize, fontWeight, lineHeight } from '@/theme';
+import { borderRadius, colors, fontFamily, fontSize, lineHeight, spacing } from '@/theme';
 
 /**
  * Type-safe StyleSheet.create wrapper
@@ -119,87 +119,87 @@ export const textStyles = {
   // Headings
   h1: {
     fontSize: fontSize['4xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     lineHeight: fontSize['4xl'] * lineHeight.tight,
   } as TextStyle,
-  
+
   h2: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     lineHeight: fontSize['3xl'] * lineHeight.tight,
   } as TextStyle,
-  
+
   h3: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     lineHeight: fontSize['2xl'] * lineHeight.tight,
   } as TextStyle,
-  
+
   h4: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     lineHeight: fontSize.xl * lineHeight.snug,
   } as TextStyle,
-  
+
   // Body text
   body: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.foreground,
     lineHeight: fontSize.base * lineHeight.normal,
   } as TextStyle,
-  
+
   bodyLarge: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.foreground,
     lineHeight: fontSize.lg * lineHeight.normal,
   } as TextStyle,
-  
+
   bodySmall: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.foreground,
     lineHeight: fontSize.sm * lineHeight.normal,
   } as TextStyle,
-  
+
   // Muted text
   muted: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.mutedForeground,
     lineHeight: fontSize.base * lineHeight.normal,
   } as TextStyle,
-  
+
   mutedSmall: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.mutedForeground,
     lineHeight: fontSize.sm * lineHeight.normal,
   } as TextStyle,
-  
+
   mutedXSmall: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.normal,
+    fontFamily: fontFamily.manrope,
     color: colors.mutedForeground,
     lineHeight: fontSize.xs * lineHeight.normal,
   } as TextStyle,
-  
+
   // Labels
   label: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.mutedForeground,
     lineHeight: fontSize.sm * lineHeight.normal,
   } as TextStyle,
-  
+
   labelSmall: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.mutedForeground,
     lineHeight: fontSize.xs * lineHeight.normal,
   } as TextStyle,

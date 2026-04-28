@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native"
 import { Avatar } from "@/components/ui/Avatar"
 import { UnreadDot } from "@/components/ui/UnreadDot"
 import type { ConversationMatch } from "@/lib/api/messages"
-import { colors, fontSize, fontWeight, spacing } from "@/theme"
+import { colors, fontSize, fontFamily, spacing } from "@/theme"
 
 export interface NewMatchAvatarRowProps {
   item: ConversationMatch
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   newMatchName: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
     marginTop: spacing[2],
     maxWidth: 80,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text, ActivityIndicator, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { colors, shadows, spacing, borderRadius, fontSize, fontWeight } from '@/theme';
+import { colors, shadows, spacing, borderRadius, fontSize, fontFamily } from '@/theme';
 import type { PressableProps } from 'react-native';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   text: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   textPrimary: {
     color: colors.primaryForeground,

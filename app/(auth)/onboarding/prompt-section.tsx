@@ -4,7 +4,7 @@ import { FilteredTextarea } from '@/components/ui/FilteredTextarea';
 import { usePromptSections } from '@/lib/api/prompts';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { track } from '@/lib/utils/analytics';
-import { APP, borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { APP, borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { PromptAnswer } from '@/types/onboarding';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
   },
@@ -266,12 +266,12 @@ const styles = StyleSheet.create({
   },
   themeButtonText: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   themeButtonTextSelected: {
     color: colors.primary,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   questionsList: {
     gap: spacing[2],

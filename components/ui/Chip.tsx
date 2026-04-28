@@ -1,4 +1,4 @@
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import React from 'react';
 import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   chipTextSelected: {
     color: colors.secondaryForeground,

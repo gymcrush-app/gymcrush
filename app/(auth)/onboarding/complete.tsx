@@ -18,7 +18,7 @@ import { resolveHomeGym } from '@/lib/utils/resolveHomeGym';
 import { uploadProfilePhotos } from '@/lib/storage/uploadProfilePhoto';
 import { insertProfilePrompts } from '@/lib/api/prompts';
 import { identify, track } from '@/lib/utils/analytics';
-import { gradients, shadows, colors, fontDisplay, spacing, borderRadius, fontSize, fontWeight } from '@/theme';
+import { gradients, shadows, colors, fontDisplay, spacing, borderRadius, fontSize, fontFamily } from '@/theme';
 import { duration } from '@/theme/tokens';
 
 export default function OnboardingComplete() {
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize['4xl'],
     color: colors.foreground,
     marginBottom: spacing[4],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     textAlign: 'center',
   },
   subtitle: {
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primaryForeground,
   },
 });

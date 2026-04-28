@@ -2,6 +2,7 @@
  * Full-screen "CRUSH UNLOCKED" celebration overlay.
  * Peach radial burst → particle explosion → stylised text → fade out.
  */
+import { fontFamily } from "@/theme"
 import { palette } from "@/theme/colors"
 import React, { useMemo } from "react"
 import { Dimensions, StyleSheet, View } from "react-native"
@@ -330,14 +331,14 @@ const styles = StyleSheet.create({
   },
   crushLetter: {
     fontSize: 52,
-    fontWeight: "900" as const,
+    fontFamily: fontFamily.manropeExtrabold,
     color: "#fff",
     letterSpacing: 6,
     marginHorizontal: 2,
   },
   unlockedLetter: {
     fontSize: 28,
-    fontWeight: "700" as const,
+    fontFamily: fontFamily.manropeBold,
     color: palette.peach100,
     letterSpacing: 4,
     marginHorizontal: 1,

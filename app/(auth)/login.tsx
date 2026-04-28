@@ -7,7 +7,7 @@ import { loginSchema } from "@/lib/utils/validation"
 import { signInWithApple } from "@/lib/auth/appleSignIn"
 import { GoogleSignInCancelled, signInWithGoogle } from "@/lib/auth/googleSignIn"
 import { track } from "@/lib/utils/analytics"
-import { colors, fontSize, fontWeight, spacing } from "@/theme"
+import { colors, fontSize, fontFamily, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Image } from "expo-image"
 import { Link } from "expo-router"
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     color: colors.primary,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   supabaseUrl: {
     marginTop: spacing[6],

@@ -1,6 +1,6 @@
 import React, { forwardRef, useState } from 'react';
 import { TextInput, Text, View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '@/theme';
+import { colors, spacing, borderRadius, fontSize, fontFamily } from '@/theme';
 import type { TextInputProps } from 'react-native';
 
 interface TextareaProps extends Omit<TextInputProps, 'style'> {
@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
   label: {
     color: colors.foreground,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     marginBottom: spacing[1],
   },
   inputContainer: {

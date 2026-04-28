@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { parseLocation } from '@/lib/utils/distance';
 import { fetchPlaceDetails } from '@/lib/utils/google-places';
 import { track } from '@/lib/utils/analytics';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { GooglePlaceGym } from '@/types/onboarding';
 import { useFocusEffect } from '@react-navigation/native';
 import { PermissionStatus } from 'expo-location';
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['3xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
   },

@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.foreground,
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
   },
   content: {
     flex: 1,
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.mutedForeground,
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     marginBottom: spacing[2],
   },
   sectionHint: {
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   noLimitLink: {
     fontSize: fontSize.sm,
     color: colors.primary,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   chipsContainer: {
     flexDirection: "row",
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   },
   toggleButtonText: {
     textAlign: "center",
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   toggleButtonTextActive: {
     color: colors.primaryForeground,
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
   },
   gymResultName: {
     color: colors.foreground,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   gymResultAddress: {
     color: colors.mutedForeground,
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   },
   selectedGymName: {
     color: colors.secondaryForeground,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   selectedGymAddress: {
     color: colors.secondaryForeground,

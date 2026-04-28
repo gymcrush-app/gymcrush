@@ -1,6 +1,6 @@
 import { Text } from '@/components/ui/Text';
 import { HeartbeatHeart } from '@/components/ui/HeartbeatHeart';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { Profile } from '@/types';
 import { Image } from 'expo-image';
 import React from 'react';
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['4xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
     marginBottom: spacing[2],
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   },
   photoLabel: {
     color: colors.foreground,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   heartContainer: {
     marginHorizontal: spacing[1],

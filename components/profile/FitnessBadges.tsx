@@ -5,7 +5,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { colors, fontSize, fontFamily, spacing } from '@/theme';
 
 interface FitnessBadgesProps {
   disciplines: string[];
@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.primaryForeground,
   },
 });

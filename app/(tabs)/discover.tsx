@@ -50,8 +50,8 @@ import {
   APP,
   borderRadius,
   colors,
+  fontFamily,
   fontSize,
-  fontWeight,
   palette,
   spacing,
 } from "@/theme"
@@ -1389,7 +1389,7 @@ export default function DiscoverScreen() {
           <Text
             style={{
               fontSize: fontSize.xl,
-              fontWeight: fontWeight.semibold,
+              fontFamily: fontFamily.manropeSemibold,
               color: colors.foreground,
               textAlign: "center",
               marginBottom: spacing[2],
@@ -1542,7 +1542,7 @@ export default function DiscoverScreen() {
             <Text
               style={{
                 fontSize: fontSize.xl,
-                fontWeight: fontWeight.semibold,
+                fontFamily: fontFamily.manropeSemibold,
                 color: colors.foreground,
                 textAlign: "center",
                 marginBottom: spacing[2],
@@ -1799,7 +1799,7 @@ const styles = StyleSheet.create({
   },
   headerFirstName: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
   bottomSheetBackground: {
@@ -1862,13 +1862,13 @@ const styles = StyleSheet.create({
   },
   workoutTypesTitle: {
     fontSize: fontSize["2xl"],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
   },
   workoutTypesClearButton: {
     fontSize: fontSize.base,
     color: colors.primary,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   skippedBanner: {
     paddingVertical: spacing[2],
@@ -1879,7 +1879,7 @@ const styles = StyleSheet.create({
   skippedBannerText: {
     fontSize: fontSize.sm,
     color: colors.mutedForeground,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
   deckArea: {
     flex: 1,

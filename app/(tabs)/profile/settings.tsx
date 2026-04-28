@@ -1,6 +1,6 @@
 import { PermissionPrompt } from '@/components/notifications/PermissionPrompt';
 import { useNotifications } from '@/hooks/useNotifications';
-import { colors, fontSize, fontWeight, spacing } from '@/theme';
+import { colors, fontSize, fontFamily, spacing } from '@/theme';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginBottom: spacing[2],
   },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   linkRowText: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primary,
   },
   demoPlaygroundRow: {
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   demoPlaygroundRowTitle: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
   demoPlaygroundRowHint: {

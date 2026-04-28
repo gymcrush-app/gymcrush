@@ -1,5 +1,5 @@
 import { Text } from '@/components/ui/Text';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: spacing[2],
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
   descriptionImageVariant: {

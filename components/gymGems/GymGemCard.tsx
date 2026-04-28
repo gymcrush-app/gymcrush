@@ -1,7 +1,7 @@
 import { Avatar } from '@/components/ui/Avatar';
 import type { ProfileWithScore } from '@/types';
 import { Image } from 'expo-image';
-import { borderRadius, colors, fontSize, fontWeight, shadows, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, shadows, spacing } from '@/theme';
 import { Gem } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   },
   gemButtonText: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.primaryForeground,
   },
   gemButtonTextGiven: {
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     flex: 1,
   },
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   bottomValue: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
 });

@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { useRevenueCatStore } from '@/lib/stores/revenueCatStore';
 import { track } from '@/lib/utils/analytics';
+import { fontFamily } from '@/theme';
 import { palette } from '@/theme/colors';
 
 /**
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
   fallbackTitle: {
     color: palette.light100,
     fontSize: 20,
-    fontWeight: '600',
+    fontFamily: fontFamily.manropeSemibold,
     marginBottom: 12,
   },
   fallbackBody: {
@@ -146,6 +147,6 @@ const styles = StyleSheet.create({
   fallbackButtonText: {
     color: palette.peachDark,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fontFamily.manropeSemibold,
   },
 });

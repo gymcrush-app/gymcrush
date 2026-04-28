@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 
 export interface PillBadgeProps {
   icon: React.ReactNode;
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: colors.primary,
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     marginLeft: spacing[1],
   },
 });

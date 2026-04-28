@@ -8,7 +8,7 @@ import { toast } from "@/lib/toast"
 import { track } from "@/lib/utils/analytics"
 import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { signupSchema } from "@/lib/utils/validation"
-import { colors, fontSize, fontWeight, spacing } from "@/theme"
+import { colors, fontSize, fontFamily, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Image } from "expo-image"
 import { Link } from "expo-router"
@@ -64,7 +64,11 @@ export default function SignupScreen() {
     try {
       const { session } = await signInWithApple()
       if (session) {
-        track("signup_completed", { method: "apple" })
+        track("signup_completed", {
+          method: "apple",
+          user_id: session.user.id,
+          email: session.user.email,
+        })
         setSession(session)
       }
     } catch (error: any) {
@@ -90,11 +94,17 @@ export default function SignupScreen() {
       if (error) throw error
 
       if (authData.session) {
-        track("signup_completed")
+        track("signup_completed", {
+          user_id: authData.session.user.id,
+          email: authData.session.user.email,
+        })
         setSession(authData.session)
         // Navigation handled by AuthStateChangeHandler routing effect
       } else {
-        track("signup_completed")
+        track("signup_completed", {
+          user_id: authData.user?.id,
+          email: authData.user?.email,
+        })
         toast({
           title: "Check your email",
           message: "We sent you a confirmation link",
@@ -332,7 +342,7 @@ const styles = StyleSheet.create({
   },
   signinLink: {
     color: colors.primary,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   supabaseUrl: {
     marginTop: spacing[6],

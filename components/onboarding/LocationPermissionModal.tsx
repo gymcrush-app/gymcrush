@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/Button';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import { MapPin } from 'lucide-react-native';
 import React from 'react';
 import { Linking, Modal, StyleSheet, Text, View } from 'react-native';
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
     marginBottom: spacing[3],

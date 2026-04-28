@@ -5,7 +5,7 @@ import {
   toast,
   type ActiveToast,
 } from '@/lib/toast'
-import { colors, fontSize, fontWeight, spacing } from '@/theme'
+import { colors, fontSize, fontFamily, spacing } from '@/theme'
 import React, { useCallback, useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     marginBottom: spacing[2],
   },
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   rowMessage: {

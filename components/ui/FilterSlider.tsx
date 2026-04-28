@@ -1,5 +1,5 @@
 import { FilterTriggerButton } from '@/components/ui/FilterTriggerButton';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import { usesMiles, kmToMiles, milesToKm, formatDistance } from '@/lib/utils/locale';
 import { GymCrushSliderMarker } from '@/components/ui/GymCrushSliderMarker';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   sliderTitle: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
   },
   sliderContent: {
@@ -229,11 +229,11 @@ const styles = StyleSheet.create({
   updateButtonText: {
     fontSize: fontSize.base,
     color: colors.primaryForeground,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   currentValue: {
     fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
     textAlign: 'center',
     marginBottom: spacing[6],
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
   },
 });

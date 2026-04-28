@@ -4,7 +4,7 @@ import { Avatar } from "@/components/ui/Avatar"
 import { UnreadDot } from "@/components/ui/UnreadDot"
 import type { MessageRequest } from "@/lib/api/messages"
 import { formatRelativeTime, truncateText } from "@/lib/utils/formatting"
-import { colors, fontSize, fontWeight, spacing } from "@/theme"
+import { colors, fontSize, fontFamily, spacing } from "@/theme"
 
 export interface RequestRowProps {
   item: MessageRequest
@@ -83,12 +83,12 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
     flex: 1,
   },
   nameUnread: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
   },
   timestamp: {
     fontSize: fontSize.xs,
@@ -101,6 +101,6 @@ const styles = StyleSheet.create({
   },
   previewUnread: {
     color: colors.foreground,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
   },
 })

@@ -1,5 +1,5 @@
 import { Input } from '@/components/ui/Input';
-import { borderRadius, colors, fontSize, fontWeight, spacing } from '@/theme';
+import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { GooglePlaceGym } from '@/types/onboarding';
 import { Check, MapPin, Search } from 'lucide-react-native';
 import React from 'react';
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     gap: spacing[4],
   },
   sectionTitle: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     fontSize: fontSize.lg,
     color: colors.foreground,
   },
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   removeButtonText: {
     color: colors.primary,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     fontSize: fontSize.base,
   },
   searchInput: {},
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   gymResultName: {
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.foreground,
   },
   gymResultAddress: {

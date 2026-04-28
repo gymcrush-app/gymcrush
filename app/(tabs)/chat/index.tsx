@@ -8,7 +8,7 @@ import { useConversations, useMessageRequests } from "@/lib/api/messages"
 import { useBlockedUserIds } from "@/lib/api/safety"
 import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
 import { useAuthStore } from "@/lib/stores/authStore"
-import { borderRadius, colors, fontSize, fontWeight, spacing } from "@/theme"
+import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { FlashList } from "@shopify/flash-list"
 import { useRouter } from "expo-router"
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: fontSize["2xl"],
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeBold,
     color: colors.foreground,
   },
   separator: {
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.mutedForeground,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -387,11 +387,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
+    fontFamily: fontFamily.manropeMedium,
     color: colors.mutedForeground,
   },
   tabTextActive: {
-    fontWeight: fontWeight.semibold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
   },
   tabBadge: {
