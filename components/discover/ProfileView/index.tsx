@@ -1,28 +1,21 @@
+import { PhotoCarouselRef } from "@/components/profile/PhotoCarousel"
 import {
   DISCOVER_PHOTO_WIDTH,
   PHOTO_INSET,
   PhotoSection,
 } from "@/components/profile/PhotoSection"
-import { PhotoCarouselRef } from "@/components/profile/PhotoCarousel"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
 import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
 import { PromptItem } from "@/components/profile/PromptItem"
-import { Text } from "@/components/ui/Text"
 import { useGymById } from "@/lib/api/gyms"
-import { useProfilePrompts } from "@/lib/api/prompts"
 import { useSendMessageRequest } from "@/lib/api/messages"
+import { useProfilePrompts } from "@/lib/api/prompts"
 import { useZoomPortal } from "@/lib/contexts/ZoomPortalContext"
 import { toast } from "@/lib/toast"
 import { formatDistanceKmRounded } from "@/lib/utils/distance"
 import { formatIntents } from "@/lib/utils/formatting"
-import {
-  borderRadius,
-  colors,
-  fontSize,
-  palette,
-  spacing,
-} from "@/theme"
+import { borderRadius, colors, spacing } from "@/theme"
 import type { Profile } from "@/types"
 import type { Intent } from "@/types/onboarding"
 import { BottomSheetModal } from "@gorhom/bottom-sheet"
@@ -54,7 +47,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated"
-import Tooltip from "react-native-walkthrough-tooltip"
 import { MessageBottomSheet } from "./MessageBottomSheet"
 import { ProfileDetailSheet } from "./ProfileDetailSheet"
 
@@ -85,21 +77,23 @@ export interface ProfileViewHandle {
   runExitAnimation: (onComplete: () => void) => void
 }
 
-export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>(
-  function ProfileView(
-    {
-      profiles,
-      showPhotoSwipeTooltip = false,
-      showImageCommentTooltip = false,
-      onPhotoSwipeTooltipClose,
-      onImageCommentTooltipClose,
-      onScrollStateChange,
-      onReportAndBlock,
-      distances,
-      scrollY: externalScrollY,
-    },
-    ref,
-  ) {
+export const ProfileView = React.forwardRef<
+  ProfileViewHandle,
+  ProfileViewProps
+>(function ProfileView(
+  {
+    profiles,
+    showPhotoSwipeTooltip = false,
+    showImageCommentTooltip = false,
+    onPhotoSwipeTooltipClose,
+    onImageCommentTooltipClose,
+    onScrollStateChange,
+    onReportAndBlock,
+    distances,
+    scrollY: externalScrollY,
+  },
+  ref,
+) {
   const topProfile = profiles[0]
   const nextProfile = profiles[1]
   const { data: profileGym } = useGymById(topProfile?.home_gym_id || "")
@@ -117,8 +111,11 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
 
   // Split prompts: most-engaged first, then 2nd and 3rd
   const { prompt1, prompt2, prompt3 } = useMemo(() => {
-    if (prompts.length === 0) return { prompt1: null, prompt2: null, prompt3: null }
-    const sorted = [...prompts].sort((a, b) => b.engagement_count - a.engagement_count)
+    if (prompts.length === 0)
+      return { prompt1: null, prompt2: null, prompt3: null }
+    const sorted = [...prompts].sort(
+      (a, b) => b.engagement_count - a.engagement_count,
+    )
     return {
       prompt1: sorted[0] ?? null,
       prompt2: sorted[1] ?? null,
@@ -391,7 +388,13 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
         })
       }
     },
-    [topProfile, sendMessageRequest, handleCloseMessageSheet, selectedPrompt, isImageChat],
+    [
+      topProfile,
+      sendMessageRequest,
+      handleCloseMessageSheet,
+      selectedPrompt,
+      isImageChat,
+    ],
   )
 
   const handleOpenImageChat = useCallback(() => {
@@ -426,7 +429,7 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
           style: "destructive",
           onPress: () => {
             if (topProfile) {
-              onReportAndBlock?.(topProfile.id);
+              onReportAndBlock?.(topProfile.id)
             }
           },
         },
@@ -448,9 +451,10 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
   // swipe-up indicator ~50px, padding ~20px = ~260px non-photo content
   const NON_PHOTO_HEIGHT = 260
   const idealImageHeight = SCREEN_WIDTH * (1350 / 1080) - 30
-  const effectiveImageHeight = cardHeight > 0
-    ? Math.min(idealImageHeight, cardHeight - NON_PHOTO_HEIGHT)
-    : idealImageHeight
+  const effectiveImageHeight =
+    cardHeight > 0
+      ? Math.min(idealImageHeight, cardHeight - NON_PHOTO_HEIGHT)
+      : idealImageHeight
 
   if (profiles.length === 0 || !topProfile) {
     return null
@@ -480,8 +484,11 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
                 variant="compact"
               />
             </View>
-            <View style={[styles.photoWrapper, { height: effectiveImageHeight }]}>
+            <View
+              style={[styles.photoWrapper, { height: effectiveImageHeight }]}
+            >
               <PhotoSection
+                key={nextProfile.id}
                 photos={nextProfile.photo_urls}
                 imageHeight={effectiveImageHeight}
                 photoWidth={DISCOVER_PHOTO_WIDTH}
@@ -495,7 +502,10 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
 
         {/* Front card */}
         <GestureDetector gesture={composedGesture}>
-          <Animated.View style={[styles.frontCard, animatedCardStyle]} onLayout={handleCardLayout}>
+          <Animated.View
+            style={[styles.frontCard, animatedCardStyle]}
+            onLayout={handleCardLayout}
+          >
             <AnimatedGHScrollView
               ref={scrollRef as any}
               bounces
@@ -503,101 +513,111 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
               showsVerticalScrollIndicator={false}
               onScroll={scrollHandler}
               scrollEventThrottle={16}
-              contentContainerStyle={{ paddingBottom: 220 }}
+              contentContainerStyle={{ paddingBottom: 90 }}
             >
-            {/* Name row */}
-            <View style={styles.nameRow}>
-              <ProfileHeader
-                displayName={topProfile.display_name}
-                age={topProfile.age}
-                distanceKm={distanceKm}
-                variant="compact"
-              />
-            </View>
-
-            {/* Photo area (pinch-to-zoom ref target) */}
-            <Animated.View
-              ref={photoContainerRef}
-              collapsable={false}
-              style={[styles.photoWrapper, { height: effectiveImageHeight }]}
-            >
-              <View>
-                <PhotoSection
-                  ref={photoCarouselRef}
-                  photos={topProfile.photo_urls}
-                  imageHeight={effectiveImageHeight}
-                  photoWidth={DISCOVER_PHOTO_WIDTH}
-                  onOpenImageChat={handleOpenImageChat}
-                  showPhotoSwipeTooltip={showPhotoSwipeTooltip}
-                  showImageCommentTooltip={showImageCommentTooltip}
-                  onPhotoSwipeTooltipClose={onPhotoSwipeTooltipClose}
-                  onImageCommentTooltipClose={onImageCommentTooltipClose}
+              {/* Name row */}
+              <View style={styles.nameRow}>
+                <ProfileHeader
+                  displayName={topProfile.display_name}
+                  age={topProfile.age}
+                  distanceKm={distanceKm}
+                  variant="compact"
                 />
               </View>
 
-              {/* Photo overlays */}
-              <View style={styles.imageTopOverlay}>
-                <View style={styles.imageTopOverlayLeft} />
-                <Pressable
-                  onPress={handleReportAndBlock}
-                  style={styles.reportBlockButton}
-                >
-                  <MoreHorizontal size={20} color={colors.foreground} />
-                </Pressable>
+              {/* Photo area (pinch-to-zoom ref target) */}
+              <Animated.View
+                ref={photoContainerRef}
+                collapsable={false}
+                style={[styles.photoWrapper, { height: effectiveImageHeight }]}
+              >
+                <View>
+                  <PhotoSection
+                    ref={photoCarouselRef}
+                    key={topProfile.id}
+                    photos={topProfile.photo_urls}
+                    imageHeight={effectiveImageHeight}
+                    photoWidth={DISCOVER_PHOTO_WIDTH}
+                    onOpenImageChat={handleOpenImageChat}
+                    showPhotoSwipeTooltip={showPhotoSwipeTooltip}
+                    showImageCommentTooltip={showImageCommentTooltip}
+                    onPhotoSwipeTooltipClose={onPhotoSwipeTooltipClose}
+                    onImageCommentTooltipClose={onImageCommentTooltipClose}
+                  />
+                </View>
+
+                {/* Photo overlays */}
+                <View style={styles.imageTopOverlay}>
+                  <View style={styles.imageTopOverlayLeft} />
+                  <Pressable
+                    onPress={handleReportAndBlock}
+                    style={styles.reportBlockButton}
+                  >
+                    <MoreHorizontal size={20} color={colors.foreground} />
+                  </Pressable>
+                </View>
+              </Animated.View>
+
+              {/* Profile content — interleaved prompts + info */}
+              <View style={styles.profileDetailSection}>
+                {/* 1. Top prompt (most engaged) */}
+                {prompt1 && (
+                  <PromptItem
+                    title={prompt1.title}
+                    answer={prompt1.answer}
+                    onPress={() =>
+                      handlePromptPress(prompt1.title, prompt1.answer)
+                    }
+                    highlighted
+                  />
+                )}
+
+                {/* 2. Info box */}
+                <ProfileInfoBox
+                  height={height}
+                  intent={formattedIntents}
+                  occupation={topProfile.occupation ?? null}
+                  city={profileGym?.city ?? null}
+                />
+
+                {/* 3. Prompt 2 */}
+                {prompt2 && (
+                  <PromptItem
+                    title={prompt2.title}
+                    answer={prompt2.answer}
+                    onPress={() =>
+                      handlePromptPress(prompt2.title, prompt2.answer)
+                    }
+                    highlighted
+                  />
+                )}
+
+                {/* 5. Lifestyle info box */}
+                <ProfileLifestyleBox
+                  ethnicity={
+                    Array.isArray((topProfile as any).ethnicity)
+                      ? (topProfile as any).ethnicity
+                      : null
+                  }
+                  religion={(topProfile as any).religion ?? null}
+                  alcohol={(topProfile as any).alcohol ?? null}
+                  smoking={(topProfile as any).smoking ?? null}
+                  marijuana={(topProfile as any).marijuana ?? null}
+                  hasKids={(topProfile as any).has_kids ?? null}
+                />
+
+                {/* 6. Prompt 3 */}
+                {prompt3 && (
+                  <PromptItem
+                    title={prompt3.title}
+                    answer={prompt3.answer}
+                    onPress={() =>
+                      handlePromptPress(prompt3.title, prompt3.answer)
+                    }
+                    highlighted
+                  />
+                )}
               </View>
-
-            </Animated.View>
-
-            {/* Profile content — interleaved prompts + info */}
-            <View style={styles.profileDetailSection}>
-              {/* 1. Top prompt (most engaged) */}
-              {prompt1 && (
-                <PromptItem
-                  title={prompt1.title}
-                  answer={prompt1.answer}
-                  onPress={() => handlePromptPress(prompt1.title, prompt1.answer)}
-                  highlighted
-                />
-              )}
-
-              {/* 2. Info box */}
-              <ProfileInfoBox
-                height={height}
-                intent={formattedIntents}
-                occupation={topProfile.occupation ?? null}
-                city={profileGym?.city ?? null}
-              />
-
-              {/* 3. Prompt 2 */}
-              {prompt2 && (
-                <PromptItem
-                  title={prompt2.title}
-                  answer={prompt2.answer}
-                  onPress={() => handlePromptPress(prompt2.title, prompt2.answer)}
-                  highlighted
-                />
-              )}
-
-              {/* 5. Lifestyle info box */}
-              <ProfileLifestyleBox
-                ethnicity={Array.isArray((topProfile as any).ethnicity) ? (topProfile as any).ethnicity : null}
-                religion={(topProfile as any).religion ?? null}
-                alcohol={(topProfile as any).alcohol ?? null}
-                smoking={(topProfile as any).smoking ?? null}
-                marijuana={(topProfile as any).marijuana ?? null}
-                hasKids={(topProfile as any).has_kids ?? null}
-              />
-
-              {/* 6. Prompt 3 */}
-              {prompt3 && (
-                <PromptItem
-                  title={prompt3.title}
-                  answer={prompt3.answer}
-                  onPress={() => handlePromptPress(prompt3.title, prompt3.answer)}
-                  highlighted
-                />
-              )}
-            </View>
             </AnimatedGHScrollView>
           </Animated.View>
         </GestureDetector>
@@ -629,8 +649,7 @@ export const ProfileView = React.forwardRef<ProfileViewHandle, ProfileViewProps>
       />
     </View>
   )
-  },
-)
+})
 
 const styles = StyleSheet.create({
   container: {

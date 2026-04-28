@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 130,
+    height: 80,
     zIndex: 11,
   },
   blurLayer: {
@@ -148,35 +148,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 0,
+    gap: 20,
   },
   button: {
     alignItems: "center",
     justifyContent: "center",
   },
   xButton: {
-    width: 120,
-    height: 120,
+    width: 70,
+    height: 70,
   },
   gemButton: {
-    width: 100,
-    height: 100,
+    width: 50,
+    height: 50,
   },
   heartButton: {
-    width: 140,
-    height: 140,
+    width: 70,
+    height: 70,
   },
   xIcon: {
-    width: 120,
-    height: 120,
+    width: 70,
+    height: 70,
   },
   gemIcon: {
-    width: 100,
-    height: 100,
+    width: 50,
+    height: 50,
   },
   heartIcon: {
-    width: 140,
-    height: 140,
+    width: 70,
+    height: 70,
   },
   pressed: {
     transform: [{ scale: 0.94 }],

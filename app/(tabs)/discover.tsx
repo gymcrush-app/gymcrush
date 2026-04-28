@@ -961,7 +961,7 @@ export default function DiscoverScreen() {
     currentProfile &&
     currentProfile.id !== matchCheck.userId
 
-  const { data: matchData } = useCheckMatch(
+  const { data: matchData, isFetching: isMatchFetching } = useCheckMatch(
     currentProfile?.id || "",
     canCheckMatch && matchCheckUserId ? matchCheckUserId : "",
   )
@@ -975,22 +975,33 @@ export default function DiscoverScreen() {
       try {
         if (action === "like") {
           track("discover_swipe_like")
-          await likeMutation.mutateAsync({ toUserId: profileId })
-        }
-
-        // Check for match after like (before moving to next profile)
-        if (action === "like") {
-          // Start match check — don't add to swipedProfiles yet
+          // Advance + mark swiped immediately so the new card snaps in cleanly.
+          // Match check runs in the background; if a match is found, MatchModal
+          // shows on top of the already-advanced card.
           dispatchMatchCheck({
             type: "start_check",
             userId: profileId,
             profile: currentUser,
           })
+          const updatedSwiped = [...swipedProfiles, profileId]
+          setSwipedProfiles(updatedSwiped)
+          if (isSkippedMode) {
+            const updatedSkipped = skippedProfiles.filter(
+              (id) => id !== profileId,
+            )
+            setSkippedProfiles(updatedSkipped)
+            setSkippedIndex((prev) => prev + 1)
+          } else {
+            setCurrentIndex((prev) => prev + 1)
+          }
+          // Persist in background (no await on the UI path)
+          saveSwipedProfile(profileId, updatedSwiped)
+          if (isSkippedMode) {
+            removeSkippedProfile(profileId, skippedProfiles)
+          }
 
-          // Match-check runs immediately post-mutation. likeMutation.mutateAsync
-          // awaits the server response which includes the trigger-created match
-          // row (if any). No defensive delay needed — if tests surface a race,
-          // restore a short delay here.
+          await likeMutation.mutateAsync({ toUserId: profileId })
+
           if (currentProfile?.id) {
             queryClient.invalidateQueries({
               queryKey: ["match", currentProfile.id, profileId],
@@ -1005,9 +1016,6 @@ export default function DiscoverScreen() {
               queryKey: ["match", profileId, currentProfile.id],
             })
           }
-
-          // Don't advance index yet - wait to see if there's a match
-          // If no match, we'll advance in handleKeepSwiping
         } else {
           track("discover_swipe_pass")
           // For pass actions, save to swiped and to skipped list, then move to next profile
@@ -1047,9 +1055,13 @@ export default function DiscoverScreen() {
     ],
   )
 
-  // Dispatch match_found or no_match once matchData arrives.
+  // Dispatch match_found or no_match once the match query settles. While
+  // isFetching is true, matchData is undefined and we must NOT dispatch
+  // no_match — otherwise we'd race past the "checking" state before a real
+  // match row could be returned.
   useEffect(() => {
     if (matchCheck.status !== "checking" || !currentProfile) return
+    if (isMatchFetching) return
 
     if (
       matchData &&
@@ -1067,11 +1079,12 @@ export default function DiscoverScreen() {
         setMatchedUser(matchedProfile)
         dispatchMatchCheck({ type: "match_found", matchedProfile })
       }
-    } else if (!matchData) {
+    } else if (matchData === null) {
       dispatchMatchCheck({ type: "no_match" })
     }
   }, [
     matchData,
+    isMatchFetching,
     matchCheck,
     currentProfile,
     showMatchModal,
@@ -1080,20 +1093,6 @@ export default function DiscoverScreen() {
   ])
 
   // --- Shared helpers for match flow completion ---
-  const markProfileAsSwiped = useCallback(
-    async (profileId: string) => {
-      const updatedSwiped = [...swipedProfiles, profileId]
-      setSwipedProfiles(updatedSwiped)
-      await saveSwipedProfile(profileId, updatedSwiped)
-      if (skippedProfiles.includes(profileId)) {
-        const updatedSkipped = skippedProfiles.filter((id) => id !== profileId)
-        setSkippedProfiles(updatedSkipped)
-        await removeSkippedProfile(profileId, skippedProfiles)
-      }
-    },
-    [swipedProfiles, skippedProfiles],
-  )
-
   const invalidateMatchQueries = useCallback(
     (userId: string) => {
       if (!currentProfile?.id) return
@@ -1113,30 +1112,17 @@ export default function DiscoverScreen() {
     dispatchMatchCheck({ type: "reset" })
   }, [])
 
-  const advanceToNextProfile = useCallback(() => {
-    if (filteredUsers.length > 0) {
-      setCurrentIndex((prev) => prev + 1)
-    } else {
-      setSkippedIndex((prev) => prev + 1)
-    }
-  }, [filteredUsers.length])
-
-  // After match check resolves: show modal (match) or advance (no-match).
-  // Previously the ProfileView drove this via its exit-animation callback; now
-  // that the action bar is tap-driven we handle it directly here.
+  // After match check resolves: show modal (match) or just reset (no-match).
+  // Index advance + swiped-marking already happened on the heart tap, so the
+  // no_match path has no UI work to do here.
   useEffect(() => {
     if (matchCheck.status !== "result") return
     if (matchCheck.result === "match") {
       setShowMatchModal(true)
       return
     }
-    const userId = matchCheck.userId
     dispatchMatchCheck({ type: "reset" })
-    advanceToNextProfile()
-    if (userId) {
-      markProfileAsSwiped(userId)
-    }
-  }, [matchCheck, advanceToNextProfile, markProfileAsSwiped])
+  }, [matchCheck])
 
   const handleStartChatting = useCallback(async () => {
     const userId = matchCheckUserId
@@ -1146,40 +1132,28 @@ export default function DiscoverScreen() {
       setTimeout(() => {
         router.push(`/(tabs)/chat/${matchData.id}`)
       }, 150)
-    } else {
-      advanceToNextProfile()
     }
-    // Persist in background after UI has updated
+    // Index advance + swiped-marking already happened on the like; just
+    // refresh match queries so the chat tab sees the new conversation.
     if (userId) {
-      markProfileAsSwiped(userId)
       invalidateMatchQueries(userId)
     }
   }, [
     matchData,
     router,
     matchCheckUserId,
-    markProfileAsSwiped,
     invalidateMatchQueries,
     resetMatchFlow,
-    advanceToNextProfile,
   ])
 
   const handleKeepSwiping = useCallback(async () => {
     const userId = matchCheckUserId
     resetMatchFlow()
-    advanceToNextProfile()
-    // Persist in background after UI has updated
+    // Index advance + swiped-marking already happened on the like.
     if (userId) {
-      markProfileAsSwiped(userId)
       invalidateMatchQueries(userId)
     }
-  }, [
-    matchCheckUserId,
-    markProfileAsSwiped,
-    invalidateMatchQueries,
-    resetMatchFlow,
-    advanceToNextProfile,
-  ])
+  }, [matchCheckUserId, invalidateMatchQueries, resetMatchFlow])
 
   const handlePreferencesChange = useCallback(
     (prefs: DiscoveryPreferencesData) => {

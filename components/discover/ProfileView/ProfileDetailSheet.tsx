@@ -1,23 +1,26 @@
-import { ProfileInfoBox } from '@/components/profile/ProfileInfoBox';
-import { ProfileLifestyleBox } from '@/components/profile/ProfileLifestyleBox';
-import { PromptItem } from '@/components/profile/PromptItem';
-import { formatDistanceKmRounded } from '@/lib/utils/distance';
-import { formatIntents } from '@/lib/utils/formatting';
-import { colors, spacing } from '@/theme';
-import { Profile } from '@/types';
-import { Intent } from '@/types/onboarding';
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import React, { RefObject, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
+import { ProfileInfoBox } from "@/components/profile/ProfileInfoBox"
+import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
+import { PromptItem } from "@/components/profile/PromptItem"
+import { Text } from "@/components/ui/Text"
+import { formatIntents } from "@/lib/utils/formatting"
+import { colors, spacing } from "@/theme"
+import { Profile } from "@/types"
+import { Intent } from "@/types/onboarding"
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from "@gorhom/bottom-sheet"
+import React, { RefObject, useMemo } from "react"
+import { StyleSheet, View } from "react-native"
 
 interface ProfileDetailSheetProps {
-  profile: Profile | null;
-  profileGym: { city?: string; [key: string]: any } | null | undefined;
-  distance: number | null;
-  prompts: Array<{ id: string; title: string; answer: string }>;
-  onPromptPress: (title: string, answer: string) => void;
-  bottomSheetRef: RefObject<BottomSheetModal | null>;
+  profile: Profile | null
+  profileGym: { city?: string; [key: string]: any } | null | undefined
+  distance: number | null
+  prompts: { id: string; title: string; answer: string }[]
+  onPromptPress: (title: string, answer: string) => void
+  bottomSheetRef: RefObject<BottomSheetModal | null>
 }
 
 const renderBackdrop = (props: any) => (
@@ -27,7 +30,7 @@ const renderBackdrop = (props: any) => (
     appearsOnIndex={0}
     opacity={0.5}
   />
-);
+)
 
 export function ProfileDetailSheet({
   profile,
@@ -37,20 +40,20 @@ export function ProfileDetailSheet({
   onPromptPress,
   bottomSheetRef,
 }: ProfileDetailSheetProps) {
-  const snapPoints = useMemo(() => ['75%', '95%'], []);
+  const snapPoints = useMemo(() => ["75%", "95%"], [])
 
-  if (!profile) return null;
+  if (!profile) return null
 
-  const discoveryPrefs = profile.discovery_preferences as any;
-  const intents = (discoveryPrefs?.intents || []) as Intent[];
-  const height = profile.height ?? discoveryPrefs?.height ?? null;
-  const formattedIntents = formatIntents(intents);
+  const discoveryPrefs = profile.discovery_preferences as any
+  const intents = (discoveryPrefs?.intents || []) as Intent[]
+  const height = profile.height ?? discoveryPrefs?.height ?? null
+  const formattedIntents = formatIntents(intents)
 
-  const age = profile.age ?? null;
+  const age = profile.age ?? null
 
-  const prompt1 = prompts[0] ?? null;
-  const prompt2 = prompts[1] ?? null;
-  const prompt3 = prompts[2] ?? null;
+  const prompt1 = prompts[0] ?? null
+  const prompt2 = prompts[1] ?? null
+  const prompt3 = prompts[2] ?? null
 
   return (
     <BottomSheetModal
@@ -64,7 +67,8 @@ export function ProfileDetailSheet({
       <BottomSheetScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text variant="h2">
-            {profile.display_name}{age != null ? `, ${age}` : ''}
+            {profile.display_name}
+            {age != null ? `, ${age}` : ""}
           </Text>
 
           {/* 1. Top prompt */}
@@ -97,7 +101,11 @@ export function ProfileDetailSheet({
 
           {/* 5. Lifestyle info box */}
           <ProfileLifestyleBox
-            ethnicity={Array.isArray((profile as any).ethnicity) ? (profile as any).ethnicity : null}
+            ethnicity={
+              Array.isArray((profile as any).ethnicity)
+                ? (profile as any).ethnicity
+                : null
+            }
             religion={(profile as any).religion ?? null}
             alcohol={(profile as any).alcohol ?? null}
             smoking={(profile as any).smoking ?? null}
@@ -117,7 +125,7 @@ export function ProfileDetailSheet({
         </View>
       </BottomSheetScrollView>
     </BottomSheetModal>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -132,4 +140,4 @@ const styles = StyleSheet.create({
     gap: spacing[4],
     paddingBottom: spacing[8],
   },
-});
+})

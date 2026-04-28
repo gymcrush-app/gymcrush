@@ -1,5 +1,5 @@
 import { Text } from '@/components/ui/Text';
-import { borderRadius, colors, spacing } from '@/theme';
+import { borderRadius, colors, fontFamily, spacing } from '@/theme';
 import { MessageCircle } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -20,7 +20,6 @@ export const PromptItem = React.memo<PromptItemProps>(({ title, answer, onPress,
       <View style={styles.header}>
         <Text
           variant="mutedXSmall"
-          weight="semibold"
           style={styles.promptTitle}
         >
           {title}
@@ -29,7 +28,7 @@ export const PromptItem = React.memo<PromptItemProps>(({ title, answer, onPress,
           <MessageCircle size={16} color={highlighted ? colors.primary : colors.mutedForeground} />
         </Pressable>
       </View>
-      <Text variant="body">
+      <Text variant="body" style={styles.answer}>
         {answer}
       </Text>
     </View>
@@ -46,6 +45,10 @@ const styles = StyleSheet.create({
   promptTitle: {
     fontSize: PROMPT_TITLE_FONT_SIZE,
     paddingRight: spacing[7],
+    fontFamily: fontFamily.manropeSemibold,
+  },
+  answer: {
+    fontFamily: fontFamily.manropeExtrabold,
   },
   messageButton: {
     position: 'absolute',

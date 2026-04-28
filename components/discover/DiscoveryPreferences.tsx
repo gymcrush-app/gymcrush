@@ -8,6 +8,7 @@ import { kmToMiles, milesToKm, usesMiles } from "@/lib/utils/locale"
 import {
   borderRadius,
   colors,
+  fontFamily,
   fontSize,
   fontWeight,
   palette,
@@ -561,7 +562,7 @@ const styles = StyleSheet.create({
   },
   ageRangeValue: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     textAlign: "center",
     marginBottom: spacing[4],
@@ -574,7 +575,7 @@ const styles = StyleSheet.create({
   },
   distanceSliderValue: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+    fontFamily: fontFamily.manropeSemibold,
     color: colors.foreground,
     textAlign: "center",
     marginBottom: spacing[4],

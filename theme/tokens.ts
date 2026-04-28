@@ -82,10 +82,18 @@ export const fontWeight = {
   extrabold: '800' as const,
 } as const;
 
-// Font family for swipe deck header (Myriad Pro). Loaded from assets/fonts/myriad-pro in app _layout.
+// Font family aliases. Myriad Pro is loaded from assets/fonts/myriad-pro.
+// Manrope weights are loaded via @expo-google-fonts/manrope. Each weight is its
+// own family name so callers pick a weight by family — no synthetic bolding.
 export const fontFamily = {
   myriad: 'Myriad Pro',
   myriadBold: 'Myriad Pro Bold',
+  manropeLight: 'Manrope_300Light',
+  manrope: 'Manrope_400Regular',
+  manropeMedium: 'Manrope_500Medium',
+  manropeSemibold: 'Manrope_600SemiBold',
+  manropeBold: 'Manrope_700Bold',
+  manropeExtrabold: 'Manrope_800ExtraBold',
 } as const;
 
 // Display font style (matches .font-display from Lovable CSS)

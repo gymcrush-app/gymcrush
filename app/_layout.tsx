@@ -1,4 +1,4 @@
-import { myriadProFonts } from '@/lib/fonts';
+import { manropeFonts, myriadProFonts } from '@/lib/fonts';
 import { useAppReadyStore } from '@/lib/stores/appReadyStore';
 import { useFonts } from 'expo-font';
 import { Slot, useRouter, useSegments } from 'expo-router';
@@ -74,7 +74,7 @@ const queryClient = new QueryClient({
 });
 
 export default Sentry.wrap(function RootLayout() {
-  const [fontsLoaded] = useFonts(myriadProFonts);
+  const [fontsLoaded] = useFonts({ ...myriadProFonts, ...manropeFonts });
 
   useEffect(() => {
     initMixpanel();

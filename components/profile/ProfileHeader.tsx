@@ -3,8 +3,9 @@ import { fontFamily, fontSize, spacing } from "@/theme"
 import React from "react"
 import { StyleSheet, View } from "react-native"
 
-const MYRIAD = { fontFamily: fontFamily.myriad }
-const MYRIAD_BOLD = { fontFamily: fontFamily.myriadBold }
+const NAME_FONT = { fontFamily: fontFamily.manropeExtrabold }
+const AGE_FONT = { fontFamily: fontFamily.manropeLight }
+const DISTANCE_FONT = { fontFamily: fontFamily.manrope }
 
 interface ProfileHeaderProps {
   displayName: string
@@ -35,21 +36,19 @@ export const ProfileHeader = React.memo<ProfileHeaderProps>(
           variant={isCompact ? "body" : "h1"}
           style={
             isCompact
-              ? [styles.nameText, styles.nameTextCompact, MYRIAD]
-              : [styles.nameText, MYRIAD]
+              ? [styles.nameText, styles.nameTextCompact, NAME_FONT]
+              : [styles.nameText, NAME_FONT]
           }
           numberOfLines={1}
           ellipsizeMode="tail"
         >
           <Text
-            weight="bold"
-            style={{ fontSize: 28, lineHeight: 38, ...MYRIAD_BOLD }}
+            style={{ fontSize: 28, lineHeight: 38, ...NAME_FONT }}
           >
             {`${displayName}  `}
           </Text>
           <Text
-            weight="normal"
-            style={{ fontSize: 28, lineHeight: 38, ...MYRIAD }}
+            style={{ fontSize: 28, lineHeight: 38, ...AGE_FONT }}
           >
             {age}
           </Text>
@@ -58,9 +57,8 @@ export const ProfileHeader = React.memo<ProfileHeaderProps>(
           <View style={styles.distanceRow}>
             <Text
               variant={isCompact ? "body" : "h1"}
-              weight="normal"
               style={[
-                { fontSize: distanceNumSize, ...MYRIAD },
+                { fontSize: distanceNumSize, ...DISTANCE_FONT },
                 styles.distanceText,
                 ...(isCompact ? [styles.distanceTextCompact] : []),
               ]}
@@ -68,9 +66,8 @@ export const ProfileHeader = React.memo<ProfileHeaderProps>(
               {distanceKm}
             </Text>
             <Text
-              weight="normal"
               style={[
-                { fontSize: distanceUnitSize, ...MYRIAD },
+                { fontSize: distanceUnitSize, ...DISTANCE_FONT },
                 styles.distanceUnit,
               ]}
             >

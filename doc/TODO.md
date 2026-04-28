@@ -124,15 +124,18 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 
 ## UI / UX polish
 
+- [x] **Swap typography to Manrope (client-provided) — initial pass** — installed `@expo-google-fonts/manrope`, registered weights 300/400/500/600/700/800 in `lib/fonts.ts`, added `fontFamily.manrope*` tokens, and wired into `useFonts()` in `app/_layout.tsx`. Applied per client mapping: name → ExtraBold, age → Light, distance → Manrope (Regular) in `ProfileHeader`; prompt title → SemiBold, answer → ExtraBold in `PromptItem`; age & distance preference numbers → SemiBold in `DiscoveryPreferences`.
+- [ ] **Manrope app-wide rollout (follow-up)** — current pass only covers the spots the client called out. Audit remaining surfaces (chat, matches, settings, paywall, onboarding, system buttons) and decide whether to (a) refactor `components/ui/Text.tsx` so `weight` maps to a Manrope family (drop synthetic `fontWeight`), or (b) selectively swap per screen. Then sweep for hard-coded `System`/`Myriad Pro` `fontFamily` overrides.
+
 - [x] **Add race to profile and info box**
 - [x] **Add icons to info items**
-- [ ] **Fix card stretching and overlap layout**
+- [x] ~~**Fix card stretching and overlap layout**~~ — obsoleted by Discover card redesign (2026-04-26).
 - [x] **Change background on prompt Q/A**
   - Note: discover card already has a `card` background so prompt boxes blend in there; on profile views the page background is black so the `card`-colored prompt boxes are distinct. May revisit discover card prompt styling later.
 - [x] **Add GC logo to slider**
 - [ ] ~~**Add flick-to-swipe-away UX**~~ — obsoleted by Hinge-style FAB redesign (swipe gestures removed in favor of tap-to-act action bar)
 - [ ] **Haptics on FAB button tap (Discover)** — trigger light impact on X/Gem, medium impact on Heart when tapped in `DiscoverActionBar`. Use `expo-haptics`.
-- [ ] **Button-tap feedback animation (Discover FAB)** — spring scale + glow ring on Heart/Gem tap for the "endorphin hit" moment. Coordinate timing with exit transition.
+- [ ] **Button-tap feedback animation (Discover FAB)** — spring scale + glow ring on Heart/Gem tap for the "endorphin hit" moment. Coordinate timing with exit transition. _(Re-confirmed by client 2026-04-26 — animate like/crush button on Discover.)_
 - [ ] **Keyboard-driven actions for accessibility (Discover)** — wire hardware keyboard shortcuts (e.g. ←/→/↑) to X/Heart/Gem for external-keyboard users. Not currently an app-wide pattern; deferred until broader a11y pass.
 - [ ] **Confirm with client: does a Gym Gem count as a like?** — Currently the Discover Gem FAB sends a gym gem via `useGiveGymGem` with no match-check. If gems should also match people (like a "super-like"), we'd need to either (a) also insert a like row server-side when a gem is given, or (b) trigger `useCheckMatch` on gem send. If client confirms gems should trigger matches, wire a MatchModal path through `handleSendGemMessage` in `app/(tabs)/discover.tsx`.
 
