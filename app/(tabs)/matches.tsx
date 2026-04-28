@@ -27,10 +27,12 @@ const GYM_CRUSH_HEART_IMAGE = require("@/assets/images/GymCrushHeart.png")
 
 const GYM_GEMS_RADIUS_MILES = 30
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
-/** Width reserved for the peek of the next card */
-const PEEK_WIDTH = 40
+/** Width reserved for the peek of the next/prev card on each side. */
+const PEEK_WIDTH = 28
 const CARD_GAP = spacing[3]
-const CARD_WIDTH = SCREEN_WIDTH - spacing[4] * 2 - PEEK_WIDTH
+const CARD_WIDTH = SCREEN_WIDTH - 2 * (PEEK_WIDTH + CARD_GAP)
+/** Padding that centers the active card and exposes equal peeks on both sides. */
+const SIDE_PAD = (SCREEN_WIDTH - CARD_WIDTH) / 2
 
 export default function GymGemsScreen() {
   const insets = useSafeAreaInsets()
@@ -301,7 +303,7 @@ const styles = StyleSheet.create({
   },
   horizontalListContent: {
     alignItems: "stretch",
-    paddingHorizontal: spacing[4],
+    paddingHorizontal: SIDE_PAD,
     gap: CARD_GAP,
   },
   cardWrapper: {
