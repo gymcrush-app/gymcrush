@@ -220,10 +220,13 @@ export const ProfileView = React.forwardRef<
       try {
         const measured = measure(photoContainerRef)
         if (measured) {
+          // photoWrapper spans SCREEN_WIDTH but the visible photo is inset by
+          // PHOTO_INSET on each side. Adjust so the portal lines up with the
+          // visible bordered photo instead of full screen width.
           runOnJS(startZoomWithCurrentPhoto)({
-            x: measured.pageX,
+            x: measured.pageX + PHOTO_INSET,
             y: measured.pageY,
-            width: measured.width,
+            width: measured.width - 2 * PHOTO_INSET,
             height: measured.height,
           })
         }

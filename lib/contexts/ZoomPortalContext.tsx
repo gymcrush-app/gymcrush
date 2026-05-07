@@ -3,6 +3,8 @@ import { Image } from "expo-image"
 import React, { createContext, useCallback, useContext, useState } from "react"
 import { Dimensions, StyleSheet, View } from "react-native"
 import Animated, {
+  Extrapolation,
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -120,7 +122,9 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
         { translateY: overlayTranslateY.value },
         { scale: s },
       ],
-      opacity: s > 1 ? 1 : 0,
+      // Cross-fade across a tiny scale range around 1 so the portal
+      // doesn't pop visibly when the spring settles back to scale=1.
+      opacity: interpolate(s, [1, 1.02], [0, 1], Extrapolation.CLAMP),
     }
   })
 

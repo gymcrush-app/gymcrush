@@ -193,21 +193,23 @@ const removeSkippedProfile = async (
   }
 }
 
-const getTooltipsSeen = async (): Promise<boolean> => {
+const getTooltipsSeen = async (): Promise<{ seen: boolean; raw: string | null }> => {
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEY_TOOLTIPS_SEEN)
-    return stored === "true"
+    return { seen: stored === "true", raw: stored }
   } catch (error) {
     console.error("Failed to load tooltips seen:", error)
-    return false
+    return { seen: false, raw: null }
   }
 }
 
-const setTooltipsSeen = async (): Promise<void> => {
+const setTooltipsSeen = async (): Promise<boolean> => {
   try {
     await AsyncStorage.setItem(STORAGE_KEY_TOOLTIPS_SEEN, "true")
+    return true
   } catch (error) {
     console.error("Failed to save tooltips seen:", error)
+    return false
   }
 }
 
@@ -717,10 +719,17 @@ export default function DiscoverScreen() {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const run = async () => {
-      const seen = await getTooltipsSeen()
+      const { seen, raw } = await getTooltipsSeen()
+      track("tooltips_seen_check", {
+        stored_value: raw,
+        will_show_walkthrough: !seen,
+      })
       if (cancelled || seen) return
       timer = setTimeout(() => {
-        if (!cancelled) setTooltipStep(0)
+        if (!cancelled) {
+          track("tooltips_walkthrough_started", { stored_value: raw })
+          setTooltipStep(0)
+        }
       }, 500)
     }
     run()
@@ -741,8 +750,17 @@ export default function DiscoverScreen() {
     setTooltipStep((prev) => {
       if (prev === null) return null
       const next = prev + 1
+      track("tooltips_advanced", {
+        from_step: prev,
+        to_step: next,
+        is_final: next >= 3,
+      })
       if (next >= 3) {
-        setTooltipsSeen()
+        // Fire-and-forget but record success/failure so we can correlate
+        // "user completed walkthrough" with "AsyncStorage write succeeded".
+        setTooltipsSeen().then((ok) => {
+          track("tooltips_walkthrough_completed", { storage_write_ok: ok })
+        })
         return null
       }
       // Hide current tooltip, then show next after delay

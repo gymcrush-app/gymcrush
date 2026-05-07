@@ -12,7 +12,6 @@ import Animated, {
   type SharedValue,
   useAnimatedProps,
   useAnimatedStyle,
-  useDerivedValue,
   useSharedValue,
   withSequence,
   withSpring,
@@ -26,12 +25,16 @@ interface DiscoverActionBarProps {
   onCrush: () => void
   onLike: () => void
   disabled?: boolean
-  /** Shared scroll offset (pt) used to drive visual intensification. */
+  /** Shared scroll offset (pt). Drives blur intensity from BLUR_MIN → BLUR_MAX. */
   scrollY?: SharedValue<number>
 }
 
-/** Scroll distance (pt) over which the backdrop ramps from subtle → sharp. */
-const RAMP_DISTANCE = 300
+/** Light blur at rest so content peeks through, signalling "there's more below". */
+const BLUR_MIN = 14
+/** Full blur once user has scrolled past the ramp distance. */
+const BLUR_MAX = 45
+/** Scroll distance (pt) to ramp from BLUR_MIN to BLUR_MAX. */
+const RAMP_DISTANCE = 120
 
 const TAP_PRESS_SPRING = { damping: 14, stiffness: 320, mass: 0.6 }
 const TAP_RELEASE_SPRING = { damping: 8, stiffness: 220, mass: 0.7 }
@@ -115,23 +118,13 @@ export function DiscoverActionBar({
   disabled = false,
   scrollY,
 }: DiscoverActionBarProps) {
-  const intensity = useDerivedValue(() => {
-    if (!scrollY) return 1
-    const y = scrollY.value
-    return Math.max(0, Math.min(1, y / RAMP_DISTANCE))
+  const blurAnimatedProps = useAnimatedProps(() => {
+    if (!scrollY) return { intensity: BLUR_MAX }
+    const progress = Math.max(0, Math.min(1, scrollY.value / RAMP_DISTANCE))
+    return {
+      intensity: interpolate(progress, [0, 1], [BLUR_MIN, BLUR_MAX]),
+    }
   })
-
-  const gradientStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(intensity.value, [0, 1], [0.4, 1]),
-  }))
-
-  const buttonRowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(intensity.value, [0, 1], [0.85, 1]),
-  }))
-
-  const blurAnimatedProps = useAnimatedProps(() => ({
-    intensity: interpolate(intensity.value, [0, 1], [0, 45]),
-  }))
 
   return (
     <View
@@ -155,19 +148,13 @@ export function DiscoverActionBar({
           animatedProps={blurAnimatedProps}
         />
       </MaskedView>
-      <Animated.View
-        style={[styles.gradientLayer, gradientStyle]}
-        pointerEvents="none"
-      >
+      <View style={styles.gradientLayer} pointerEvents="none">
         <LinearGradient
           colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.55)"]}
           style={StyleSheet.absoluteFill}
         />
-      </Animated.View>
-      <Animated.View
-        style={[styles.buttonRow, buttonRowStyle]}
-        pointerEvents="box-none"
-      >
+      </View>
+      <View style={styles.buttonRow} pointerEvents="box-none">
         <FabButton
           onPress={onSkip}
           source={require("../../assets/images/x-button.png")}
@@ -195,7 +182,7 @@ export function DiscoverActionBar({
           hapticStyle={Haptics.ImpactFeedbackStyle.Medium}
           accessibilityLabel="Like"
         />
-      </Animated.View>
+      </View>
     </View>
   )
 }
