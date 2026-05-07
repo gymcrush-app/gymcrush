@@ -1,5 +1,7 @@
 import { manropeFonts, myriadProFonts } from '@/lib/fonts';
 import { useAppReadyStore } from '@/lib/stores/appReadyStore';
+import { handleAuthDeepLink } from '@/lib/auth/handleAuthDeepLink';
+import * as Linking from 'expo-linking';
 import { useFonts } from 'expo-font';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -211,8 +213,22 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Handle Supabase auth deep links (password recovery email, email
+    // confirm, magic link). detectSessionInUrl is disabled because RN has
+    // no window.location, so we manually parse the URL and call
+    // verifyOtp / exchangeCodeForSession. That fires the corresponding
+    // auth event (e.g. PASSWORD_RECOVERY) on the listener above. Wired
+    // here so the listener is guaranteed to be subscribed first.
+    Linking.getInitialURL().then((url) => {
+      if (url) handleAuthDeepLink(url);
+    });
+    const linkingSub = Linking.addEventListener('url', (event) => {
+      handleAuthDeepLink(event.url);
+    });
+
     return () => {
       subscription.unsubscribe();
+      linkingSub.remove();
     };
   }, [bootstrap, hasHydrated, setSession, clearOnboardingData]);
 
