@@ -16,8 +16,7 @@ export default function ProfileLayout() {
       <Stack.Screen
         name="settings"
         options={{
-          title: 'Settings',
-          headerShown: true,
+          headerShown: false,
         }}
       />
       <Stack.Screen

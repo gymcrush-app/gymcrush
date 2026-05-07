@@ -12,7 +12,7 @@ import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { FlashList } from "@shopify/flash-list"
 import { useRouter } from "expo-router"
-import React, { useCallback, useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -62,6 +62,28 @@ export default function ChatListScreen() {
       matchesWithoutMessages: withoutMessages,
     }
   }, [conversations])
+
+  // When the topmost conversation changes (e.g. user just sent a message and
+  // the thread bumped to position 0), snap the list to the top so the user
+  // doesn't return to a stale scroll offset that hides the new top item.
+  const messagesListRef = useRef<React.ComponentRef<typeof FlashList<Conversation>> | null>(null)
+  const topConvoIdRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const top = matchesWithMessages[0]
+    const newTopId = top
+      ? top.kind === "gem_inbox"
+        ? top.rowId
+        : top.id
+      : undefined
+    if (
+      newTopId &&
+      topConvoIdRef.current !== undefined &&
+      newTopId !== topConvoIdRef.current
+    ) {
+      messagesListRef.current?.scrollToOffset({ offset: 0, animated: true })
+    }
+    topConvoIdRef.current = newTopId
+  }, [matchesWithMessages])
 
   const onPressConversation = useCallback(
     (item: Conversation) => {
@@ -224,6 +246,7 @@ export default function ChatListScreen() {
               {matchesWithMessages.length > 0 && (
                 <View style={styles.messagesSection}>
                   <FlashList
+                    ref={messagesListRef}
                     data={matchesWithMessages}
                     renderItem={renderItem}
                     keyExtractor={(item) =>

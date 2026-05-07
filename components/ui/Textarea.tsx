@@ -9,6 +9,8 @@ interface TextareaProps extends Omit<TextInputProps, 'style'> {
   style?: ViewStyle | ViewStyle[];
   maxLength?: number;
   showCharCount?: boolean;
+  /** Override the underlying input. Pass BottomSheetTextInput when rendering inside a gorhom bottom sheet. */
+  InputComponent?: React.ComponentType<TextInputProps & { ref?: React.Ref<TextInput> }>;
 }
 
 const styles = StyleSheet.create({
@@ -67,6 +69,7 @@ export const Textarea = forwardRef<TextInput, TextareaProps>(({
   value,
   onFocus,
   onBlur,
+  InputComponent = TextInput,
   ...props
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -97,7 +100,7 @@ export const Textarea = forwardRef<TextInput, TextareaProps>(({
           error && styles.inputContainerError,
         ]}
       >
-        <TextInput
+        <InputComponent
           ref={ref}
           style={styles.input}
           placeholderTextColor={colors.mutedForeground}

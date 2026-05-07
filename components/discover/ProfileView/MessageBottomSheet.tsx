@@ -3,7 +3,12 @@ import { Text } from '@/components/ui/Text';
 import { FilteredTextarea } from '@/components/ui/FilteredTextarea';
 import { useFilteredInput } from '@/hooks/useFilteredInput';
 import { colors, fontSize, spacing } from '@/theme';
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetScrollView,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import React, { RefObject } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -18,7 +23,6 @@ interface MessageBottomSheetProps {
   isImageChat: boolean;
   messageText: string;
   profileName: string;
-  snapPoints: string[];
   bottomSheetIndex: number;
   onMessageTextChange: (text: string) => void;
   onClose: () => void;
@@ -29,7 +33,7 @@ interface MessageBottomSheetProps {
   headerText?: string;
   /** Override the send button label. */
   sendLabel?: string;
-  /** When true, allow sending with empty message (text is optional). */
+  /** Allow sending with empty message text (default true — message is optional). */
   allowEmpty?: boolean;
 }
 
@@ -48,7 +52,6 @@ export function MessageBottomSheet({
   isImageChat,
   messageText,
   profileName,
-  snapPoints,
   bottomSheetIndex,
   onMessageTextChange,
   onClose,
@@ -56,7 +59,7 @@ export function MessageBottomSheet({
   onChange,
   headerText,
   sendLabel,
-  allowEmpty = false,
+  allowEmpty = true,
 }: MessageBottomSheetProps) {
   const filtered = useFilteredInput({ value: messageText, onChangeText: onMessageTextChange });
 
@@ -69,17 +72,20 @@ export function MessageBottomSheet({
   return (
     <BottomSheetModal
       ref={bottomSheetRef}
-      snapPoints={snapPoints}
       backdropComponent={renderBackdrop}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.indicator}
       enablePanDownToClose
+      enableDynamicSizing
       android_keyboardInputMode="adjustResize"
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       onChange={onChange}
     >
-      <BottomSheetScrollView showsVerticalScrollIndicator={false}>
+      <BottomSheetScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.content}>
           {(selectedPrompt || isImageChat) && (
             <>
@@ -107,6 +113,7 @@ export function MessageBottomSheet({
                 onChangeText={filtered.onChangeText}
                 style={styles.textarea}
                 multiline
+                InputComponent={BottomSheetTextInput as any}
               />
 
               {/* Action Buttons */}

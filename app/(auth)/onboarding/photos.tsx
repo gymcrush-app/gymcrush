@@ -1,5 +1,6 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
+import { preprocessPhoto } from '@/lib/storage/preprocessPhoto';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { track } from '@/lib/utils/analytics';
 import { APP, borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
@@ -55,7 +56,9 @@ export default function OnboardingPhotos() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        const newPhotos = [...data.photos, result.assets[0].uri];
+        const asset = result.assets[0];
+        const processedUri = await preprocessPhoto(asset.uri, asset.width, asset.height);
+        const newPhotos = [...data.photos, processedUri];
         updateData({ photos: newPhotos });
         track('profile_photo_added', { source: 'onboarding', count: newPhotos.length });
       }

@@ -67,7 +67,9 @@ export {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      // 2 retries (3 attempts total) — recovers from transient RN iOS blob
+      // errors when fetch responses are GC'd before body is consumed.
+      retry: 2,
       staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },

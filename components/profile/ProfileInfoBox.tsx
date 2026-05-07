@@ -56,7 +56,7 @@ ProfileInfoBox.displayName = 'ProfileInfoBox';
 
 const styles = StyleSheet.create({
   infoBox: {
-    backgroundColor: `${colors.card}E6`,
+    backgroundColor: '#1c202c',
     borderRadius: borderRadius['2xl'],
     padding: spacing[4],
     marginBottom: spacing[4],

@@ -32,168 +32,158 @@ export type Conversation = ConversationMatch | ConversationGemInbox;
 /**
  * Fetch all conversations for the current user with last message and unread count
  */
+/**
+ * Reusable conversations fetcher — used by useConversations and the
+ * tabs-layout prefetcher (so the inbox is warm before the user taps Crushes).
+ */
+export async function fetchConversations(userId: string): Promise<Conversation[]> {
+  // Fetch matches with user profiles
+  const { data: matches, error: matchesError } = await supabase
+    .from('matches')
+    .select(`
+      *,
+      user1:profiles!matches_user1_id_fkey(*),
+      user2:profiles!matches_user2_id_fkey(*)
+    `)
+    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+  if (matchesError) throw matchesError;
+
+  const validMatches = (matches || []).filter((match: any) => {
+    const hasUser1 = match.user1 && match.user1.id;
+    const hasUser2 = match.user2 && match.user2.id;
+    if (!hasUser1 || !hasUser2) {
+      console.warn(`Match ${match.id} has missing user profile(s). user1: ${hasUser1}, user2: ${hasUser2}`);
+      return false;
+    }
+    return true;
+  });
+
+  const matchPartnerIds = new Set(
+    validMatches.map((m: any) => (m.user1_id === userId ? m.user2_id : m.user1_id) as string),
+  );
+  const matchIds = validMatches.map((m: any) => m.id as string);
+
+  const [viewedResult, threadMessagesResult, gemMsgResult] = await Promise.all([
+    supabase
+      .from('match_views')
+      .select('match_id')
+      .eq('user_id', userId),
+    matchIds.length > 0
+      ? supabase
+          .from('messages')
+          .select('*')
+          .in('match_id', matchIds)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] as any[], error: null as any }),
+    supabase
+      .from('messages')
+      .select('*, sender:profiles!messages_sender_id_fkey(*)')
+      .eq('to_user_id', userId)
+      .is('match_id', null)
+      .not('gem_gift_id', 'is', null)
+      .order('created_at', { ascending: false }),
+  ]);
+
+  const viewedMatchIds = new Set(
+    (viewedResult.data || []).map((r: { match_id: string }) => r.match_id),
+  );
+
+  if (threadMessagesResult.error) throw threadMessagesResult.error;
+  const threadMessages = threadMessagesResult.data || [];
+
+  const lastMessageByMatch = new Map<string, Message>();
+  const unreadByMatch = new Map<string, number>();
+  for (const msg of threadMessages) {
+    const matchId = msg.match_id as string;
+    if (!matchId) continue;
+    if (!lastMessageByMatch.has(matchId)) {
+      lastMessageByMatch.set(matchId, msg as Message);
+    }
+    if (msg.sender_id !== userId && !msg.read_at) {
+      unreadByMatch.set(matchId, (unreadByMatch.get(matchId) || 0) + 1);
+    }
+  }
+
+  const matchConversations: ConversationMatch[] = [];
+  for (const match of validMatches) {
+    const otherUser = match.user1_id === userId ? match.user2 : match.user1;
+    if (!otherUser) continue;
+    if (!Array.isArray(otherUser.photo_urls)) otherUser.photo_urls = [];
+
+    const lastMessage = lastMessageByMatch.get(match.id);
+    matchConversations.push({
+      ...match,
+      otherUser,
+      lastMessage,
+      unreadCount: unreadByMatch.get(match.id) || 0,
+      isNewMatch: !lastMessage && !viewedMatchIds.has(match.id),
+    } as ConversationMatch);
+  }
+
+  const { data: gemMsgRows, error: gemMsgError } = gemMsgResult;
+  if (gemMsgError) throw gemMsgError;
+
+  const gemSendersSeen = new Set<string>();
+  const gemInbox: ConversationGemInbox[] = [];
+  for (const row of gemMsgRows || []) {
+    const sender = row.sender as Profile | null;
+    if (!sender?.id) continue;
+    if (matchPartnerIds.has(sender.id)) continue;
+    if (gemSendersSeen.has(sender.id)) continue;
+    gemSendersSeen.add(sender.id);
+    if (!Array.isArray(sender.photo_urls)) sender.photo_urls = [];
+    const msg = row as Message;
+    gemInbox.push({
+      kind: 'gem_inbox',
+      rowId: `gem-inbox-${sender.id}`,
+      otherUser: sender,
+      lastMessage: msg,
+      unreadCount: msg.read_at ? 0 : 1,
+    });
+  }
+
+  const merged: Conversation[] = [...matchConversations, ...gemInbox];
+  return merged.sort((a, b) => {
+    const aTime =
+      a.kind === 'gem_inbox'
+        ? new Date(a.lastMessage.created_at || 0).getTime()
+        : a.lastMessage?.created_at
+          ? new Date(a.lastMessage.created_at).getTime()
+          : 0;
+    const bTime =
+      b.kind === 'gem_inbox'
+        ? new Date(b.lastMessage.created_at || 0).getTime()
+        : b.lastMessage?.created_at
+          ? new Date(b.lastMessage.created_at).getTime()
+          : 0;
+    return bTime - aTime;
+  });
+}
+
 export function useConversations() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['conversations', user?.id],
-    queryFn: async (): Promise<Conversation[]> => {
-      try {
-        if (!user) return [];
-
-        // Fetch matches with user profiles
-        const { data: matches, error: matchesError } = await supabase
-          .from('matches')
-          .select(`
-            *,
-            user1:profiles!matches_user1_id_fkey(*),
-            user2:profiles!matches_user2_id_fkey(*)
-          `)
-          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
-
-        if (matchesError) {
-          console.error('Error fetching matches:', matchesError);
-          throw matchesError;
-        }
-
-        // Filter out matches with missing user profiles
-        const validMatches = (matches || []).filter((match: any) => {
-          const hasUser1 = match.user1 && match.user1.id;
-          const hasUser2 = match.user2 && match.user2.id;
-          if (!hasUser1 || !hasUser2) {
-            console.warn(`Match ${match.id} has missing user profile(s). user1: ${hasUser1}, user2: ${hasUser2}`);
-            return false;
-          }
-          return true;
-        });
-
-        const matchPartnerIds = new Set(
-          validMatches.map((m: any) => (m.user1_id === user.id ? m.user2_id : m.user1_id) as string),
-        );
-
-        // Fetch which matches the current user has viewed (for "new match" dot)
-        const { data: viewedRows } = await supabase
-          .from('match_views')
-          .select('match_id')
-          .eq('user_id', user.id);
-        const viewedMatchIds = new Set((viewedRows || []).map((r: { match_id: string }) => r.match_id));
-
-        const matchConversations: ConversationMatch[] =
-          validMatches.length === 0
-            ? []
-            : await Promise.all(
-                validMatches.map(async (match: any) => {
-                  const otherUser = match.user1_id === user.id ? match.user2 : match.user1;
-
-                  if (!otherUser) {
-                    console.error(
-                      `Match ${match.id} is missing otherUser. user1_id: ${match.user1_id}, user2_id: ${match.user2_id}`,
-                    );
-                    throw new Error(`Match ${match.id} is missing user profile data`);
-                  }
-
-                  if (!Array.isArray(otherUser.photo_urls)) {
-                    otherUser.photo_urls = [];
-                  }
-
-                  const { data: lastMessages, error: lastMessageError } = await supabase
-                    .from('messages')
-                    .select('*')
-                    .eq('match_id', match.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                  if (lastMessageError && lastMessageError.code !== 'PGRST116') {
-                    throw lastMessageError;
-                  }
-
-                  const { count, error: countError } = await supabase
-                    .from('messages')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('match_id', match.id)
-                    .eq('sender_id', otherUser.id)
-                    .is('read_at', null);
-
-                  if (countError) {
-                    console.error(`Error getting unread count for match ${match.id}:`, countError);
-                  }
-
-                  return {
-                    ...match,
-                    otherUser,
-                    lastMessage: lastMessages || undefined,
-                    unreadCount: count || 0,
-                    isNewMatch: !lastMessages && !viewedMatchIds.has(match.id),
-                  } as ConversationMatch;
-                }),
-              );
-
-        const { data: gemMsgRows, error: gemMsgError } = await supabase
-          .from('messages')
-          .select(
-            `
-            *,
-            sender:profiles!messages_sender_id_fkey(*)
-          `,
-          )
-          .eq('to_user_id', user.id)
-          .is('match_id', null)
-          .not('gem_gift_id', 'is', null)
-          .order('created_at', { ascending: false });
-
-        if (gemMsgError) {
-          console.error('Error fetching gem inbox messages:', gemMsgError);
-          throw gemMsgError;
-        }
-
-        const gemSendersSeen = new Set<string>();
-        const gemInbox: ConversationGemInbox[] = [];
-        for (const row of gemMsgRows || []) {
-          const sender = row.sender as Profile | null;
-          if (!sender?.id) continue;
-          if (matchPartnerIds.has(sender.id)) continue;
-          if (gemSendersSeen.has(sender.id)) continue;
-          gemSendersSeen.add(sender.id);
-          if (!Array.isArray(sender.photo_urls)) sender.photo_urls = [];
-          const msg = row as Message;
-          gemInbox.push({
-            kind: 'gem_inbox',
-            rowId: `gem-inbox-${sender.id}`,
-            otherUser: sender,
-            lastMessage: msg,
-            unreadCount: msg.read_at ? 0 : 1,
-          });
-        }
-
-        const merged: Conversation[] = [...matchConversations, ...gemInbox];
-        return merged.sort((a, b) => {
-          const aTime =
-            a.kind === 'gem_inbox'
-              ? new Date(a.lastMessage.created_at || 0).getTime()
-              : a.lastMessage?.created_at
-                ? new Date(a.lastMessage.created_at).getTime()
-                : 0;
-          const bTime =
-            b.kind === 'gem_inbox'
-              ? new Date(b.lastMessage.created_at || 0).getTime()
-              : b.lastMessage?.created_at
-                ? new Date(b.lastMessage.created_at).getTime()
-                : 0;
-          return bTime - aTime;
-        });
-      } catch (error) {
-        console.error('Error in useConversations queryFn:', error);
-        throw error;
-      }
-    },
+    queryFn: () => fetchConversations(user!.id),
     enabled: !!user,
   });
 
   // Set up real-time subscription for all messages
   useEffect(() => {
     if (!user) return;
+
+    // Debounce invalidation so a burst of message events (e.g. catching up
+    // after backgrounding, or a chatty thread) collapses into one refetch.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleInvalidate = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
+      }, 400);
+    };
 
     const channel = supabase
       .channel('conversations')
@@ -204,14 +194,12 @@ export function useConversations() {
           schema: 'public',
           table: 'messages',
         },
-        () => {
-          // Invalidate conversations when any message changes
-          queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
-        }
+        scheduleInvalidate,
       )
       .subscribe();
 
     return () => {
+      if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [user, queryClient]);
@@ -551,6 +539,72 @@ export type MessageRequest = {
 };
 
 /**
+ * Reusable message-requests fetcher — used by useMessageRequests and the
+ * tabs-layout prefetcher.
+ */
+export async function fetchMessageRequests(userId: string): Promise<MessageRequest[]> {
+  const [ignoredResult, messagesResult, matchesResult] = await Promise.all([
+    supabase
+      .from('request_ignores')
+      .select('sender_id')
+      .eq('user_id', userId),
+    supabase
+      .from('messages')
+      .select('*, sender:profiles!messages_sender_id_fkey(*)')
+      .eq('to_user_id', userId)
+      .is('match_id', null)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('matches')
+      .select('user1_id, user2_id')
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`),
+  ]);
+
+  const ignoredSenderIds = new Set(
+    (ignoredResult.data || []).map((r: { sender_id: string }) => r.sender_id),
+  );
+
+  if (messagesResult.error) throw messagesResult.error;
+  const messages = messagesResult.data || [];
+  if (messages.length === 0) return [];
+
+  const matchedPartnerIds = new Set<string>();
+  for (const m of matchesResult.data || []) {
+    const partner = (m.user1_id === userId ? m.user2_id : m.user1_id) as string;
+    if (partner) matchedPartnerIds.add(partner);
+  }
+
+  const requestsBySender = new Map<string, MessageRequest>();
+  for (const msg of messages) {
+    const senderId = msg.sender_id;
+    if (!senderId || !msg.sender) continue;
+    if (ignoredSenderIds.has(senderId)) continue;
+    if (matchedPartnerIds.has(senderId)) continue;
+
+    let request = requestsBySender.get(senderId);
+    if (!request) {
+      request = {
+        sender: msg.sender,
+        lastMessage: msg as Message,
+        unreadCount: 0,
+      };
+      requestsBySender.set(senderId, request);
+    } else if (
+      new Date(msg.created_at ?? 0) > new Date(request.lastMessage.created_at ?? 0)
+    ) {
+      request.lastMessage = msg as Message;
+    }
+    if (!msg.read_at) request.unreadCount += 1;
+  }
+
+  return Array.from(requestsBySender.values()).sort((a, b) => {
+    const aTime = new Date(a.lastMessage.created_at ?? 0).getTime();
+    const bTime = new Date(b.lastMessage.created_at ?? 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+/**
  * Fetch message requests for the current user (messages sent without mutual match)
  * Excludes senders the user has declined (request_ignores).
  */
@@ -560,95 +614,21 @@ export function useMessageRequests() {
 
   const query = useQuery({
     queryKey: ['messageRequests', user?.id],
-    queryFn: async (): Promise<MessageRequest[]> => {
-      try {
-        if (!user) return [];
-
-        // Fetch ignored sender IDs for this user
-        const { data: ignoredRows } = await supabase
-          .from('request_ignores')
-          .select('sender_id')
-          .eq('user_id', user.id);
-        const ignoredSenderIds = new Set((ignoredRows || []).map((r: { sender_id: string }) => r.sender_id));
-
-        // Fetch messages where current user is recipient and match_id is NULL
-        const { data: messages, error: messagesError } = await supabase
-          .from('messages')
-          .select('*, sender:profiles!messages_sender_id_fkey(*)')
-          .eq('to_user_id', user.id)
-          .is('match_id', null)
-          .order('created_at', { ascending: false });
-
-        if (messagesError) {
-          console.error('Error fetching message requests:', messagesError);
-          throw messagesError;
-        }
-        if (!messages || messages.length === 0) return [];
-
-        // Group messages by sender
-        const requestsBySender = new Map<string, MessageRequest>();
-
-        for (const msg of messages) {
-          const senderId = msg.sender_id;
-          if (!senderId || !msg.sender) continue;
-          if (ignoredSenderIds.has(senderId)) continue;
-
-          if (!requestsBySender.has(senderId)) {
-            // Check if there's a mutual match (if so, this shouldn't be a request)
-            const { data: match } = await supabase
-              .from('matches')
-              .select('*')
-              .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-              .or(`user1_id.eq.${senderId},user2_id.eq.${senderId}`)
-              .single();
-
-            // If match exists, skip this request (it should be in conversations)
-            if (match) continue;
-
-            requestsBySender.set(senderId, {
-              sender: msg.sender,
-              lastMessage: msg as Message,
-              unreadCount: 0,
-            });
-          } else {
-            const request = requestsBySender.get(senderId)!;
-            // Update if this message is newer
-            if (new Date(msg.created_at ?? 0) > new Date(request.lastMessage.created_at ?? 0)) {
-              request.lastMessage = msg as Message;
-            }
-          }
-        }
-
-        // Count unread messages for each sender
-        for (const [senderId, request] of requestsBySender.entries()) {
-          const { count } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('to_user_id', user.id)
-            .eq('sender_id', senderId)
-            .is('match_id', null)
-            .is('read_at', null);
-
-          request.unreadCount = count || 0;
-        }
-
-        // Sort by last message timestamp (most recent first)
-        return Array.from(requestsBySender.values()).sort((a, b) => {
-          const aTime = new Date(a.lastMessage.created_at ?? 0).getTime();
-          const bTime = new Date(b.lastMessage.created_at ?? 0).getTime();
-          return bTime - aTime;
-        });
-      } catch (error) {
-        console.error('Error in useMessageRequests queryFn:', error);
-        throw error;
-      }
-    },
+    queryFn: () => fetchMessageRequests(user!.id),
     enabled: !!user,
   });
 
   // Set up real-time subscription for message requests
   useEffect(() => {
     if (!user) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleInvalidate = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['messageRequests', user.id] });
+      }, 400);
+    };
 
     const channel = supabase
       .channel('messageRequests')
@@ -660,13 +640,12 @@ export function useMessageRequests() {
           table: 'messages',
           filter: `to_user_id=eq.${user.id}`,
         },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['messageRequests', user.id] });
-        }
+        scheduleInvalidate,
       )
       .subscribe();
 
     return () => {
+      if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [user, queryClient]);

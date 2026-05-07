@@ -219,8 +219,8 @@ export default function PlaygroundSwiperScreen() {
           visible={showMatchModal}
           currentUser={MOCK_CURRENT_USER}
           matchedUser={matchedProfile}
-          onStartChatting={handleStartChatting}
-          onKeepSwiping={handleKeepSwiping}
+          onSend={async () => handleStartChatting()}
+          onClose={handleKeepSwiping}
         />
       )}
     </SafeAreaView>

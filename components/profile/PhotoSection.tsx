@@ -18,7 +18,9 @@ interface PhotoSectionProps {
   imageHeight: number;
   /** Width of the photo area (default full screen). Use DISCOVER_PHOTO_WIDTH for inset + rounded corners. */
   photoWidth?: number;
-  onOpenImageChat: () => void;
+  onOpenImageChat?: () => void;
+  /** Show the chat-bubble overlay for commenting on a photo. Default true. */
+  showChatBubble?: boolean;
   /** Enable pinch-to-zoom on photos (requires ZoomPortalProvider ancestor). */
   enableZoom?: boolean;
   showPhotoSwipeTooltip?: boolean;
@@ -32,6 +34,7 @@ export const PhotoSection = React.forwardRef<PhotoCarouselRef, PhotoSectionProps
   imageHeight,
   photoWidth = SCREEN_WIDTH,
   onOpenImageChat,
+  showChatBubble = true,
   enableZoom = false,
   showPhotoSwipeTooltip = false,
   showImageCommentTooltip = false,
@@ -67,32 +70,34 @@ export const PhotoSection = React.forwardRef<PhotoCarouselRef, PhotoSectionProps
       </Tooltip>
 
       {/* Chat Bubble Icon */}
-      <View style={styles.chatBubbleContainer}>
-        <Tooltip
-          isVisible={showImageCommentTooltip}
-          allowChildInteraction={false}
-          contentStyle={{ backgroundColor: colors.primary, padding: 0, borderRadius: borderRadius.md }}
-          content={
-            <View style={{ backgroundColor: colors.primary, padding: spacing[3], borderRadius: borderRadius.md }}>
-              <Text style={{ color: palette.black, fontSize: fontSize.base }}>
-                {TOOLTIP_IMAGE_COMMENT}
-              </Text>
-            </View>
-          }
-          placement="top"
-          onClose={onImageCommentTooltipClose}
-          backgroundColor="rgba(0,0,0,0.5)"
-        >
-          <Pressable
-            onPress={() => !showImageCommentTooltip && onOpenImageChat()}
-            style={{ opacity: showImageCommentTooltip ? 0.5 : 1 }}
+      {showChatBubble && (
+        <View style={styles.chatBubbleContainer}>
+          <Tooltip
+            isVisible={showImageCommentTooltip}
+            allowChildInteraction={false}
+            contentStyle={{ backgroundColor: colors.primary, padding: 0, borderRadius: borderRadius.md }}
+            content={
+              <View style={{ backgroundColor: colors.primary, padding: spacing[3], borderRadius: borderRadius.md }}>
+                <Text style={{ color: palette.black, fontSize: fontSize.base }}>
+                  {TOOLTIP_IMAGE_COMMENT}
+                </Text>
+              </View>
+            }
+            placement="top"
+            onClose={onImageCommentTooltipClose}
+            backgroundColor="rgba(0,0,0,0.5)"
           >
-            <View style={styles.chatBubble}>
-              <MessageCircle size={14} color={colors.foreground} />
-            </View>
-          </Pressable>
-        </Tooltip>
-      </View>
+            <Pressable
+              onPress={() => !showImageCommentTooltip && onOpenImageChat?.()}
+              style={{ opacity: showImageCommentTooltip ? 0.5 : 1 }}
+            >
+              <View style={styles.chatBubble}>
+                <MessageCircle size={14} color={colors.foreground} />
+              </View>
+            </Pressable>
+          </Tooltip>
+        </View>
+      )}
     </View>
   );
 });

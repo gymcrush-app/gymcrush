@@ -68,8 +68,14 @@ function FabButton({
       withSpring(1, TAP_RELEASE_SPRING),
     )
     glow.value = withSequence(
-      withTiming(1, { duration: GLOW_DURATION_IN, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: GLOW_DURATION_OUT, easing: Easing.in(Easing.quad) }),
+      withTiming(1, {
+        duration: GLOW_DURATION_IN,
+        easing: Easing.out(Easing.quad),
+      }),
+      withTiming(0, {
+        duration: GLOW_DURATION_OUT,
+        easing: Easing.in(Easing.quad),
+      }),
     )
     onPress()
   }, [onPress, scale, glow, hapticStyle])
@@ -200,7 +206,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

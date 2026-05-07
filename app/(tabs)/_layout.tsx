@@ -1,11 +1,43 @@
 import { UserProfileModal } from '@/components/profile/UserProfileModal';
 import { UserProfileModalProvider } from '@/lib/contexts/UserProfileModalContext';
+import { DEFAULT_GYM_GEMS_DISTANCE_KM, fetchGymGems } from '@/lib/api/gymGems';
+import { fetchConversations, fetchMessageRequests } from '@/lib/api/messages';
+import { fetchProfile } from '@/lib/api/profiles';
+import { useAuthStore } from '@/lib/stores/authStore';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { useQueryClient } from '@tanstack/react-query';
 import { Tabs } from 'expo-router';
 import { Compass, Gem, MessageCircle, User } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { colors } from '@/theme';
 
 export default function TabLayout() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((s) => s.user?.id);
+
+  // Warm the cache for non-Discover tabs in the background as soon as the user
+  // is authenticated. By the time they tap Crushes / Gym Gems / Profile, the
+  // useQuery hooks read from cache and render instantly.
+  useEffect(() => {
+    if (!userId) return;
+    queryClient.prefetchQuery({
+      queryKey: ['conversations', userId],
+      queryFn: () => fetchConversations(userId),
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['messageRequests', userId],
+      queryFn: () => fetchMessageRequests(userId),
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['gymGems', userId, DEFAULT_GYM_GEMS_DISTANCE_KM],
+      queryFn: () => fetchGymGems(DEFAULT_GYM_GEMS_DISTANCE_KM),
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['profile', userId],
+      queryFn: () => fetchProfile(userId),
+    });
+  }, [userId, queryClient]);
+
   return (
     <BottomSheetModalProvider>
       <UserProfileModalProvider>

@@ -1,3 +1,4 @@
+import { DiscoverActionBar } from "@/components/discover/DiscoverActionBar"
 import {
   DiscoveryFilterDropdowns,
   type DiscoveryFilterValues,
@@ -10,8 +11,10 @@ import {
 import { EmptyFeed } from "@/components/discover/EmptyFeed"
 import { MatchModal } from "@/components/discover/MatchModal"
 import { OfferWallModal } from "@/components/discover/OfferWallModal"
-import { ProfileView, type ProfileViewHandle } from "@/components/discover/ProfileView"
-import { DiscoverActionBar } from "@/components/discover/DiscoverActionBar"
+import {
+  ProfileView,
+  type ProfileViewHandle,
+} from "@/components/discover/ProfileView"
 import { MessageBottomSheet } from "@/components/discover/ProfileView/MessageBottomSheet"
 import { WorkoutTypeGrid } from "@/components/fitness/WorkoutTypeGrid"
 import { Button } from "@/components/ui/Button"
@@ -23,8 +26,7 @@ import {
   TOOLTIP_ADJUST_PREFERENCES,
 } from "@/constants"
 import { useIsPlus } from "@/hooks/useIsPlus"
-import { useRevenueCatStore } from "@/lib/stores/revenueCatStore"
-import Purchases from "react-native-purchases"
+import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
 import { useGymById, useGymsByIds } from "@/lib/api/gyms"
 import {
   useCheckMatch,
@@ -32,18 +34,19 @@ import {
   useLikedProfileIds,
   useMatches,
 } from "@/lib/api/matches"
-import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
 import {
   useDiscoverProfiles,
   useNearbyProfiles,
   useProfile,
   useUpdateDiscoveryPreferences,
 } from "@/lib/api/profiles"
-import { useAppStore } from "@/lib/stores/appStore"
+import { useBlockedUserIds, useReportAndBlock } from "@/lib/api/safety"
+import { useRevenueCatStore } from "@/lib/stores/revenueCatStore"
 import { layout } from "@/lib/styles"
+import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
+import { filterBadWords } from "@/lib/utils/filterBadWords"
 import { track } from "@/lib/utils/analytics"
-import { useReportAndBlock, useBlockedUserIds } from "@/lib/api/safety"
 import { calculateDistanceMiles } from "@/lib/utils/distance"
 import { kmToMiles, milesToKm, usesMiles } from "@/lib/utils/locale"
 import {
@@ -87,6 +90,7 @@ import {
   Text,
   View,
 } from "react-native"
+import Purchases from "react-native-purchases"
 import { useSharedValue } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 import Tooltip from "react-native-walkthrough-tooltip"
@@ -594,13 +598,16 @@ export default function DiscoverScreen() {
     }
   }, [])
 
-  const handleGymCrushModeChange = useCallback(async (open: boolean) => {
-    if (open && !isPlus) {
-      setIsOfferWallVisible(true)
-      return
-    }
-    await applyGymCrushMode(open)
-  }, [isPlus, applyGymCrushMode])
+  const handleGymCrushModeChange = useCallback(
+    async (open: boolean) => {
+      if (open && !isPlus) {
+        setIsOfferWallVisible(true)
+        return
+      }
+      await applyGymCrushMode(open)
+    },
+    [isPlus, applyGymCrushMode],
+  )
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -635,10 +642,11 @@ export default function DiscoverScreen() {
   // Gym Gem message sheet state — tapping the Gem FAB opens a bottom sheet
   // to attach a message, mirroring the Gym Gems screen UX.
   const gemSheetRef = useRef<BottomSheetModal>(null)
-  const [gemTargetProfileId, setGemTargetProfileId] = useState<string | null>(null)
+  const [gemTargetProfileId, setGemTargetProfileId] = useState<string | null>(
+    null,
+  )
   const [gemMessageText, setGemMessageText] = useState("")
   const [gemSheetIndex, setGemSheetIndex] = useState(-1)
-  const gemSheetSnapPoints = useMemo(() => ["50%", "90%"], [])
   const { hasGemToday } = useDailyGem()
   const giveGemMutation = useGiveGymGem()
   const [isSendingGem, setIsSendingGem] = useState(false)
@@ -854,7 +862,12 @@ export default function DiscoverScreen() {
   )
   const excludedProfileIds = useMemo(
     () =>
-      new Set([...swipedProfiles, ...likedProfileIds, ...matchedProfileIds, ...blockedUserIds]),
+      new Set([
+        ...swipedProfiles,
+        ...likedProfileIds,
+        ...matchedProfileIds,
+        ...blockedUserIds,
+      ]),
     [swipedProfiles, likedProfileIds, matchedProfileIds, blockedUserIds],
   )
 
@@ -898,7 +911,8 @@ export default function DiscoverScreen() {
     () =>
       filterScoreAndSort({
         profiles: nearbyProfiles,
-        include: (p) => skippedProfiles.includes(p.id) && !blockedUserIds.includes(p.id),
+        include: (p) =>
+          skippedProfiles.includes(p.id) && !blockedUserIds.includes(p.id),
         preferences,
         filters,
         currentProfile,
@@ -956,14 +970,14 @@ export default function DiscoverScreen() {
   // Only check for match when actively checking and have valid user IDs
   const matchCheckUserId =
     matchCheck.status !== "idle" ? matchCheck.userId : null
-  const canCheckMatch =
-    matchCheck.status === "checking" &&
-    currentProfile &&
-    currentProfile.id !== matchCheck.userId
 
+  // Note: keep matchCheckUserId flowing in even after status leaves "checking"
+  // so matchData stays populated while the MatchModal is open and the user
+  // taps Send. Gating on canCheckMatch caused matchData to go undefined the
+  // moment the result resolved.
   const { data: matchData, isFetching: isMatchFetching } = useCheckMatch(
     currentProfile?.id || "",
-    canCheckMatch && matchCheckUserId ? matchCheckUserId : "",
+    matchCheckUserId || "",
   )
 
   const handleSwipe = useCallback(
@@ -1124,35 +1138,43 @@ export default function DiscoverScreen() {
     dispatchMatchCheck({ type: "reset" })
   }, [matchCheck])
 
-  const handleStartChatting = useCallback(async () => {
-    const userId = matchCheckUserId
-    resetMatchFlow()
-    if (matchData) {
-      router.push("/(tabs)/chat")
-      setTimeout(() => {
-        router.push(`/(tabs)/chat/${matchData.id}`)
-      }, 150)
-    }
-    // Index advance + swiped-marking already happened on the like; just
-    // refresh match queries so the chat tab sees the new conversation.
-    if (userId) {
-      invalidateMatchQueries(userId)
-    }
-  }, [
-    matchData,
-    router,
-    matchCheckUserId,
-    invalidateMatchQueries,
-    resetMatchFlow,
-  ])
+  const handleMatchSendMessage = useCallback(
+    async (content: string) => {
+      const meId = currentProfile?.id
+      if (!matchData || !meId) return
+      const filtered = filterBadWords(content)
+      const { error } = await supabase.from("messages").insert({
+        match_id: matchData.id,
+        sender_id: meId,
+        content: filtered,
+      })
+      if (error) {
+        console.error("Failed to send first message:", error)
+        toast({
+          preset: "error",
+          title: "Couldn't send",
+          message: "Try again from the chat tab.",
+        })
+        return
+      }
+      toast({ preset: "done", title: "Message sent" })
+      const userId = matchCheckUserId
+      resetMatchFlow()
+      if (userId) invalidateMatchQueries(userId)
+    },
+    [
+      matchData,
+      currentProfile?.id,
+      matchCheckUserId,
+      invalidateMatchQueries,
+      resetMatchFlow,
+    ],
+  )
 
-  const handleKeepSwiping = useCallback(async () => {
+  const handleMatchClose = useCallback(async () => {
     const userId = matchCheckUserId
     resetMatchFlow()
-    // Index advance + swiped-marking already happened on the like.
-    if (userId) {
-      invalidateMatchQueries(userId)
-    }
+    if (userId) invalidateMatchQueries(userId)
   }, [matchCheckUserId, invalidateMatchQueries, resetMatchFlow])
 
   const handlePreferencesChange = useCallback(
@@ -1327,7 +1349,9 @@ export default function DiscoverScreen() {
             setSwipedProfiles(updatedSwiped)
             saveSwipedProfile(profileIdAtSend, updatedSwiped)
             if (isSkippedMode) {
-              setSkippedProfiles(skippedProfiles.filter((id) => id !== profileIdAtSend))
+              setSkippedProfiles(
+                skippedProfiles.filter((id) => id !== profileIdAtSend),
+              )
               removeSkippedProfile(profileIdAtSend, skippedProfiles)
               setSkippedIndex((prev) => prev + 1)
             } else {
@@ -1572,13 +1596,13 @@ export default function DiscoverScreen() {
           <View style={styles.deckArea}>
             {(hasMainFeed || hasSkippedToShow) && currentUser ? (
               <View style={layout.flex1}>
-                {isSkippedMode && (
+                {/* {isSkippedMode && (
                   <View style={styles.skippedBanner}>
                     <Text style={styles.skippedBannerText}>
                       Showing people you skipped
                     </Text>
                   </View>
-                )}
+                )} */}
                 <ProfileView
                   ref={profileViewRef}
                   profiles={deckProfiles}
@@ -1683,15 +1707,17 @@ export default function DiscoverScreen() {
         isImageChat={true}
         messageText={gemMessageText}
         profileName={currentUser?.display_name ?? ""}
-        snapPoints={gemSheetSnapPoints}
         bottomSheetIndex={gemSheetIndex}
         onMessageTextChange={setGemMessageText}
         onClose={handleCloseGemSheet}
         onSend={handleSendGemMessage}
         onChange={handleGemSheetChange}
-        headerText={currentUser ? `Send ${currentUser.display_name} a Gym Gem ✦` : undefined}
+        headerText={
+          currentUser
+            ? `Send ${currentUser.display_name} a Gym Gem ✦`
+            : undefined
+        }
         sendLabel="Send Gem"
-        allowEmpty
       />
 
       {/* Match Modal */}
@@ -1700,8 +1726,8 @@ export default function DiscoverScreen() {
           visible={showMatchModal}
           currentUser={currentProfile}
           matchedUser={matchedUser}
-          onStartChatting={handleStartChatting}
-          onKeepSwiping={handleKeepSwiping}
+          onSend={handleMatchSendMessage}
+          onClose={handleMatchClose}
         />
       )}
 
@@ -1712,7 +1738,8 @@ export default function DiscoverScreen() {
         offering={currentOffering}
         onPurchase={async (pkg) => {
           const isDevMock =
-            (currentOffering?.metadata as { dev_mock?: boolean } | undefined)?.dev_mock === true
+            (currentOffering?.metadata as { dev_mock?: boolean } | undefined)
+              ?.dev_mock === true
           if (isDevMock) {
             simulateDevPurchase(pkg.product.identifier)
             setIsOfferWallVisible(false)
@@ -1723,8 +1750,10 @@ export default function DiscoverScreen() {
           // Real purchase: one attempt + one silent retry, then toast + dismiss.
           const attempt = async () => {
             const result = await Purchases.purchasePackage(pkg)
-            const active = result.customerInfo.entitlements.active.plus?.isActive === true
-            if (!active) throw new Error("purchase completed but entitlement not active")
+            const active =
+              result.customerInfo.entitlements.active.plus?.isActive === true
+            if (!active)
+              throw new Error("purchase completed but entitlement not active")
             return result
           }
 
@@ -1755,7 +1784,8 @@ export default function DiscoverScreen() {
         onRestore={async () => {
           try {
             const customerInfo = await Purchases.restorePurchases()
-            const active = customerInfo.entitlements.active.plus?.isActive === true
+            const active =
+              customerInfo.entitlements.active.plus?.isActive === true
             if (active) {
               toast({ title: "Welcome back to GymCrush+" })
               setIsOfferWallVisible(false)

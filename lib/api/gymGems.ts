@@ -30,30 +30,36 @@ function parseGymGemsRow(row: {
   };
 }
 
+export const DEFAULT_GYM_GEMS_DISTANCE_KM = Math.round(milesToKm(DEFAULT_GYM_GEMS_MILES));
+
+/**
+ * Reusable gym-gems fetcher — used by useGymGems and the tabs-layout prefetcher.
+ */
+export async function fetchGymGems(maxDistanceKm: number): Promise<ProfileWithScore[]> {
+  const t0 = performance.now();
+  console.log(`[fetchGymGems] START rpc get_gym_gems km=${maxDistanceKm}`);
+  const { data, error } = await supabase.rpc('get_gym_gems', {
+    p_max_distance_km: maxDistanceKm,
+  });
+  const ms = Math.round(performance.now() - t0);
+  if (error) {
+    console.log(`[fetchGymGems] ERROR after ${ms}ms:`, error.message);
+    throw error;
+  }
+  console.log(`[fetchGymGems] OK after ${ms}ms rows=${data?.length ?? 0}`);
+  if (!Array.isArray(data) || data.length === 0) return [];
+  return data.map((row) => parseGymGemsRow(row as Parameters<typeof parseGymGemsRow>[0]));
+}
+
 export function useGymGems(maxDistanceMiles?: number) {
   const user = useAuthStore((s) => s.user);
   const maxDistanceKm = maxDistanceMiles != null
     ? Math.round(milesToKm(maxDistanceMiles))
-    : Math.round(milesToKm(DEFAULT_GYM_GEMS_MILES));
+    : DEFAULT_GYM_GEMS_DISTANCE_KM;
 
   return useQuery({
     queryKey: ['gymGems', user?.id, maxDistanceKm],
-    queryFn: async (): Promise<ProfileWithScore[]> => {
-      if (!user) return [];
-      const t0 = performance.now();
-      console.log(`[useGymGems] START rpc get_gym_gems km=${maxDistanceKm}`);
-      const { data, error } = await supabase.rpc('get_gym_gems', {
-        p_max_distance_km: maxDistanceKm,
-      });
-      const ms = Math.round(performance.now() - t0);
-      if (error) {
-        console.log(`[useGymGems] ERROR after ${ms}ms:`, error.message);
-        throw error;
-      }
-      console.log(`[useGymGems] OK after ${ms}ms rows=${data?.length ?? 0}`);
-      if (!Array.isArray(data) || data.length === 0) return [];
-      return data.map((row) => parseGymGemsRow(row as Parameters<typeof parseGymGemsRow>[0]));
-    },
+    queryFn: () => fetchGymGems(maxDistanceKm),
     enabled: !!user,
   });
 }

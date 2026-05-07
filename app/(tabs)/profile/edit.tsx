@@ -10,6 +10,7 @@ import { useGymSearch } from "@/hooks/useGymSearch"
 import { useGymById } from "@/lib/api/gyms"
 import { useProfile, useUpdateProfile } from "@/lib/api/profiles"
 import { useProfilePrompts, usePromptSections, useUpsertProfilePrompt } from "@/lib/api/prompts"
+import { preprocessPhoto } from "@/lib/storage/preprocessPhoto"
 import { resolvePhotoUrls } from "@/lib/storage/uploadProfilePhoto"
 import { fetchPlaceDetailsFull } from "@/lib/utils/google-places"
 import { resolveHomeGym } from "@/lib/utils/resolveHomeGym"
@@ -25,6 +26,7 @@ import type { Profile } from "@/types"
 import type { GooglePlaceGym, ProfilePromptWithDetails } from "@/types/onboarding"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "@/lib/toast"
+import { Image as ExpoImage } from "expo-image"
 import * as ImagePicker from "expo-image-picker"
 import { useRouter } from "expo-router"
 import { DraggablePhotoGrid } from "@/components/profile/DraggablePhotoGrid"
@@ -324,15 +326,15 @@ export default function EditProfileScreen() {
           allowsEditing: true,
           aspect: [3, 4],
           quality: 0.8,
-          base64: true,
         })
         if (!result.canceled && result.assets[0]) {
           const asset = result.assets[0]
-          const uri =
-            typeof asset.base64 === "string" && asset.base64.length > 0
-              ? `data:image/jpeg;base64,${asset.base64}`
-              : asset.uri
-          setPhotoUrls((prev) => [...prev, uri])
+          const processedUri = await preprocessPhoto(
+            asset.uri,
+            asset.width,
+            asset.height,
+          )
+          setPhotoUrls((prev) => [...prev, processedUri])
           track('profile_photo_added', { source: 'edit' })
         }
       } catch {
@@ -444,6 +446,20 @@ export default function EditProfileScreen() {
             profileForSave.id,
             photoUrls,
           )
+
+          // Warm expo-image's cache with the public URLs before the profile
+          // query invalidates and the carousel swaps from local URI to https URL.
+          // Avoids the visible "reload" flash after upload.
+          const newlyUploaded = resolvedPhotoUrls.filter(
+            (url, i) => url !== photoUrls[i],
+          )
+          if (newlyUploaded.length > 0) {
+            try {
+              await ExpoImage.prefetch(newlyUploaded, "memory-disk")
+            } catch {
+              // prefetch is best-effort; fall through
+            }
+          }
 
           let homeGymId: string | null | undefined =
             userClearedGym ? null : (profileForSave.home_gym_id ?? null)

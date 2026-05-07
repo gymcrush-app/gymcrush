@@ -28,30 +28,6 @@ function isStorageUrl(uri: string): boolean {
   );
 }
 
-function isDataImageUri(uri: string): boolean {
-  return typeof uri === 'string' && uri.startsWith('data:image/');
-}
-
-function parseDataImageUri(uri: string): { contentType: string; base64: string; ext: string } {
-  // Expected format: data:image/{ext};base64,{payload}
-  const match = uri.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!match) {
-    throw new Error('Failed to read image: invalid data URI');
-  }
-  const contentType = match[1];
-  const base64 = match[2];
-  // Map mime -> extension (best-effort)
-  const ext =
-    contentType === 'image/png'
-      ? 'png'
-      : contentType === 'image/webp'
-        ? 'webp'
-        : contentType === 'image/heic' || contentType === 'image/heif'
-          ? 'heic'
-          : 'jpg';
-  return { contentType, base64, ext };
-}
-
 /**
  * Upload a single local file URI to avatars/{userId}/{uuid}.jpg and return its public URL.
  * If the URI is already a storage public URL, returns it as-is.
@@ -61,34 +37,23 @@ export async function uploadProfilePhoto(userId: string, localUri: string): Prom
     return localUri;
   }
 
-  let bytes: Uint8Array;
-  let contentType = 'image/jpeg';
-  let ext = 'jpg';
-
-  if (isDataImageUri(localUri)) {
-    const parsed = parseDataImageUri(localUri);
-    contentType = parsed.contentType;
-    ext = parsed.ext;
-    bytes = base64ToUint8Array(parsed.base64);
-  } else {
-    // `fetch(file://...)` can produce 0-byte blobs in some RN/Expo runtimes.
-    // Use FileSystem base64 read to ensure we upload actual bytes.
-    let base64: string;
-    try {
-      base64 = await FileSystem.readAsStringAsync(localUri, {
-        encoding: 'base64',
-      });
-    } catch (e) {
-      throw new Error(
-        e instanceof Error ? `Failed to read image: ${e.message}` : 'Failed to read image'
-      );
-    }
-    bytes = base64ToUint8Array(base64);
+  // `fetch(file://...)` can produce 0-byte blobs in some RN/Expo runtimes.
+  // Use FileSystem base64 read to ensure we upload actual bytes.
+  let base64: string;
+  try {
+    base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: 'base64',
+    });
+  } catch (e) {
+    throw new Error(
+      e instanceof Error ? `Failed to read image: ${e.message}` : 'Failed to read image'
+    );
   }
+  const bytes = base64ToUint8Array(base64);
 
-  const path = `${userId}/${Crypto.randomUUID()}.${ext}`;
+  const path = `${userId}/${Crypto.randomUUID()}.jpg`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, bytes, {
-    contentType,
+    contentType: 'image/jpeg',
     upsert: true,
   });
 

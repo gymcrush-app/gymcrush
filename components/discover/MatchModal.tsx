@@ -1,101 +1,95 @@
-import { Text } from '@/components/ui/Text';
-import { HeartbeatHeart } from '@/components/ui/HeartbeatHeart';
-import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
-import type { Profile } from '@/types';
-import { Image } from 'expo-image';
-import React from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown, SlideOutDown } from 'react-native-reanimated';
-import { ConfettiAnimation } from './ConfettiAnimation';
+import { Text } from "@/components/ui/Text"
+import { borderRadius, fontFamily, fontSize, palette, spacing } from "@/theme"
+import type { Profile } from "@/types"
+import { Image } from "expo-image"
+import { X } from "lucide-react-native"
+import React, { useCallback, useState } from "react"
+import {
+  ActivityIndicator,
+  Dimensions,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native"
+import { ConfettiAnimation } from "./ConfettiAnimation"
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
+const PHOTO_SIZE = 200
+const PHOTO_OVERLAP = PHOTO_SIZE * 0.18
+const MATCH_BG = require("@/assets/images/MatchUnlockedBg.png")
 
 interface MatchModalProps {
-  visible: boolean;
-  currentUser: Profile;
-  matchedUser: Profile;
-  onStartChatting: () => void;
-  onKeepSwiping: () => void;
+  visible: boolean
+  currentUser: Profile
+  matchedUser: Profile
+  /** Called with trimmed message content when user taps Send. */
+  onSend: (content: string) => Promise<void> | void
+  /** Called when user dismisses (X or backdrop). */
+  onClose: () => void
 }
 
 export function MatchModal({
   visible,
   currentUser,
   matchedUser,
-  onStartChatting,
-  onKeepSwiping,
+  onSend,
+  onClose,
 }: MatchModalProps) {
-  if (!visible) {
-    return null;
-  }
+  const [draft, setDraft] = useState("")
+  const [isSending, setIsSending] = useState(false)
 
-  const currentUserPhoto = currentUser.photo_urls?.[0] || null;
-  const matchedUserPhoto = matchedUser.photo_urls?.[0] || null;
+  const handleSend = useCallback(async () => {
+    const trimmed = draft.trim()
+    if (!trimmed || isSending) return
+    setIsSending(true)
+    try {
+      await onSend(trimmed)
+      setDraft("")
+    } finally {
+      setIsSending(false)
+    }
+  }, [draft, isSending, onSend])
+
+  if (!visible) return null
+
+  const currentUserPhoto = currentUser.photo_urls?.[0] || null
+  const matchedUserPhoto = matchedUser.photo_urls?.[0] || null
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="none"
+      animationType="slide"
       statusBarTranslucent
-      onRequestClose={onKeepSwiping}
+      onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        {/* Backdrop */}
-        <Pressable style={styles.backdrop} onPress={onKeepSwiping} />
+      <View style={styles.fill}>
+        {/* Background art — fixed full-screen, KAV doesn't compress it */}
+        <ImageBackground
+          source={MATCH_BG}
+          resizeMode="cover"
+          style={StyleSheet.absoluteFillObject}
+        />
 
-        {/* Modal Content */}
-        <Animated.View
-          entering={SlideInDown.springify().damping(25)}
-          exiting={SlideOutDown.springify().damping(25)}
-          style={styles.content}
+        <KeyboardAvoidingView
+          style={styles.fill}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* Header */}
-          <Animated.View entering={FadeIn.delay(200)} style={styles.header}>
-            <Text variant="h1" style={styles.title}>
-              Crush Unlocked
-            </Text>
-            <Text variant="body" style={styles.subtitle}>
-              You and {matchedUser.display_name} liked each other
-            </Text>
-          </Animated.View>
+          {/* Backdrop tap to close */}
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={onClose}
+          />
 
-          {/* Profile Photos */}
-          <Animated.View
-            entering={FadeIn.delay(400)}
-            style={styles.photosContainer}
-          >
-            {/* Current User Photo */}
-            <View style={styles.photoWrapper}>
-              <View style={styles.photoContainer}>
-                {currentUserPhoto ? (
-                  <Image
-                    source={{ uri: currentUserPhoto }}
-                    style={styles.photo}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <View style={[styles.photo, styles.photoPlaceholder]}>
-                    <Text variant="h2" style={styles.photoPlaceholderText}>
-                      {currentUser.display_name?.[0]?.toUpperCase() || '?'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Text variant="bodySmall" style={styles.photoLabel}>
-                You
-              </Text>
-            </View>
-
-            {/* Gym Heart */}
-            <View style={styles.heartContainer}>
-              <HeartbeatHeart size={48} active={visible} />
-            </View>
-
-            {/* Matched User Photo */}
-            <View style={styles.photoWrapper}>
-              <View style={styles.photoContainer}>
+          {/* Photos + subtitle, anchored near top */}
+          <View style={styles.upperContent} pointerEvents="box-none">
+            <View style={styles.photoRow}>
+              <View style={[styles.photoCircle, styles.photoLeft]}>
                 {matchedUserPhoto ? (
                   <Image
                     source={{ uri: matchedUserPhoto }}
@@ -105,174 +99,214 @@ export function MatchModal({
                   />
                 ) : (
                   <View style={[styles.photo, styles.photoPlaceholder]}>
-                    <Text variant="h2" style={styles.photoPlaceholderText}>
-                      {matchedUser.display_name?.[0]?.toUpperCase() || '?'}
+                    <Text style={styles.photoPlaceholderText}>
+                      {matchedUser.display_name?.[0]?.toUpperCase() || "?"}
                     </Text>
                   </View>
                 )}
               </View>
-              <Text variant="bodySmall" style={styles.photoLabel}>
-                {matchedUser.display_name}
-              </Text>
+              <View style={[styles.photoCircle, styles.photoRight]}>
+                {currentUserPhoto ? (
+                  <Image
+                    source={{ uri: currentUserPhoto }}
+                    style={styles.photo}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <View style={[styles.photo, styles.photoPlaceholder]}>
+                    <Text style={styles.photoPlaceholderText}>
+                      {currentUser.display_name?.[0]?.toUpperCase() || "?"}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </Animated.View>
 
-          {/* Action Buttons */}
-          <Animated.View entering={FadeIn.delay(600)} style={styles.buttonsContainer}>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={onStartChatting}
-            >
-              <Text variant="body" weight="semibold" style={styles.primaryButtonText}>
-                Start Chatting
-              </Text>
-            </Pressable>
+            <Text style={styles.subtitle}>
+              You matched with {matchedUser.display_name}.
+            </Text>
+          </View>
 
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={onKeepSwiping}
-            >
-              <Text variant="body" weight="medium" style={styles.secondaryButtonText}>
-                Keep Crushing
-              </Text>
-            </Pressable>
-          </Animated.View>
-        </Animated.View>
+          {/* Spacer pushes input to the bottom */}
+          <View style={styles.spacer} pointerEvents="none" />
 
-        {/* Confetti Animation (foreground layer) */}
+          {/* Input pill */}
+          <View style={styles.inputWrapper}>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Say something nice"
+                placeholderTextColor={`${palette.peachDark}99`}
+                value={draft}
+                onChangeText={setDraft}
+                autoCorrect
+                autoCapitalize="sentences"
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
+                editable={!isSending}
+              />
+              <Pressable
+                onPress={handleSend}
+                disabled={!draft.trim() || isSending}
+                style={[
+                  styles.sendButton,
+                  (!draft.trim() || isSending) && styles.sendButtonDisabled,
+                ]}
+              >
+                {isSending ? (
+                  <ActivityIndicator size="small" color={palette.white} />
+                ) : (
+                  <Text style={styles.sendButtonText}>Send</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+
+        </KeyboardAvoidingView>
+
+        {/* Close button — outside KAV so it stays put */}
+        <Pressable style={styles.closeButton} onPress={onClose} hitSlop={10}>
+          <X size={22} color={palette.peachDark} />
+        </Pressable>
+
+        {/* Confetti */}
         <View style={styles.confettiOverlay} pointerEvents="none">
           <ConfettiAnimation active={visible} />
         </View>
       </View>
     </Modal>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  fill: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  closeButton: {
+    position: "absolute",
+    top: spacing[12],
+    right: spacing[5],
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${palette.white}66`,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
   },
-  content: {
-    width: SCREEN_WIDTH * 0.9,
-    maxWidth: 400,
-    backgroundColor: colors.card,
-    borderRadius: borderRadius['3xl'],
-    padding: spacing[6],
-    alignItems: 'center',
-    shadowColor: colors.background,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 24,
-    zIndex: 2,
+  upperContent: {
+    position: "absolute",
+    top: SCREEN_HEIGHT * 0.32,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: spacing[6],
+    gap: spacing[4],
   },
-  confettiOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 3,
-    elevation: 30,
+  spacer: {
+    flex: 1,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: spacing[8],
+  inputWrapper: {
+    paddingHorizontal: spacing[6],
+    paddingBottom: spacing[8],
   },
-  title: {
-    fontSize: fontSize['4xl'],
+  photoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: PHOTO_SIZE,
+    marginBottom: 100,
+  },
+  photoCircle: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: PHOTO_SIZE / 2,
+    overflow: "hidden",
+    borderWidth: 6,
+    borderColor: palette.white,
+    backgroundColor: palette.peach300,
+    shadowColor: palette.peachDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  photoLeft: {
+    transform: [{ rotate: "-6deg" }],
+  },
+  photoRight: {
+    marginLeft: -PHOTO_OVERLAP,
+    transform: [{ rotate: "6deg" }],
+  },
+  photo: {
+    width: "100%",
+    height: "100%",
+  },
+  photoPlaceholder: {
+    backgroundColor: palette.peach100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoPlaceholderText: {
+    color: palette.white,
+    fontSize: fontSize["4xl"],
     fontFamily: fontFamily.manropeBold,
-    color: colors.foreground,
-    textAlign: 'center',
-    marginBottom: spacing[2],
   },
   subtitle: {
     fontSize: fontSize.base,
-    color: colors.mutedForeground,
-    textAlign: 'center',
+    fontFamily: fontFamily.manropeSemibold,
+    color: palette.white,
+    textAlign: "center",
+    textShadowColor: `${palette.peachDark}55`,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  photosContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing[8],
-    gap: spacing[4],
-  },
-  photoWrapper: {
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  photoContainer: {
-    width: 120,
-    height: 120,
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    backgroundColor: `${palette.peach300}E6`,
     borderRadius: borderRadius.full,
-    overflow: 'hidden',
-    borderWidth: 4,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: `${palette.white}CC`,
+    paddingLeft: spacing[5],
+    paddingRight: spacing[2],
+    paddingVertical: spacing[2],
+    shadowColor: palette.peachDark,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  photo: {
-    width: '100%',
-    height: '100%',
-  },
-  photoPlaceholder: {
-    backgroundColor: colors.muted,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  photoPlaceholderText: {
-    color: colors.mutedForeground,
-    fontSize: fontSize['4xl'],
-  },
-  photoLabel: {
-    color: colors.foreground,
-    fontFamily: fontFamily.manropeMedium,
-  },
-  heartContainer: {
-    marginHorizontal: spacing[1],
-    marginBottom: spacing[2],
-  },
-  buttonsContainer: {
-    width: '100%',
-    gap: spacing[3],
-  },
-  primaryButton: {
-    width: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[6],
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
     elevation: 4,
   },
-  primaryButtonText: {
-    color: colors.primaryForeground,
-    fontSize: fontSize.lg,
-  },
-  secondaryButton: {
-    width: '100%',
-    backgroundColor: 'transparent',
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[6],
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  secondaryButtonText: {
-    color: colors.foreground,
+  input: {
+    flex: 1,
     fontSize: fontSize.base,
+    fontFamily: fontFamily.manrope,
+    color: palette.peachDark,
+    paddingVertical: spacing[2],
   },
-});
+  sendButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.peach200,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[2],
+    borderRadius: borderRadius.full,
+    minWidth: 80,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+  sendButtonText: {
+    fontSize: fontSize.base,
+    fontFamily: fontFamily.manropeSemibold,
+    color: palette.white,
+  },
+  confettiOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    elevation: 30,
+  },
+})

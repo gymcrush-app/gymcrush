@@ -1,49 +1,53 @@
-import { Text } from '@/components/ui/Text';
-import { borderRadius, colors, fontFamily, spacing } from '@/theme';
-import { MessageCircle } from 'lucide-react-native';
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-
-const PROMPT_TITLE_FONT_SIZE = 10;
+import { Text } from "@/components/ui/Text"
+import { borderRadius, colors, fontFamily, spacing } from "@/theme"
+import { MessageCircle } from "lucide-react-native"
+import React from "react"
+import { Pressable, StyleSheet, View } from "react-native"
 
 interface PromptItemProps {
-  title: string;
-  answer: string;
-  onPress: () => void;
+  title: string
+  answer: string
+  onPress: () => void
   /** Render with primary background card style */
-  highlighted?: boolean;
+  highlighted?: boolean
+  /** Show the chat-bubble button. Default true. Hide for self-profile. */
+  showMessageButton?: boolean
 }
 
-export const PromptItem = React.memo<PromptItemProps>(({ title, answer, onPress, highlighted }) => {
-  return (
-    <View style={highlighted ? styles.highlightedCard : undefined}>
-      <View style={styles.header}>
-        <Text
-          variant="mutedXSmall"
-          style={styles.promptTitle}
-        >
-          {title}
+export const PromptItem = React.memo<PromptItemProps>(
+  ({ title, answer, onPress, highlighted, showMessageButton = true }) => {
+    return (
+      <View style={highlighted ? styles.highlightedCard : undefined}>
+        <View style={styles.header}>
+          <Text variant="mutedXSmall" style={styles.promptTitle}>
+            {title}
+          </Text>
+          {showMessageButton && (
+            <Pressable onPress={onPress} style={styles.messageButton}>
+              <MessageCircle
+                size={16}
+                color={highlighted ? colors.primary : colors.mutedForeground}
+              />
+            </Pressable>
+          )}
+        </View>
+        <Text variant="bodyLarge" style={styles.answer}>
+          {answer}
         </Text>
-        <Pressable onPress={onPress} style={styles.messageButton}>
-          <MessageCircle size={16} color={highlighted ? colors.primary : colors.mutedForeground} />
-        </Pressable>
       </View>
-      <Text variant="body" style={styles.answer}>
-        {answer}
-      </Text>
-    </View>
-  );
-});
+    )
+  },
+)
 
-PromptItem.displayName = 'PromptItem';
+PromptItem.displayName = "PromptItem"
 
 const styles = StyleSheet.create({
   header: {
-    position: 'relative',
+    position: "relative",
     marginBottom: spacing[2],
   },
   promptTitle: {
-    fontSize: PROMPT_TITLE_FONT_SIZE,
+    fontSize: 12,
     paddingRight: spacing[7],
     fontFamily: fontFamily.manropeSemibold,
   },
@@ -51,16 +55,17 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.manropeExtrabold,
   },
   messageButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
-    top: '50%',
+    top: "50%",
     transform: [{ translateY: -8 }],
   },
   highlightedCard: {
-    backgroundColor: colors.card,
+    backgroundColor: "#262628",
     borderWidth: 1,
     borderColor: colors.primary,
     borderRadius: borderRadius.xl,
     padding: spacing[4],
+    paddingTop: spacing[1],
   },
-});
+})

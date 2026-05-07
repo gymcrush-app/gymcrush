@@ -96,8 +96,8 @@ export default function PlaygroundModalsScreen() {
         visible={showMatchModal}
         currentUser={MOCK_CURRENT_USER}
         matchedUser={matchedUser}
-        onStartChatting={() => setShowMatchModal(false)}
-        onKeepSwiping={() => setShowMatchModal(false)}
+        onSend={async () => setShowMatchModal(false)}
+        onClose={() => setShowMatchModal(false)}
       />
     </SafeAreaView>
   )

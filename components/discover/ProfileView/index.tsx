@@ -24,7 +24,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   Dimensions,
-  Keyboard,
   Pressable,
   StyleSheet,
   View,
@@ -103,7 +102,7 @@ export const ProfileView = React.forwardRef<
     if (!profilePrompts) return []
     return profilePrompts.map((pp) => ({
       id: pp.id,
-      title: pp.prompt_text.toUpperCase(),
+      title: pp.prompt_text,
       answer: pp.answer,
       engagement_count: pp.engagement_count,
     }))
@@ -132,8 +131,6 @@ export const ProfileView = React.forwardRef<
   const [isImageChat, setIsImageChat] = useState(false)
   const [messageText, setMessageText] = useState("")
   const [messageSheetIndex, setMessageSheetIndex] = useState(-1)
-  const messageSheetIndexRef = useRef(-1)
-  const messageSnapPoints = useMemo(() => ["50%", "90%"], [])
 
   // Profile detail bottom sheet
   const detailSheetRef = useRef<BottomSheetModal>(null)
@@ -317,36 +314,6 @@ export const ProfileView = React.forwardRef<
     previousProfileIdRef.current = newId
   }, [topProfile?.id])
 
-  // --- Keyboard handling for message sheet ---
-  useEffect(() => {
-    const keyboardWillShow = Keyboard.addListener("keyboardWillShow", () => {
-      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
-        messageSheetRef.current.snapToIndex(2)
-      }
-    })
-    const keyboardDidShow = Keyboard.addListener("keyboardDidShow", () => {
-      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
-        messageSheetRef.current.snapToIndex(2)
-      }
-    })
-    const keyboardWillHide = Keyboard.addListener("keyboardWillHide", () => {
-      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
-        messageSheetRef.current.snapToIndex(0)
-      }
-    })
-    const keyboardDidHide = Keyboard.addListener("keyboardDidHide", () => {
-      if (messageSheetRef.current && messageSheetIndexRef.current >= 0) {
-        messageSheetRef.current.snapToIndex(0)
-      }
-    })
-    return () => {
-      keyboardWillShow.remove()
-      keyboardDidShow.remove()
-      keyboardWillHide.remove()
-      keyboardDidHide.remove()
-    }
-  }, [])
-
   // --- Handlers ---
   const handleCloseMessageSheet = useCallback(() => {
     setSelectedPrompt(null)
@@ -410,7 +377,6 @@ export const ProfileView = React.forwardRef<
 
   const handleMessageSheetChange = useCallback((index: number) => {
     setMessageSheetIndex(index)
-    messageSheetIndexRef.current = index
     if (index === -1) {
       setSelectedPrompt(null)
       setIsImageChat(false)
@@ -633,19 +599,19 @@ export const ProfileView = React.forwardRef<
         bottomSheetRef={detailSheetRef}
       />
 
-      {/* Message sheet */}
+      {/* Message sheet — prompt/image reactions require text content */}
       <MessageBottomSheet
         bottomSheetRef={messageSheetRef}
         selectedPrompt={selectedPrompt}
         isImageChat={isImageChat}
         messageText={messageText}
         profileName={topProfile.display_name}
-        snapPoints={messageSnapPoints}
         bottomSheetIndex={messageSheetIndex}
         onMessageTextChange={setMessageText}
         onClose={handleCloseMessageSheet}
         onSend={handleSendMessage}
         onChange={handleMessageSheetChange}
+        allowEmpty={false}
       />
     </View>
   )
@@ -664,7 +630,6 @@ const styles = StyleSheet.create({
   backCard: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
-    backgroundColor: colors.card,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     overflow: "hidden",
@@ -672,7 +637,7 @@ const styles = StyleSheet.create({
   frontCard: {
     flex: 1,
     zIndex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: "#000000",
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     overflow: "hidden",
@@ -682,9 +647,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing[3],
-    paddingTop: spacing[3],
-    paddingBottom: spacing[3],
-    backgroundColor: colors.card,
+    paddingTop: spacing[1],
+    paddingBottom: spacing[1],
   },
   approachablePill: {
     backgroundColor: `${colors.card}CC`,
@@ -715,7 +679,6 @@ const styles = StyleSheet.create({
     padding: spacing[2],
   },
   profileDetailSection: {
-    backgroundColor: colors.card,
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[3],
     gap: spacing[4],

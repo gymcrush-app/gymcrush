@@ -185,11 +185,14 @@ export const PhotoCarousel = forwardRef<PhotoCarouselRef, PhotoCarouselProps>(
         >
           {photos.map((photo, index) => (
             <Image
-              key={index}
+              key={photo}
               source={{ uri: photo }}
               style={{ width, height }}
               contentFit="cover"
               cachePolicy="memory-disk"
+              recyclingKey={photo}
+              transition={200}
+              priority={index === 0 ? "high" : "normal"}
             />
           ))}
         </ScrollView>

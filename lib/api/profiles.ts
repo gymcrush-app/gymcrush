@@ -9,22 +9,27 @@ import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
 import type { Profile, DiscoveryPreferences } from '@/types';
 
+/**
+ * Reusable profile fetcher — used by useProfile and the tabs-layout prefetcher.
+ */
+export async function fetchProfile(userId: string): Promise<Profile> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export function useProfile() {
   const user = useAuthStore((s) => s.user);
 
   return useQuery({
     queryKey: ['profile', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => fetchProfile(user!.id),
     enabled: !!user,
+    staleTime: 60_000,
   });
 }
 

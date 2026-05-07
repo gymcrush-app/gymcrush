@@ -52,7 +52,6 @@ export default function GymGemsScreen() {
   const [gemTargetProfile, setGemTargetProfile] = useState<ProfileWithScore | null>(null)
   const [messageText, setMessageText] = useState("")
   const [messageSheetIndex, setMessageSheetIndex] = useState(-1)
-  const messageSnapPoints = useMemo(() => ["50%", "90%"], [])
 
   const handleGiveGem = useCallback(
     (toUserId: string) => {
@@ -80,12 +79,13 @@ export default function GymGemsScreen() {
 
   const handleSendGemMessage = useCallback(
     async (content: string) => {
-      if (!content.trim() || !gemTargetProfile) return
+      if (!gemTargetProfile) return
+      const trimmed = content.trim()
       setPendingToUserId(gemTargetProfile.id)
       try {
         const result = await giveGemMutation.mutateAsync({
           toUserId: gemTargetProfile.id,
-          message: content.trim(),
+          message: trimmed.length > 0 ? trimmed : undefined,
         })
         if (!result.ok && result.error) {
           toast({
@@ -240,7 +240,6 @@ export default function GymGemsScreen() {
         isImageChat={true}
         messageText={messageText}
         profileName={gemTargetProfile?.display_name ?? ""}
-        snapPoints={messageSnapPoints}
         bottomSheetIndex={messageSheetIndex}
         onMessageTextChange={setMessageText}
         onClose={handleCloseMessageSheet}
