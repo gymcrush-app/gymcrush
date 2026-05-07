@@ -1,4 +1,5 @@
 import { colors } from "@/theme"
+import MaskedView from "@react-native-masked-view/masked-view"
 import { BlurView } from "expo-blur"
 import * as Haptics from "expo-haptics"
 import { LinearGradient } from "expo-linear-gradient"
@@ -137,11 +138,23 @@ export function DiscoverActionBar({
       style={styles.container}
       pointerEvents={disabled ? "none" : "box-none"}
     >
-      <AnimatedBlurView
-        tint="dark"
+      <MaskedView
         style={styles.blurLayer}
-        animatedProps={blurAnimatedProps}
-      />
+        pointerEvents="none"
+        maskElement={
+          <LinearGradient
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,1)"]}
+            locations={[0, 0.65]}
+            style={StyleSheet.absoluteFill}
+          />
+        }
+      >
+        <AnimatedBlurView
+          tint="dark"
+          style={StyleSheet.absoluteFill}
+          animatedProps={blurAnimatedProps}
+        />
+      </MaskedView>
       <Animated.View
         style={[styles.gradientLayer, gradientStyle]}
         pointerEvents="none"
