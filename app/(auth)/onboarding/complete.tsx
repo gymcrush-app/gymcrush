@@ -18,6 +18,7 @@ import { resolveHomeGym } from '@/lib/utils/resolveHomeGym';
 import { uploadProfilePhotos } from '@/lib/storage/uploadProfilePhoto';
 import { insertProfilePrompts } from '@/lib/api/prompts';
 import { identify, track } from '@/lib/utils/analytics';
+import { PROFILE_COLUMNS } from '@/constants';
 import { gradients, shadows, colors, fontDisplay, spacing, borderRadius, fontSize, fontFamily } from '@/theme';
 import { duration } from '@/theme/tokens';
 
@@ -101,7 +102,7 @@ export default function OnboardingComplete() {
       const { data: createdProfile, error } = await supabase
         .from('profiles')
         .insert(profileData)
-        .select()
+        .select(PROFILE_COLUMNS)
         .single();
 
       if (error) {

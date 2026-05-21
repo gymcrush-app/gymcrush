@@ -4,7 +4,7 @@ import { usesMiles, kmToMiles, milesToKm, formatDistance } from '@/lib/utils/loc
 import { GymCrushSliderMarker } from '@/components/ui/GymCrushSliderMarker';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 interface FilterSliderProps {
   value: number | null;
@@ -86,7 +86,9 @@ export function FilterSliderContent({
     }
   }, [displayValueFromProp]);
 
-  const sliderLength = Dimensions.get('window').width - (spacing[4] * 2 + spacing[2] * 2);
+  // Measure the actual container so the slider always fits inside it,
+  // regardless of how the parent insets / pads us.
+  const [sliderLength, setSliderLength] = useState<number | null>(null);
 
   const handleValuesChange = useCallback(
     (values: number[]) => {
@@ -137,21 +139,26 @@ export function FilterSliderContent({
       <View style={styles.sliderContent}>
         <Text style={styles.currentValue}>{localDisplayValue} {displayUnit}</Text>
 
-        <View style={styles.multiSliderContainer}>
-          <MultiSlider
-            values={[localDisplayValue]}
-            onValuesChange={handleValuesChange}
-            onValuesChangeStart={handleValuesChangeStart}
-            onValuesChangeFinish={handleValuesChangeFinish}
-            min={displayMin}
-            max={displayMax}
-            step={1}
-            sliderLength={sliderLength}
-            selectedStyle={styles.selectedTrack}
-            unselectedStyle={styles.unselectedTrack}
-            trackStyle={styles.track}
-            customMarker={GymCrushSliderMarker}
-          />
+        <View
+          style={styles.multiSliderContainer}
+          onLayout={(e) => setSliderLength(e.nativeEvent.layout.width)}
+        >
+          {sliderLength != null && (
+            <MultiSlider
+              values={[localDisplayValue]}
+              onValuesChange={handleValuesChange}
+              onValuesChangeStart={handleValuesChangeStart}
+              onValuesChangeFinish={handleValuesChangeFinish}
+              min={displayMin}
+              max={displayMax}
+              step={1}
+              sliderLength={sliderLength}
+              selectedStyle={styles.selectedTrack}
+              unselectedStyle={styles.unselectedTrack}
+              trackStyle={styles.track}
+              customMarker={GymCrushSliderMarker}
+            />
+          )}
         </View>
 
         <View style={styles.rangeLabels}>

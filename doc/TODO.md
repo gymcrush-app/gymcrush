@@ -6,23 +6,29 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 
 ## Ship blockers (must be done before submission)
 
-- [ ] **RLS review + hardening (Supabase)**
-  - [ ] Verify signed-out users cannot read/write protected tables
-  - [ ] Verify signed-in users cannot read/write other users’ data (profiles/messages/matches/etc.)
-  - [ ] Verify storage policies (avatars/photos) prevent cross-user writes
-  - [ ] Confirm no service-role keys are shipped to the client
+- [x] **RLS audit + hardening + drift cleanup (Supabase)** — full audit run 2026-05-20; migrations 00041 (RLS hardening — findings #1/#3/#4/#5/#9/#10), 00042 (finding #2 — last_location lockdown via new `discover_profiles` RPC + column-level REVOKE + `PROFILE_COLUMNS` client constant), and 00043 (Vault-backed `notify_match_created` trigger replacing the Studio webhook) applied to remote 2026-05-21 via `supabase db push`. Vault secret `service_role_key` seeded (219-char JWT). Post-push synthetic match-insert test confirmed 1 trigger / 1 invocation / 1 push.
+  - [ ] **App smoke tests in preview build** (the heavier RLS/distance changes weren't exercised pre-push — run these against the live preview build now that remote has all three migrations):
+    - Discover feed loads, cards show distance text, distance filter trims correctly
+    - Tap into a profile (uses `get_profile_by_id`) — renders without errors
+    - Gym Crush Mode toggle — same-gym candidates appear with distance
+    - Gym Gems screen renders — no `last_location` in network payload
+    - Block another user from discover → confirm they vanish from feed + can no longer message/like
+    - Recipient marks a message read → tick changes; sender's `content` cannot be tampered with
+    - Onboarding a brand-new account end-to-end (profile insert + first match if applicable)
+    - Negative probe (Studio SQL): `select last_location from profiles where id <> auth.uid() limit 1` from any non-service role should 403
+  - [x] **Playground stub cleanup + typegen done** (2026-05-22) — `last_location` / `last_location_updated_at` removed from `playground/swiper.tsx` + `modals.tsx`; `types/database.ts` regenerated against remote schema.
+  - [ ] **CLIENT (likely already done — confirm at meeting):** `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY` in Google Cloud Console is restricted to iOS bundle ID `com.gymcrushdating.app` + Places API only. Bundled client-side, so without restrictions anyone with the app bundle can use it for arbitrary Places billing.
 
 - [ ] **RevenueCat integration (IAP / subscriptions)**
   - [x] Add RevenueCat SDK + configure iOS app in RevenueCat
   - [x] Create IAP/subscription products in App Store Connect and sync to RevenueCat
   - [x] Define entitlements + offerings
   - [x] Implement purchase flow + restore purchases + entitlement gating
-  - [ ] **BLOCKED ON CLIENT (ASC):** Offerings return `CONFIGURATION_ERROR` in preview build 0.1.0+11 (Sentry GYM-CRUSH-E, 2026-04-23). RC SDK initializes fine and logIn succeeds — the failure is ASC-side. Root cause per `https://rev.cat/why-are-offerings-empty`:
-    - [ ] **Client: sign Paid Applications Agreement** — ASC → Business → Agreements. Must show **Active**. Requires Account Holder login.
-    - [ ] **Client: complete Tax forms + Banking info** — agreement stays inactive without these, even if signed.
-    - [ ] Verify **In-App Purchase** capability is checked on the App ID (developer.apple.com → Identifiers → `com.gymcrushdating.app`).
-    - [ ] Verify each IAP product is in **"Ready to Submit"** state on ASC (not "Missing Metadata").
-    - [ ] Verify RC dashboard Bundle ID + product Store Identifiers exactly match ASC.
+  - [ ] **BLOCKED ON APPLE (24h verification window):** Client meeting 2026-05-21 — Paid Apps agreement signed, tax forms + banking info submitted. Apple now verifying bank account (says ~24 hours). Once status shows **Active** in ASC → Business → Agreements, RC offerings should populate. Then re-verify in this order:
+    - [ ] Confirm **In-App Purchase** capability is checked on the App ID (developer.apple.com → Identifiers → `com.gymcrushdating.app`)
+    - [ ] Each IAP/subscription product shows **"Ready to Submit"** in ASC (not "Missing Metadata")
+    - [ ] RC dashboard Bundle ID + product Store Identifiers exactly match ASC
+    - [ ] Run RC SDK locally (or in preview build) — offerings should resolve, `CONFIGURATION_ERROR` gone
   - [x] Paywall UI: fallback info panel when offerings fail ("Pending App Store Connect paid apps agreement and tax info") — shipped so preview builds are usable without subs.
 
 - [x] **Sentry production setup** — `config/sentry.ts`
@@ -64,14 +70,25 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 
 ## High priority (strongly recommended for v1)
 
-- [ ] **Review login screen footer text** — `app/(auth)/login.tsx`
-  - [ ] Decide whether to keep `getAppVersionLabel()` visible or remove for production
+- [x] **Domain decision locked: `gymcrush.com`** (NOT `gymcrushdating.com`). iOS bundle ID `com.gymcrushdating.app` stays as-is — it's an immutable ASC/RC identifier, not user-visible.
+  - [x] `MARKETING_SITE_URL` in `app/(tabs)/profile/settings.tsx` removed (was unused after wiring per-page URLs)
+  - [x] `TERMS_URL` + `PRIVACY_URL` in `components/discover/OfferWallModal.tsx` → `gymcrush.com`
+  - [x] Grep audit clean (`git grep -n gymcrushdating.com -- ':!docs/superpowers/' ':!doc/TODO.md'` returns zero)
 
-- [ ] **Versioning + EAS production config**
-  - [ ] Set v1 version string in `app.json` (currently `0.1.0`)
-  - [ ] Align iOS build number for TestFlight/App Store
-  - [x] Add `EXPO_PUBLIC_MIXPANEL_TOKEN` to EAS production profile env vars
-  - [ ] Confirm all prod env vars are set (Supabase, Sentry, Mixpanel, Google Places)
+- [ ] **Settings polish — replace placeholder URLs and stub support flow**
+  - Settings screen now ships with Privacy Policy / Terms / Cookie Policy / Community Guidelines / Help & Support / Rate.
+  - [x] Privacy Policy → `https://gymcrush.com/privacy` (live)
+  - [x] Terms of Service → `https://gymcrush.com/terms` (live)
+  - [x] Cookie Policy → `https://gymcrush.com/cookie-policy` (live; added new row in settings)
+  - [ ] **CLIENT:** publish `https://gymcrush.com/community-guidelines` (constant wired, page not yet live — required for App Review on UGC/dating apps)
+  - [x] Help & Support → `mailto:support@gymcrush.com` (subject prefilled). Inbox must exist before submission.
+  - [ ] **CLIENT:** confirm `support@gymcrush.com` inbox is monitored (or swap to a different address)
+  - [ ] Verify `APP_STORE_ID` (`6762858426`) and `ANDROID_PACKAGE` constants once the app is live in stores so Rate links open the correct review sheets
+
+- [x] **Versioning + EAS production config** (2026-05-21)
+  - [x] `app.json` version bumped `0.1.0` → `1.0.0`
+  - [x] iOS build number — `autoIncrement: true` in `eas.json` production profile, EAS Cloud manages it
+  - [x] All six `EXPO_PUBLIC_*` vars confirmed set in EAS production: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SENTRY_DSN`, `MIXPANEL_TOKEN`, `GOOGLE_PLACES_API_KEY`, `RC_IOS_KEY`. `SENTRY_AUTH_TOKEN` also set (build-time sourcemap upload).
 
 - [x] **Notifications end-to-end**
   - [x] Permission prompts + token registration (useNotifications hook)
@@ -84,10 +101,9 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [ ] Signup/login throttling (Supabase built-in covers basics)
   - [ ] Messaging/likes throttling
 
-- [ ] **Supabase custom SMTP (Resend) — BLOCKED ON CLIENT**
-  - Current state: password reset emails fail with `535 Invalid username` (SMTP auth rejected). Custom SMTP is partially/incorrectly configured in Supabase. Built-in Supabase email is rate-limited (~3/hr) and sends from `noreply@mail.app.supabase.io` — not acceptable for production.
-  - [ ] Verify domain in Resend dashboard (DNS records: SPF, DKIM, DMARC) — e.g. `mail.gymcrush.com` or `gymcrushdating.app`
-  - [ ] Client: Supabase Dashboard → Authentication → Emails → SMTP Settings → Enable Custom SMTP with:
+- [ ] **Supabase custom SMTP (Resend) — BLOCKED ON CLIENT (DNS at Namecheap)**
+  - Client meeting 2026-05-21 — DNS records for `gymcrush.com` (SPF / DKIM / DMARC) being added in Namecheap to verify domain in Resend. Once Resend shows the domain as **Verified**:
+  - [ ] Configure Supabase Dashboard → Authentication → Emails → SMTP Settings → Enable Custom SMTP with:
     - Host: `smtp.resend.com`
     - Port: `465` (TLS) or `587` (STARTTLS)
     - Username: `resend`
@@ -117,13 +133,8 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 ## “Facebook pixel id” / Meta tracking
 
 - [x] **iOS attribution via Meta Conversions API (server-side)** — `supabase/functions/meta-capi-event/` edge function forwards `signup_completed` (CompleteRegistration) and `purchase_success` (Purchase) from Mixpanel `track()` to Meta CAPI. PII (email, user_id) is SHA-256 hashed in the edge function before sending. Access Token stays in Supabase secrets — never on the client. No native SDK, no ATT prompt, no rebuild required.
-  - [ ] **DEPLOYMENT (one-time):** set Supabase secrets and deploy the edge function:
-    ```
-    supabase secrets set FACEBOOK_PIXEL_ID=996455392805924
-    supabase secrets set FACEBOOK_PIXEL_ACCESS_TOKEN=<token from .env>
-    supabase functions deploy meta-capi-event
-    ```
-  - [ ] **Verify in Meta Events Manager → Test Events:** in dev, pass `testEventCode` from Events Manager to `sendMetaCapiEvent` to see live events without affecting prod stats.
+  - [x] **DEPLOYMENT (one-time):** Supabase secrets set (`FACEBOOK_PIXEL_ID=996455392805924`, `FACEBOOK_PIXEL_ACCESS_TOKEN=<token>`), edge function `meta-capi-event` deployed to remote 2026-05-21.
+  - [ ] **CLIENT (verify at meeting):** in Meta Events Manager → your Pixel → **Test Events** tab, grab the `TEST...` event code, then trigger a signup in the preview build and confirm a `CompleteRegistration` event lands within ~30s with the hashed email + user_id. Once verified, no further action — events start flowing to production stats automatically.
 - [ ] **Web landing site: Meta Pixel (pixel id)** — drops on `gymcrush.com` (or wherever the marketing page lives). Out of scope for this repo.
 
 ---

@@ -7,19 +7,20 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { filterBadWords } from '@/lib/utils/filterBadWords';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
+import { PROFILE_COLUMNS } from '@/constants';
 import type { Profile, DiscoveryPreferences } from '@/types';
 
-/**
- * Reusable profile fetcher — used by useProfile and the tabs-layout prefetcher.
- */
+/** Profile shape returned by the discover_profiles RPC. */
+export type DiscoverProfile = Profile & { distance_km: number | null };
+
 export async function fetchProfile(userId: string): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select(PROFILE_COLUMNS)
     .eq('id', userId)
     .single();
   if (error) throw error;
-  return data;
+  return data as unknown as Profile;
 }
 
 export function useProfile() {
@@ -41,40 +42,28 @@ export function useDiscoverProfiles(
 
   return useQuery({
     queryKey: ['profiles', 'discover', user?.id, preferences],
-    queryFn: async () => {
+    queryFn: async (): Promise<DiscoverProfile[]> => {
       try {
         if (!user) return [];
 
-        let query = supabase
-          .from('profiles')
-          .select('*')
-          .eq('is_visible', true)
-          .neq('id', user.id);
-
-        if (
-          preferences?.minAge !== undefined &&
-          typeof preferences.minAge === 'number' &&
-          !isNaN(preferences.minAge)
-        ) {
-          query = query.gte('age', preferences.minAge);
-        }
-
-        if (
-          preferences?.maxAge !== undefined &&
-          typeof preferences.maxAge === 'number' &&
-          !isNaN(preferences.maxAge)
-        ) {
-          query = query.lte('age', preferences.maxAge);
-        }
-
-        if (preferences?.genders && Array.isArray(preferences.genders) && preferences.genders.length > 0) {
-          query = query.in('gender', preferences.genders);
-        }
-
-        const { data, error } = await query;
+        const { data, error } = await supabase.rpc('discover_profiles', {
+          p_min_age:
+            typeof preferences?.minAge === 'number' && !isNaN(preferences.minAge)
+              ? preferences.minAge
+              : null,
+          p_max_age:
+            typeof preferences?.maxAge === 'number' && !isNaN(preferences.maxAge)
+              ? preferences.maxAge
+              : null,
+          p_genders:
+            preferences?.genders && Array.isArray(preferences.genders) && preferences.genders.length > 0
+              ? preferences.genders
+              : null,
+          p_home_gym_id: null,
+          p_skip_distance: false,
+        });
         if (error) throw error;
-        const result = data || [];
-        return result;
+        return (data ?? []) as unknown as DiscoverProfile[];
       } catch (error) {
         if (__DEV__) {
           console.error('[useDiscoverProfiles] Error:', error);
@@ -106,10 +95,10 @@ export function useUpdateProfile() {
         .from('profiles')
         .update(filteredUpdates)
         .eq('id', user.id)
-        .select()
+        .select(PROFILE_COLUMNS)
         .single();
       if (error) throw error;
-      return data;
+      return data as unknown as Profile;
     },
     onMutate: async (updates) => {
       await queryClient.cancelQueries({ queryKey: ['profile', user?.id] });
@@ -142,45 +131,33 @@ export function useNearbyProfiles(
 
   return useQuery({
     queryKey: ['profiles', 'nearby', gymId, preferences],
-    queryFn: async () => {
+    queryFn: async (): Promise<DiscoverProfile[]> => {
       try {
-        if (!gymId) {
-          return [];
-        }
+        if (!gymId) return [];
 
-        let query = supabase
-          .from('profiles')
-          .select('*')
-          .eq('home_gym_id', gymId)
-          .eq('is_visible', true)
-          .neq('id', user?.id || '');
+        const { data, error } = await supabase.rpc('discover_profiles', {
+          p_min_age:
+            typeof preferences?.minAge === 'number' && !isNaN(preferences.minAge)
+              ? preferences.minAge
+              : null,
+          p_max_age:
+            typeof preferences?.maxAge === 'number' && !isNaN(preferences.maxAge)
+              ? preferences.maxAge
+              : null,
+          p_genders:
+            preferences?.genders && Array.isArray(preferences.genders) && preferences.genders.length > 0
+              ? preferences.genders
+              : null,
+          p_home_gym_id: gymId,
+          p_skip_distance: true,
+        });
 
-        if (preferences?.minAge !== undefined && typeof preferences.minAge === 'number' && !isNaN(preferences.minAge)) {
-          query = query.gte('age', preferences.minAge);
-        }
-
-        if (preferences?.maxAge !== undefined && typeof preferences.maxAge === 'number' && !isNaN(preferences.maxAge)) {
-          query = query.lte('age', preferences.maxAge);
-        }
-
-        if (preferences?.genders && Array.isArray(preferences.genders) && preferences.genders.length > 0) {
-          query = query.in('gender', preferences.genders);
-        }
-
-        const { data, error } = await query;
-        
         if (error) {
-          console.error('[useNearbyProfiles] Query error:', error);
-          console.error('[useNearbyProfiles] Error details:', JSON.stringify(error));
+          console.error('[useNearbyProfiles] RPC error:', error);
           throw error;
         }
 
-        let filtered = data || [];
-        if (preferences?.genders && preferences.genders.length > 0) {
-          // Already filtered by database query above
-        }
-        
-        return filtered;
+        return (data ?? []) as unknown as DiscoverProfile[];
       } catch (error) {
         if (__DEV__) {
           console.error('[useNearbyProfiles] Error in queryFn:', error);
@@ -240,11 +217,11 @@ export function useUpdateDiscoveryPreferences() {
         .from('profiles')
         .update({ discovery_preferences: updatedPrefs })
         .eq('id', user.id)
-        .select()
+        .select(PROFILE_COLUMNS)
         .single();
-      
+
       if (error) throw error;
-      return data;
+      return data as unknown as Profile;
     },
     onMutate: async (updates) => {
       // Cancel any outgoing refetches

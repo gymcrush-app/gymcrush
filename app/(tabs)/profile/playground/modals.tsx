@@ -25,9 +25,7 @@ const MOCK_CURRENT_USER: Profile = {
   is_onboarded: true,
   is_visible: true,
   last_gem_given_at: null,
-  last_location: null,
-  last_location_updated_at: null,
-  occupation: null,
+  occupation:null,
   photo_urls: ['https://picsum.photos/seed/playground-current-user/900/900'],
   updated_at: null,
 }
@@ -48,9 +46,7 @@ const MOCK_MATCHED_USER: Profile = {
   is_onboarded: true,
   is_visible: true,
   last_gem_given_at: null,
-  last_location: null,
-  last_location_updated_at: null,
-  occupation: 'Coach',
+  occupation:'Coach',
   photo_urls: ['https://picsum.photos/seed/playground-match-user/900/900'],
   updated_at: null,
 }

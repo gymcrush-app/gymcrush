@@ -20,6 +20,12 @@ export default function ProfileLayout() {
         }}
       />
       <Stack.Screen
+        name="blocked-users"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="playground"
         options={{
           title: 'Demo playground',

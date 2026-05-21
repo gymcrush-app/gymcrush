@@ -6,8 +6,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
 import { PACKAGE_TYPE } from 'react-native-purchases'
 
-const TERMS_URL = 'https://gymcrushdating.com/terms'
-const PRIVACY_URL = 'https://gymcrushdating.com/privacy'
+const TERMS_URL = 'https://gymcrush.com/terms'
+const PRIVACY_URL = 'https://gymcrush.com/privacy'
 
 interface OfferWallModalProps {
   visible: boolean

@@ -27,7 +27,6 @@ import {
 } from "@/constants"
 import { useIsPlus } from "@/hooks/useIsPlus"
 import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
-import { useGymById, useGymsByIds } from "@/lib/api/gyms"
 import {
   useCheckMatch,
   useLike,
@@ -47,7 +46,6 @@ import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
 import { filterBadWords } from "@/lib/utils/filterBadWords"
 import { track } from "@/lib/utils/analytics"
-import { calculateDistanceMiles } from "@/lib/utils/distance"
 import { kmToMiles, milesToKm, usesMiles } from "@/lib/utils/locale"
 import {
   APP,
@@ -268,14 +266,14 @@ function matchCheckReducer(
 
 const MATCH_CHECK_INITIAL: MatchCheckState = { status: "idle" }
 
+type DiscoverProfileRow = Profile & { distance_km?: number | null }
+
 interface FilterSortOptions {
-  profiles: Profile[]
-  include: (profile: Profile) => boolean
+  profiles: DiscoverProfileRow[]
+  include: (profile: DiscoverProfileRow) => boolean
   preferences: DiscoveryPreferencesData
   filters: DiscoveryFilterValues
   currentProfile: Profile | null | undefined
-  gymsMap: Map<string, any>
-  viewerHomeGym: any
   /** When true (Gym Crush Mode), skip client-side distance filtering — same gym only from API */
   skipDistanceFilter?: boolean
 }
@@ -286,10 +284,8 @@ function filterScoreAndSort({
   preferences,
   filters,
   currentProfile,
-  gymsMap,
-  viewerHomeGym,
   skipDistanceFilter = false,
-}: FilterSortOptions): { profile: Profile; distance: number | null }[] {
+}: FilterSortOptions): { profile: DiscoverProfileRow; distance: number | null }[] {
   const filtered = profiles.filter((profile) => {
     if (!include(profile)) return false
     if (preferences.gender === "men" && profile.gender !== "male") return false
@@ -304,22 +300,11 @@ function filterScoreAndSort({
     return true
   })
 
-  const viewerFromLastLocation = (currentProfile as any)?.last_location ?? null
-  const viewerFromGym = viewerHomeGym?.location ?? null
-  const viewerRef = viewerFromLastLocation ?? viewerFromGym ?? null
-
   const withDistances = filtered.map((profile) => {
-    const candidateLastLocation = (profile as any)?.last_location ?? null
-    const candidateGym = profile.home_gym_id
-      ? gymsMap.get(profile.home_gym_id)
-      : null
-    const candidateRef = candidateLastLocation ?? candidateGym?.location ?? null
-    if (!viewerRef || !candidateRef) {
-      return { profile, distance: null as number | null }
-    }
+    const distanceKm = profile.distance_km ?? null
     return {
       profile,
-      distance: calculateDistanceMiles(viewerRef, candidateRef),
+      distance: distanceKm === null ? null : kmToMiles(distanceKm),
     }
   })
 
@@ -793,7 +778,7 @@ export default function DiscoverScreen() {
     return result
   }, [preferences.gender, filters.ageRange])
 
-  // Viewer home gym (used as fallback when last_location is missing)
+  // Viewer's home gym ID drives Gym Crush Mode routing (useNearbyProfiles).
   const viewerHomeGymId = currentProfile?.home_gym_id || null
 
   // Cleanup debounce timer on unmount
@@ -853,23 +838,6 @@ export default function DiscoverScreen() {
 
   const gymCrushBlocked = gymCrushModeEnabled && !viewerHomeGymId
 
-  // Fetch viewer home gym for fallback distance calculation
-  const { data: viewerHomeGym } = useGymById(viewerHomeGymId || "")
-
-  // Get unique gym IDs from profiles (for batch fetching)
-  const profileGymIds = useMemo(() => {
-    const gymIds = new Set<string>()
-    nearbyProfiles.forEach((profile) => {
-      if (profile.home_gym_id) {
-        gymIds.add(profile.home_gym_id)
-      }
-    })
-    return Array.from(gymIds)
-  }, [nearbyProfiles])
-
-  // Batch fetch gyms for all profiles
-  const { data: gymsMap = new Map<string, any>() } = useGymsByIds(profileGymIds)
-
   // Server-side "already liked" and "matched" so discover excludes them even if local swiped list is out of sync
   const { data: likedProfileIds = [] } = useLikedProfileIds()
   const { data: matches = [] } = useMatches()
@@ -908,8 +876,6 @@ export default function DiscoverScreen() {
         preferences,
         filters,
         currentProfile,
-        gymsMap,
-        viewerHomeGym,
         skipDistanceFilter: gymCrushModeEnabled,
       }),
     [
@@ -917,9 +883,7 @@ export default function DiscoverScreen() {
       excludedProfileIds,
       preferences,
       filters,
-      gymsMap,
       currentProfile,
-      viewerHomeGym,
       gymCrushModeEnabled,
     ],
   )
@@ -934,8 +898,6 @@ export default function DiscoverScreen() {
         preferences,
         filters,
         currentProfile,
-        gymsMap,
-        viewerHomeGym,
         skipDistanceFilter: gymCrushModeEnabled,
       }),
     [
@@ -943,9 +905,7 @@ export default function DiscoverScreen() {
       skippedProfiles,
       preferences,
       filters,
-      gymsMap,
       currentProfile,
-      viewerHomeGym,
       gymCrushModeEnabled,
     ],
   )

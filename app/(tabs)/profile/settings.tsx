@@ -11,11 +11,72 @@ import { track } from '@/lib/utils/analytics';
 import { signOutAndReset } from '@/lib/utils/signOut';
 import { borderRadius, colors, fontFamily, fontSize, spacing } from '@/theme';
 import type { Visibility } from '@/types';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, LogOut, Trash2 } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  FileText,
+  HelpCircle,
+  LogOut,
+  RotateCcw,
+  ShieldOff,
+  Star,
+  Trash2,
+  Users,
+} from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import Purchases from 'react-native-purchases';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const PRIVACY_URL = 'https://gymcrush.com/privacy';
+const TERMS_URL = 'https://gymcrush.com/terms';
+const COOKIE_POLICY_URL = 'https://gymcrush.com/cookie-policy';
+const COMMUNITY_GUIDELINES_URL = 'https://gymcrush.com/community-guidelines';
+const SUPPORT_EMAIL = 'support@gymcrush.com';
+const APP_STORE_ID = '6762858426';
+const ANDROID_PACKAGE = 'com.gymcrush.app';
+const APP_STORE_REVIEW_URL = `itms-apps://itunes.apple.com/app/id${APP_STORE_ID}?action=write-review`;
+const PLAY_STORE_REVIEW_URL = `market://details?id=${ANDROID_PACKAGE}`;
+const IOS_MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
+const ANDROID_MANAGE_SUBSCRIPTIONS_URL = `https://play.google.com/store/account/subscriptions?package=${ANDROID_PACKAGE}`;
+
+interface SettingsLinkRowProps {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+}
+
+function SettingsLinkRow({ icon, label, onPress, loading, disabled }: SettingsLinkRowProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={({ pressed }) => [styles.linkItem, pressed && styles.linkItemPressed]}
+    >
+      <View style={styles.linkItemIcon}>{icon}</View>
+      <Text style={styles.linkItemLabel}>{label}</Text>
+      {loading ? (
+        <ActivityIndicator size="small" color={colors.mutedForeground} />
+      ) : (
+        <ChevronRight size={18} color={colors.mutedForeground} />
+      )}
+    </Pressable>
+  );
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -24,6 +85,67 @@ export default function SettingsScreen() {
   const updateProfile = useUpdateProfile();
   const signOut = useSignOut();
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
+
+  const appVersion = Constants.expoConfig?.version ?? '0.0.0';
+  const buildNumber = Platform.select({
+    ios: Constants.expoConfig?.ios?.buildNumber,
+    android: String(Constants.expoConfig?.android?.versionCode ?? ''),
+  });
+
+  const openURL = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) throw new Error('Cannot open URL');
+      await Linking.openURL(url);
+    } catch {
+      toast({
+        preset: 'error',
+        title: 'Could not open link',
+        message: 'Please try again later.',
+      });
+    }
+  };
+
+  const handleManageSubscription = () => {
+    openURL(
+      Platform.OS === 'ios'
+        ? IOS_MANAGE_SUBSCRIPTIONS_URL
+        : ANDROID_MANAGE_SUBSCRIPTIONS_URL,
+    );
+  };
+
+  const handleRestorePurchases = async () => {
+    setIsRestoringPurchases(true);
+    try {
+      const customerInfo = await Purchases.restorePurchases();
+      const hasActive = Object.keys(customerInfo.entitlements.active ?? {}).length > 0;
+      track('purchases_restored', { had_active_entitlement: hasActive });
+      Alert.alert(
+        hasActive ? 'Purchases restored' : 'No purchases to restore',
+        hasActive
+          ? 'Your subscription has been restored.'
+          : 'We couldn’t find any active purchases on this Apple ID.',
+      );
+    } catch (error: any) {
+      toast({
+        preset: 'error',
+        title: 'Restore failed',
+        message: error?.message ?? 'Please try again.',
+      });
+    } finally {
+      setIsRestoringPurchases(false);
+    }
+  };
+
+  const handleRateApp = () => {
+    openURL(Platform.OS === 'ios' ? APP_STORE_REVIEW_URL : PLAY_STORE_REVIEW_URL);
+  };
+
+  const handleHelpSupport = () => {
+    const subject = encodeURIComponent('GymCrush support');
+    openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}`);
+  };
 
   const visibility: Visibility = profile?.is_visible ? 'visible' : 'paused';
 
@@ -142,16 +264,69 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Discovery preferences</Text>
-          <Text style={styles.sectionHint}>
-            Gender, age range, distance, and Gym Crush Mode are in Discover — tap the settings icon on the Discover tab.
-          </Text>
-          <Pressable
-            style={styles.linkRow}
-            onPress={() => router.push('/(tabs)/discover')}
-          >
-            <Text style={styles.linkRowText}>Go to Discover</Text>
-          </Pressable>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          <View style={styles.linkGroup}>
+            <SettingsLinkRow
+              icon={<CreditCard size={18} color={colors.foreground} />}
+              label="Manage Subscription"
+              onPress={handleManageSubscription}
+            />
+            <SettingsLinkRow
+              icon={<RotateCcw size={18} color={colors.foreground} />}
+              label="Restore Purchases"
+              onPress={handleRestorePurchases}
+              loading={isRestoringPurchases}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Safety</Text>
+          <View style={styles.linkGroup}>
+            <SettingsLinkRow
+              icon={<ShieldOff size={18} color={colors.foreground} />}
+              label="Blocked Users"
+              onPress={() =>
+                router.push('/(tabs)/profile/blocked-users' as never)
+              }
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.linkGroup}>
+            <SettingsLinkRow
+              icon={<FileText size={18} color={colors.foreground} />}
+              label="Privacy Policy"
+              onPress={() => openURL(PRIVACY_URL)}
+            />
+            <SettingsLinkRow
+              icon={<FileText size={18} color={colors.foreground} />}
+              label="Terms of Service"
+              onPress={() => openURL(TERMS_URL)}
+            />
+            <SettingsLinkRow
+              icon={<FileText size={18} color={colors.foreground} />}
+              label="Cookie Policy"
+              onPress={() => openURL(COOKIE_POLICY_URL)}
+            />
+            <SettingsLinkRow
+              icon={<Users size={18} color={colors.foreground} />}
+              label="Community Guidelines"
+              onPress={() => openURL(COMMUNITY_GUIDELINES_URL)}
+            />
+            <SettingsLinkRow
+              icon={<HelpCircle size={18} color={colors.foreground} />}
+              label="Help & Support"
+              onPress={handleHelpSupport}
+            />
+            <SettingsLinkRow
+              icon={<Star size={18} color={colors.foreground} />}
+              label="Rate GymCrush"
+              onPress={handleRateApp}
+            />
+          </View>
         </View>
 
         <View style={styles.accountSection}>
@@ -193,6 +368,13 @@ export default function SettingsScreen() {
             </Text>
           </View>
         </Pressable>
+
+        <View style={styles.versionFooter}>
+          <Text style={styles.versionText}>
+            GymCrush {appVersion}
+            {buildNumber ? ` (${buildNumber})` : ''}
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -243,15 +425,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.mutedForeground,
     marginBottom: spacing[3],
-  },
-  linkRow: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing[2],
-  },
-  linkRowText: {
-    fontSize: fontSize.base,
-    fontFamily: fontFamily.manropeSemibold,
-    color: colors.primary,
   },
   visibilitySection: {
     gap: spacing[3],
@@ -323,6 +496,43 @@ const styles = StyleSheet.create({
   },
   demoPlaygroundRowHint: {
     fontSize: fontSize.sm,
+    color: colors.mutedForeground,
+  },
+  linkGroup: {
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    overflow: 'hidden',
+  },
+  linkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    gap: spacing[3],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  linkItemPressed: {
+    backgroundColor: colors.muted,
+  },
+  linkItemIcon: {
+    width: 22,
+    alignItems: 'center',
+  },
+  linkItemLabel: {
+    flex: 1,
+    fontSize: fontSize.base,
+    fontFamily: fontFamily.manropeMedium,
+    color: colors.foreground,
+  },
+  versionFooter: {
+    alignItems: 'center',
+    paddingVertical: spacing[6],
+  },
+  versionText: {
+    fontSize: fontSize.xs,
     color: colors.mutedForeground,
   },
 });

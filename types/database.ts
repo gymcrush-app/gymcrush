@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       blocks: {
@@ -358,6 +333,51 @@ export type Database = {
           },
         ]
       }
+      plus_entitlements: {
+        Row: {
+          billing_issues_detected_at: string | null
+          entitlement_id: string
+          environment: string | null
+          expires_at: string | null
+          original_transaction_id: string | null
+          period_type: string | null
+          product_id: string | null
+          purchase_date: string | null
+          unsubscribe_detected_at: string | null
+          updated_at: string
+          user_id: string
+          will_renew: boolean | null
+        }
+        Insert: {
+          billing_issues_detected_at?: string | null
+          entitlement_id?: string
+          environment?: string | null
+          expires_at?: string | null
+          original_transaction_id?: string | null
+          period_type?: string | null
+          product_id?: string | null
+          purchase_date?: string | null
+          unsubscribe_detected_at?: string | null
+          updated_at?: string
+          user_id: string
+          will_renew?: boolean | null
+        }
+        Update: {
+          billing_issues_detected_at?: string | null
+          entitlement_id?: string
+          environment?: string | null
+          expires_at?: string | null
+          original_transaction_id?: string | null
+          period_type?: string | null
+          product_id?: string | null
+          purchase_date?: string | null
+          unsubscribe_detected_at?: string | null
+          updated_at?: string
+          user_id?: string
+          will_renew?: boolean | null
+        }
+        Relationships: []
+      }
       profile_prompts: {
         Row: {
           answer: string
@@ -420,8 +440,8 @@ export type Database = {
           bio: string | null
           created_at: string | null
           discovery_preferences: Json | null
-          ethnicity: string[]
           display_name: string
+          ethnicity: string[] | null
           fitness_disciplines: string[]
           gems_received_count: number
           gender: string
@@ -447,8 +467,8 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
-          ethnicity?: string[]
           display_name: string
+          ethnicity?: string[] | null
           fitness_disciplines?: string[]
           gems_received_count?: number
           gender: string
@@ -474,8 +494,8 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           discovery_preferences?: Json | null
-          ethnicity?: string[]
           display_name?: string
+          ethnicity?: string[] | null
           fitness_disciplines?: string[]
           gems_received_count?: number
           gender?: string
@@ -686,6 +706,39 @@ export type Database = {
           },
         ]
       }
+      revenuecat_events: {
+        Row: {
+          app_user_id: string | null
+          environment: string | null
+          event_id: string | null
+          event_type: string
+          id: number
+          payload: Json
+          received_at: string
+          user_id: string | null
+        }
+        Insert: {
+          app_user_id?: string | null
+          environment?: string | null
+          event_id?: string | null
+          event_type: string
+          id?: number
+          payload: Json
+          received_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          app_user_id?: string | null
+          environment?: string | null
+          event_id?: string | null
+          event_type?: string
+          id?: number
+          payload?: Json
+          received_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null
@@ -888,6 +941,41 @@ export type Database = {
         Returns: unknown
       }
       disablelongtransactions: { Args: never; Returns: string }
+      discover_profiles: {
+        Args: {
+          p_genders?: string[]
+          p_home_gym_id?: string
+          p_max_age?: number
+          p_min_age?: number
+          p_skip_distance?: boolean
+        }
+        Returns: {
+          age: number
+          alcohol: string
+          bio: string
+          created_at: string
+          discovery_preferences: Json
+          display_name: string
+          distance_km: number
+          ethnicity: string[]
+          fitness_disciplines: string[]
+          gems_received_count: number
+          gender: string
+          has_kids: string
+          height: string
+          home_gym_id: string
+          id: string
+          is_onboarded: boolean
+          is_visible: boolean
+          last_gem_given_at: string
+          marijuana: string
+          occupation: string
+          photo_urls: string[]
+          religion: string
+          smoking: string
+          updated_at: string
+        }[]
+      }
       dropgeometrycolumn:
         | {
             Args: {
@@ -1033,36 +1121,29 @@ export type Database = {
         Args: { p_profile_id: string }
         Returns: {
           age: number
-          alcohol: string | null
-          bio: string | null
-          created_at: string | null
-          discovery_preferences: Json | null
+          alcohol: string
+          bio: string
+          created_at: string
+          discovery_preferences: Json
           display_name: string
+          ethnicity: string[]
           fitness_disciplines: string[]
           gems_received_count: number
           gender: string
-          has_kids: string | null
-          height: string | null
-          home_gym_id: string | null
+          has_kids: string
+          height: string
+          home_gym_id: string
           id: string
-          is_onboarded: boolean | null
-          is_visible: boolean | null
-          last_gem_given_at: string | null
-          last_location: unknown
-          last_location_updated_at: string | null
-          marijuana: string | null
-          occupation: string | null
+          is_onboarded: boolean
+          is_visible: boolean
+          last_gem_given_at: string
+          marijuana: string
+          occupation: string
           photo_urls: string[]
-          religion: string | null
-          smoking: string | null
-          updated_at: string | null
+          religion: string
+          smoking: string
+          updated_at: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "profiles"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       get_user_home_gym_id: { Args: { user_id: string }; Returns: string }
       get_user_max_distance_km: { Args: { user_id: string }; Returns: number }
@@ -1108,6 +1189,8 @@ export type Database = {
         }
         Returns: string
       }
+      is_blocked_pair: { Args: { a: string; b: string }; Returns: boolean }
+      is_plus: { Args: { uid: string }; Returns: boolean }
       longtransactionsenabled: { Args: never; Returns: boolean }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
@@ -1877,9 +1960,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
