@@ -1595,20 +1595,27 @@ export default function DiscoverScreen() {
                 />
               </View>
             ) : !showDeckLoading ? (
-              <EmptyFeed
-                message={
-                  gymCrushModeEnabled
-                    ? "No one at your gym right now"
-                    : "You've seen everyone!"
-                }
-                ctaLabel={gymCrushModeEnabled ? "Search nearby" : undefined}
-                onCtaPress={
-                  gymCrushModeEnabled
-                    ? () => handleGymCrushModeChange(false)
-                    : undefined
-                }
-                onStartOver={!gymCrushModeEnabled ? handleStartOver : undefined}
-              />
+              !currentProfile?.home_gym_id && !gymCrushModeEnabled ? (
+                <EmptyFeed
+                  message="Set your home gym to see lifters near you"
+                  description="Or enable location access so we can find people in your area."
+                />
+              ) : (
+                <EmptyFeed
+                  message={
+                    gymCrushModeEnabled
+                      ? "No one at your gym right now"
+                      : "You've seen everyone!"
+                  }
+                  ctaLabel={gymCrushModeEnabled ? "Search nearby" : undefined}
+                  onCtaPress={
+                    gymCrushModeEnabled
+                      ? () => handleGymCrushModeChange(false)
+                      : undefined
+                  }
+                  onStartOver={!gymCrushModeEnabled ? handleStartOver : undefined}
+                />
+              )
             ) : null}
             {showDeckLoading ? (
               <View style={styles.deckLoadingOverlay} pointerEvents="box-none">

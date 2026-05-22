@@ -6,6 +6,7 @@ import { getAppVersionLabel } from "@/lib/utils/appVersion"
 import { loginSchema } from "@/lib/utils/validation"
 import { signInWithApple } from "@/lib/auth/appleSignIn"
 import { GoogleSignInCancelled, signInWithGoogle } from "@/lib/auth/googleSignIn"
+import Ionicons from "@expo/vector-icons/Ionicons"
 import { track } from "@/lib/utils/analytics"
 import { colors, fontSize, fontFamily, spacing } from "@/theme"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -234,6 +235,7 @@ export default function LoginScreen() {
               variant="outline"
               onPress={handleAppleSignIn}
               style={styles.oauthButton}
+              leftIcon={<Ionicons name="logo-apple" size={20} color={colors.foreground} />}
             >
               Continue with Apple
             </Button>
@@ -241,6 +243,7 @@ export default function LoginScreen() {
               variant="outline"
               onPress={handleGoogleSignIn}
               style={styles.oauthButton}
+              leftIcon={<Ionicons name="logo-google" size={18} color={colors.foreground} />}
             >
               Continue with Google
             </Button>

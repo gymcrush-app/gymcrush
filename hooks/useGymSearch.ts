@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import Constants from 'expo-constants';
 import type { GooglePlaceGym } from '@/types/onboarding';
 import { useLocation } from './useLocation';
 
@@ -90,6 +91,8 @@ export function useGymSearch(): UseGymSearchResult {
           }
         : DEFAULT_LOCATION_BIAS;
 
+      const bundleId = Constants.expoConfig?.ios?.bundleIdentifier ?? '';
+
       const response = await fetch(
         'https://places.googleapis.com/v1/places:autocomplete',
         {
@@ -97,6 +100,7 @@ export function useGymSearch(): UseGymSearchResult {
           headers: {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': apiKey,
+            'X-Ios-Bundle-Identifier': bundleId,
             'X-Goog-FieldMask':
               'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat',
           },

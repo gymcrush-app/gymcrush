@@ -1,6 +1,6 @@
 import { Image } from "expo-image"
 import { Plus, X } from "lucide-react-native"
-import React, { useCallback, useMemo, useRef } from "react"
+import React, { useCallback, useEffect, useMemo, useRef } from "react"
 import {
   LayoutChangeEvent,
   Pressable,
@@ -47,7 +47,9 @@ export function DraggablePhotoGrid({
   const hoverTarget = useSharedValue(-1)
   // How many filled slots (shared so worklets can read it)
   const filledCount = useSharedValue(photoUrls.length)
-  filledCount.value = photoUrls.length
+  useEffect(() => {
+    filledCount.value = photoUrls.length
+  }, [photoUrls.length, filledCount])
 
   const slots = useMemo(() => {
     const result: (string | null)[] = [...photoUrls]

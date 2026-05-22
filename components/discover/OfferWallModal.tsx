@@ -72,12 +72,14 @@ export function OfferWallModal({
 
   useEffect(() => {
     if (!offering) return
-    console.log('[OfferWall] offering packages', {
-      offering: offering.identifier,
-      monthly: monthlyPkg?.product.priceString,
-      threeMonth: threeMonthPkg?.product.priceString,
-      annual: annualPkg?.product.priceString,
-    })
+    if (__DEV__) {
+      console.log('[OfferWall] offering packages', {
+        offering: offering.identifier,
+        monthly: monthlyPkg?.product.priceString,
+        threeMonth: threeMonthPkg?.product.priceString,
+        annual: annualPkg?.product.priceString,
+      })
+    }
   }, [offering, monthlyPkg, threeMonthPkg, annualPkg])
 
   const selectedPkg =

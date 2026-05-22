@@ -12,6 +12,7 @@ interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> {
   isLoading?: boolean;
   disabled?: boolean;
   children: React.ReactNode;
+  leftIcon?: React.ReactNode;
   style?: ViewStyle | ViewStyle[];
 }
 
@@ -89,6 +90,7 @@ export function Button({
   isLoading = false,
   disabled = false,
   children,
+  leftIcon,
   style,
   ...props
 }: ButtonProps) {
@@ -99,6 +101,7 @@ export function Button({
     styles.button,
     styles[`button${variant.charAt(0).toUpperCase() + variant.slice(1)}` as keyof typeof styles] as ViewStyle,
     styles[`button${size.charAt(0).toUpperCase() + size.slice(1)}` as keyof typeof styles] as ViewStyle,
+    leftIcon ? { gap: spacing[2] } : null,
     (disabled || isLoading) && styles.buttonDisabled,
     shadowStyle,
     style,
@@ -120,14 +123,17 @@ export function Button({
       {...props}
     >
       {isLoading ? (
-        <ActivityIndicator 
-          size="small" 
-          color={variant === 'primary' ? colors.primaryForeground : colors.foreground} 
+        <ActivityIndicator
+          size="small"
+          color={variant === 'primary' ? colors.primaryForeground : colors.foreground}
         />
       ) : (
-        <Text style={textStyle}>
-          {children}
-        </Text>
+        <>
+          {leftIcon}
+          <Text style={textStyle}>
+            {children}
+          </Text>
+        </>
       )}
     </Pressable>
   );

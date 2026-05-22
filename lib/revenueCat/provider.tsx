@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 import * as Sentry from '@sentry/react-native';
@@ -7,6 +7,14 @@ import { useRevenueCatStore } from '@/lib/stores/revenueCatStore';
 import { buildMockOfferings } from './devMock';
 
 const RC_IOS_KEY = process.env.EXPO_PUBLIC_RC_IOS_KEY ?? '';
+
+// Module-level state: persists across React StrictMode double-mounts and
+// Fast Refresh remounts that would reset `useRef` guards. Without this, the
+// dev provider would call Purchases.configure() and Purchases.logIn() twice
+// on every cold start, triggering RC's "instance already set" / "same
+// appUserID already cached" warnings.
+let purchasesConfigured = false;
+let lastLoggedInUserId: string | null = null;
 
 function describeRcError(err: unknown): string {
   if (!err) return 'unknown';
@@ -26,12 +34,12 @@ function describeRcError(err: unknown): string {
 export async function refetchOfferings() {
   const store = useRevenueCatStore.getState();
 
-  console.log('[RC-DEBUG] calling getOfferings()...');
+  if (__DEV__) console.log('[RC-DEBUG] calling getOfferings()...');
   Sentry.captureMessage('[RC] refetchOfferings: calling getOfferings()', { level: 'info' });
   try {
     const offerings = await Purchases.getOfferings();
     if (!offerings.current) throw new Error('getOfferings returned null current');
-    console.log('[RC-DEBUG] getOfferings OK', {
+    if (__DEV__) console.log('[RC-DEBUG] getOfferings OK', {
       current: offerings.current.identifier,
       currentPkgCount: offerings.current.availablePackages.length,
     });
@@ -46,13 +54,13 @@ export async function refetchOfferings() {
     store.setOfferings(offerings);
   } catch (err) {
     const msg = describeRcError(err);
-    console.log('[RC-DEBUG] getOfferings FAILED:', msg);
+    if (__DEV__) console.log('[RC-DEBUG] getOfferings FAILED:', msg);
     Sentry.captureMessage('[RC] refetchOfferings: FAILED', {
       level: 'error',
       extra: { message: msg },
     });
     if (__DEV__) {
-      console.log('[RC-DEBUG] __DEV__ — injecting mock offerings so UI can render');
+      if (__DEV__) console.log('[RC-DEBUG] __DEV__ — injecting mock offerings so UI can render');
       store.setOfferings(buildMockOfferings());
       store.setOfferingsError(`${msg} (using dev mock)`);
     } else {
@@ -75,13 +83,11 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
   const setOfferingsError = useRevenueCatStore((s) => s.setOfferingsError);
   const setConfigured = useRevenueCatStore((s) => s.setConfigured);
   const resetStore = useRevenueCatStore((s) => s.reset);
-  const lastLoggedInUserId = useRef<string | null>(null);
-  const configuredRef = useRef(false);
 
   // One-time configure on mount (iOS only for now)
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
-    if (configuredRef.current) return;
+    if (purchasesConfigured) return;
     if (!RC_IOS_KEY) {
       console.warn('[RevenueCat] EXPO_PUBLIC_RC_IOS_KEY missing; SDK not configured.');
       Sentry.captureMessage('[RC] init: RC_IOS_KEY missing — SDK not configured', {
@@ -95,7 +101,7 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
     // appUserID left undefined at configure time — we call logIn once the
     // Supabase user resolves. This avoids a brief anonymous identity period.
     Purchases.configure({ apiKey: RC_IOS_KEY });
-    configuredRef.current = true;
+    purchasesConfigured = true;
     setConfigured(true);
     Sentry.captureMessage('[RC] init: configured', {
       level: 'info',
@@ -118,16 +124,16 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
   // Sync RC identity with Supabase session
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
-    if (!configuredRef.current) return;
+    if (!purchasesConfigured) return;
 
     let cancelled = false;
 
     (async () => {
       try {
         if (userId) {
-          if (lastLoggedInUserId.current === userId) return;
+          if (lastLoggedInUserId === userId) return;
           const { customerInfo } = await Purchases.logIn(userId);
-          lastLoggedInUserId.current = userId;
+          lastLoggedInUserId = userId;
           Sentry.captureMessage('[RC] identity: logIn OK', {
             level: 'info',
             extra: {
@@ -136,9 +142,9 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
             },
           });
           if (!cancelled) setCustomerInfo(customerInfo);
-        } else if (lastLoggedInUserId.current) {
+        } else if (lastLoggedInUserId) {
           await Purchases.logOut();
-          lastLoggedInUserId.current = null;
+          lastLoggedInUserId = null;
           Sentry.captureMessage('[RC] identity: logOut OK', { level: 'info' });
           if (!cancelled) resetStore();
         }
@@ -160,16 +166,16 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
   // Paywall UI depends on this landing in the store.
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
-    if (!configuredRef.current) return;
+    if (!purchasesConfigured) return;
 
     let cancelled = false;
     (async () => {
-      console.log('[RC-DEBUG] initial fetch: calling getOfferings()...');
+      if (__DEV__) console.log('[RC-DEBUG] initial fetch: calling getOfferings()...');
       Sentry.captureMessage('[RC] initial fetch: calling getOfferings()', { level: 'info' });
       try {
         const offerings = await Purchases.getOfferings();
         if (!offerings.current) throw new Error('getOfferings returned null current');
-        console.log('[RC-DEBUG] initial getOfferings OK', {
+        if (__DEV__) console.log('[RC-DEBUG] initial getOfferings OK', {
           current: offerings.current.identifier,
           currentPkgCount: offerings.current.availablePackages.length,
         });
@@ -185,14 +191,14 @@ export function RevenueCatProvider({ children }: { children: React.ReactNode }) 
         if (!cancelled) setOfferings(offerings);
       } catch (err) {
         const msg = describeRcError(err);
-        console.log('[RC-DEBUG] initial getOfferings FAILED:', msg);
+        if (__DEV__) console.log('[RC-DEBUG] initial getOfferings FAILED:', msg);
         Sentry.captureMessage('[RC] initial getOfferings: FAILED', {
           level: 'error',
           extra: { message: msg },
         });
         if (cancelled) return;
         if (__DEV__) {
-          console.log('[RC-DEBUG] __DEV__ — injecting mock offerings so UI can render');
+          if (__DEV__) console.log('[RC-DEBUG] __DEV__ — injecting mock offerings so UI can render');
           setOfferings(buildMockOfferings());
           setOfferingsError(`${msg} (using dev mock)`);
         } else {

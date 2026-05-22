@@ -76,25 +76,25 @@ export async function deactivatePushToken(expoPushToken: string) {
 }
 
 export async function registerForPushNotificationsAsync(userId: string) {
-  console.log('[Push] registerForPushNotificationsAsync called, userId:', userId);
+  if (__DEV__) console.log('[Push] registerForPushNotificationsAsync called, userId:', userId);
 
   if (!Device.isDevice) {
-    console.log('[Push] Not a physical device -- skipping');
+    if (__DEV__) console.log('[Push] Not a physical device -- skipping');
     return { status: 'not-device' as const };
   }
 
   const permissions = await getNotificationPermissionsAsync();
   let status = permissions.status;
-  console.log('[Push] Current permission status:', status);
+  if (__DEV__) console.log('[Push] Current permission status:', status);
 
   if (status !== 'granted') {
     const req = await requestNotificationPermissionsAsync();
     status = req.status;
-    console.log('[Push] Requested permission, new status:', status);
+    if (__DEV__) console.log('[Push] Requested permission, new status:', status);
   }
 
   if (status !== 'granted') {
-    console.log('[Push] Permission denied -- aborting');
+    if (__DEV__) console.log('[Push] Permission denied -- aborting');
     return { status: 'denied' as const };
   }
 
@@ -110,13 +110,13 @@ export async function registerForPushNotificationsAsync(userId: string) {
   }
 
   const projectId = getExpoProjectId();
-  console.log('[Push] Project ID:', projectId);
+  if (__DEV__) console.log('[Push] Project ID:', projectId);
 
   const expoPushToken = await getExpoPushTokenAsync();
-  console.log('[Push] Got Expo push token:', expoPushToken);
+  if (__DEV__) console.log('[Push] Got Expo push token:', expoPushToken);
 
   await upsertPushToken({ userId, expoPushToken });
-  console.log('[Push] Token upserted to DB successfully');
+  if (__DEV__) console.log('[Push] Token upserted to DB successfully');
 
   return { status: 'registered' as const, expoPushToken };
 }

@@ -63,11 +63,13 @@ export const useRevenueCatStore = create<RevenueCatState>((set) => ({
 
   simulateDevPurchase: (productId) => {
     const info = buildMockCustomerInfo(productId);
-    console.log('[RC-DEBUG] simulateDevPurchase', {
-      productId,
-      entitlement: 'plus',
-      expirationDate: info.latestExpirationDate,
-    });
+    if (__DEV__) {
+      console.log('[RC-DEBUG] simulateDevPurchase', {
+        productId,
+        entitlement: 'plus',
+        expirationDate: info.latestExpirationDate,
+      });
+    }
     set({ customerInfo: info, isPlus: computeIsPlus(info) });
   },
 

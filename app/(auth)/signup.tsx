@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { signInWithApple } from "@/lib/auth/appleSignIn"
+import { GoogleSignInCancelled, signInWithGoogle } from "@/lib/auth/googleSignIn"
+import Ionicons from "@expo/vector-icons/Ionicons"
 import { useAuthStore } from "@/lib/stores/authStore"
 import { useOnboardingStore } from "@/lib/stores/onboardingStore"
 import { supabase } from "@/lib/supabase"
@@ -75,6 +77,30 @@ export default function SignupScreen() {
       if (error?.code === "ERR_REQUEST_CANCELED") return
       Alert.alert(
         "Apple Sign In failed",
+        error?.message ?? "Something went wrong.",
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignUp = async () => {
+    setIsLoading(true)
+    track("signup_started", { method: "google" })
+    try {
+      const { session } = await signInWithGoogle()
+      if (session) {
+        track("signup_completed", {
+          method: "google",
+          user_id: session.user.id,
+          email: session.user.email,
+        })
+        setSession(session)
+      }
+    } catch (error: any) {
+      if (error instanceof GoogleSignInCancelled) return
+      Alert.alert(
+        "Google Sign In failed",
         error?.message ?? "Something went wrong.",
       )
     } finally {
@@ -246,8 +272,19 @@ export default function SignupScreen() {
             variant="outline"
             onPress={handleAppleSignUp}
             style={styles.appleButton}
+            leftIcon={<Ionicons name="logo-apple" size={20} color={colors.foreground} />}
           >
             Continue with Apple
+          </Button>
+
+          {/* Google Sign-In */}
+          <Button
+            variant="outline"
+            onPress={handleGoogleSignUp}
+            style={styles.appleButton}
+            leftIcon={<Ionicons name="logo-google" size={18} color={colors.foreground} />}
+          >
+            Continue with Google
           </Button>
 
           {/* Sign In Link */}

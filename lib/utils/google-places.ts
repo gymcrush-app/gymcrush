@@ -4,6 +4,8 @@
  * Functions for interacting with Google Places API (New)
  */
 
+import Constants from 'expo-constants';
+
 interface PlaceDetailsResponse {
   id: string;
   displayName?: {
@@ -45,6 +47,8 @@ export async function fetchPlaceDetailsFull(
   }
 
   try {
+    const bundleId = Constants.expoConfig?.ios?.bundleIdentifier ?? '';
+
     const response = await fetch(
       `https://places.googleapis.com/v1/places/${placeId}`,
       {
@@ -52,6 +56,7 @@ export async function fetchPlaceDetailsFull(
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': apiKey,
+          'X-Ios-Bundle-Identifier': bundleId,
           'X-Goog-FieldMask': 'id,displayName,formattedAddress,location',
         },
       }

@@ -10,6 +10,7 @@ import { colors } from '@/theme';
 
 interface EmptyFeedProps {
   message?: string;
+  description?: string;
   ctaLabel?: string;
   ctaIcon?: ReactNode;
   onCtaPress?: () => void;
@@ -26,6 +27,7 @@ const styles = StyleSheet.create({
 
 export function EmptyFeed({
   message = 'No one to discover right now',
+  description = 'Your next crush is out there. Check back soon for more lifters training near you.',
   ctaLabel,
   ctaIcon,
   onCtaPress,
@@ -40,7 +42,7 @@ export function EmptyFeed({
       icon={<HeartbeatHeart size={120} />}
       iconVariant="image"
       title={message}
-      description="Your next crush is out there. Check back soon for more lifters training near you."
+      description={description}
       action={
         actionLabel && actionPress ? (
           <Button onPress={actionPress} variant="primary" size="lg">

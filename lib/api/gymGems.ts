@@ -37,16 +37,16 @@ export const DEFAULT_GYM_GEMS_DISTANCE_KM = Math.round(milesToKm(DEFAULT_GYM_GEM
  */
 export async function fetchGymGems(maxDistanceKm: number): Promise<ProfileWithScore[]> {
   const t0 = performance.now();
-  console.log(`[fetchGymGems] START rpc get_gym_gems km=${maxDistanceKm}`);
+  if (__DEV__) console.log(`[fetchGymGems] START rpc get_gym_gems km=${maxDistanceKm}`);
   const { data, error } = await supabase.rpc('get_gym_gems', {
     p_max_distance_km: maxDistanceKm,
   });
   const ms = Math.round(performance.now() - t0);
   if (error) {
-    console.log(`[fetchGymGems] ERROR after ${ms}ms:`, error.message);
+    if (__DEV__) console.log(`[fetchGymGems] ERROR after ${ms}ms:`, error.message);
     throw error;
   }
-  console.log(`[fetchGymGems] OK after ${ms}ms rows=${data?.length ?? 0}`);
+  if (__DEV__) console.log(`[fetchGymGems] OK after ${ms}ms rows=${data?.length ?? 0}`);
   if (!Array.isArray(data) || data.length === 0) return [];
   return data.map((row) => parseGymGemsRow(row as Parameters<typeof parseGymGemsRow>[0]));
 }

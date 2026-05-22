@@ -263,18 +263,20 @@ export default function EditProfileScreen() {
       ? { id: currentGym.id, name: currentGym.name }
       : null
     const displaySummary = displayGym ? { name: displayGym.name } : null
-    console.log("[EditProfile] Home gym state:", {
-      profileHomeGymId: homeGymId,
-      gymLoading,
-      gymError,
-      gymErrorMessage: gymErrorDetail?.message ?? null,
-      currentGym: gymSummary,
-      displayGym: displaySummary,
-      userClearedGym,
-      selectedPlace: selectedPlace
-        ? { place_id: selectedPlace.place_id, name: selectedPlace.name }
-        : null,
-    })
+    if (__DEV__) {
+      console.log("[EditProfile] Home gym state:", {
+        profileHomeGymId: homeGymId,
+        gymLoading,
+        gymError,
+        gymErrorMessage: gymErrorDetail?.message ?? null,
+        currentGym: gymSummary,
+        displayGym: displaySummary,
+        userClearedGym,
+        selectedPlace: selectedPlace
+          ? { place_id: selectedPlace.place_id, name: selectedPlace.name }
+          : null,
+      })
+    }
   }, [
     profile?.home_gym_id,
     gymLoading,

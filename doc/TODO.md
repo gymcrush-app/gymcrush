@@ -6,7 +6,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 
 ## Ship blockers (must be done before submission)
 
-- [x] **RLS audit + hardening + drift cleanup (Supabase)** — full audit run 2026-05-20; migrations 00041 (RLS hardening — findings #1/#3/#4/#5/#9/#10), 00042 (finding #2 — last_location lockdown via new `discover_profiles` RPC + column-level REVOKE + `PROFILE_COLUMNS` client constant), and 00043 (Vault-backed `notify_match_created` trigger replacing the Studio webhook) applied to remote 2026-05-21 via `supabase db push`. Vault secret `service_role_key` seeded (219-char JWT). Post-push synthetic match-insert test confirmed 1 trigger / 1 invocation / 1 push.
+- [x] **RLS audit + hardening + drift cleanup (Supabase)** — full audit 2026-05-20; migrations 00041 (RLS hardening — findings #1/#3/#4/#5/#9/#10), 00042 (finding #2 last_location lockdown — new `discover_profiles` RPC + `PROFILE_COLUMNS` client constant), 00043 (Vault-backed `notify_match_created` trigger replacing the Studio webhook), and 00044 (proper column lockdown — table-level REVOKE + column-level GRANT on the safe-column allowlist, because Supabase's default table-level grant silently overrode 00042's column-level REVOKE) all applied to remote. Verified: synthetic match-insert fires 1 trigger / 1 invocation / 1 push; negative SQL probe `SELECT last_location FROM profiles` impersonated as `authenticated` returns `42501 permission denied for table profiles`.
   - [ ] **App smoke tests in preview build** (the heavier RLS/distance changes weren't exercised pre-push — run these against the live preview build now that remote has all three migrations):
     - Discover feed loads, cards show distance text, distance filter trims correctly
     - Tap into a profile (uses `get_profile_by_id`) — renders without errors
@@ -24,11 +24,8 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [x] Create IAP/subscription products in App Store Connect and sync to RevenueCat
   - [x] Define entitlements + offerings
   - [x] Implement purchase flow + restore purchases + entitlement gating
-  - [ ] **BLOCKED ON APPLE (24h verification window):** Client meeting 2026-05-21 — Paid Apps agreement signed, tax forms + banking info submitted. Apple now verifying bank account (says ~24 hours). Once status shows **Active** in ASC → Business → Agreements, RC offerings should populate. Then re-verify in this order:
-    - [ ] Confirm **In-App Purchase** capability is checked on the App ID (developer.apple.com → Identifiers → `com.gymcrushdating.app`)
-    - [ ] Each IAP/subscription product shows **"Ready to Submit"** in ASC (not "Missing Metadata")
-    - [ ] RC dashboard Bundle ID + product Store Identifiers exactly match ASC
-    - [ ] Run RC SDK locally (or in preview build) — offerings should resolve, `CONFIGURATION_ERROR` gone
+  - [x] **Apple bank account approved + IAP offerings populating (2026-05-22).** Paid Apps agreement Active, RC offerings resolving (`CONFIGURATION_ERROR` gone — products display correctly in preview/dev). Full purchase loop still needs TestFlight verification with a sandbox account.
+  - [ ] **Verify full IAP purchase loop in TestFlight** — subscribe with a sandbox Apple ID → confirm entitlement reaches RC → `useIsPlus()` returns true on next app open → paywall closes / Plus features unlock. Restore Purchases also works.
   - [x] Paywall UI: fallback info panel when offerings fail ("Pending App Store Connect paid apps agreement and tax info") — shipped so preview builds are usable without subs.
 
 - [x] **Sentry production setup** — `config/sentry.ts`
@@ -80,7 +77,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [x] Privacy Policy → `https://gymcrush.com/privacy` (live)
   - [x] Terms of Service → `https://gymcrush.com/terms` (live)
   - [x] Cookie Policy → `https://gymcrush.com/cookie-policy` (live; added new row in settings)
-  - [ ] **CLIENT:** publish `https://gymcrush.com/community-guidelines` (constant wired, page not yet live — required for App Review on UGC/dating apps)
+  - [x] `https://gymcrush.com/community-guidelines` live (2026-05-22) — required for App Review on UGC/dating apps
   - [x] Help & Support → `mailto:support@gymcrush.com` (subject prefilled). Inbox must exist before submission.
   - [ ] **CLIENT:** confirm `support@gymcrush.com` inbox is monitored (or swap to a different address)
   - [ ] Verify `APP_STORE_ID` (`6762858426`) and `ANDROID_PACKAGE` constants once the app is live in stores so Rate links open the correct review sheets
@@ -89,6 +86,8 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [x] `app.json` version bumped `0.1.0` → `1.0.0`
   - [x] iOS build number — `autoIncrement: true` in `eas.json` production profile, EAS Cloud manages it
   - [x] All six `EXPO_PUBLIC_*` vars confirmed set in EAS production: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SENTRY_DSN`, `MIXPANEL_TOKEN`, `GOOGLE_PLACES_API_KEY`, `RC_IOS_KEY`. `SENTRY_AUTH_TOKEN` also set (build-time sourcemap upload).
+
+- [ ] **Onboarding doesn't persist home_gym_id** (caught during 2026-05-22 smoke test) — fresh signup completes onboarding with Uplifted Gym selected, but `profiles.home_gym_id` ends up `NULL`. Setting via Edit Profile after onboarding works. Likely bug in `mapOnboardingDataToProfile` or `resolveHomeGym` flow in `app/(auth)/onboarding/complete.tsx`. Discover still works for those users because `useSyncLastLocation` picks up GPS as the alternate ref location, but profile view shows `—` for gym until manually re-set.
 
 - [x] **Notifications end-to-end**
   - [x] Permission prompts + token registration (useNotifications hook)
