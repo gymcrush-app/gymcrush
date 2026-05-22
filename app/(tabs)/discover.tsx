@@ -1653,6 +1653,11 @@ export default function DiscoverScreen() {
               }
               ageRange={filters.ageRange}
               onAgeRangeChange={handleAgeRangeFromPreferencesModal}
+              currentMaxDistanceMiles={
+                filters.distance !== null && filters.distance !== undefined
+                  ? Math.ceil(kmToMiles(filters.distance))
+                  : null
+              }
               gymCrushModeEnabled={gymCrushModeEnabled}
             />
           </View>

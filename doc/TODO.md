@@ -89,6 +89,9 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 
 - [x] **Onboarding home_gym_id bug** (2026-05-22) — root cause was the Google Places API bundle-ID restriction blocking autocomplete + place-details fetches during onboarding (fixed in commit `3fa38e8` by adding `X-Ios-Bundle-Identifier` header). With Places working, fresh signups now correctly resolve + save `home_gym_id` (verified with a new test signup that produced `gym_name: "Uplifted Gym"`). Added Sentry captures in `onboarding/complete.tsx` (warning when resolveHomeGym returns null despite a selection) and in `lib/utils/resolveHomeGym.ts` (exception capture in catch + RPC-error branches) so any future regression surfaces in prod instead of silently dropping the gym.
 
+- [ ] **TF testing watch-list** (2026-05-22) — bugs caught in preview-build smoke that we want to re-verify in TestFlight before App Store submission:
+  - [ ] Discovery Preferences modal: change gender to "Women" / "Men" and confirm the discover feed actually filters. In preview-build smoke, user reported "still shows everyone." Code path looks correct (Select fires onValueChange → parent setPreferences → apiPreferences memo → query refetch + client filter both run). Could be a Select-component tap bug, an apiPreferences memo stale ref, or operator error. Repro: open prefs sheet → Select "Women" → close → confirm feed only shows female profiles.
+
 - [x] **Notifications end-to-end**
   - [x] Permission prompts + token registration (useNotifications hook)
   - [x] Deep link routing from notification tap (foreground/background/cold start)

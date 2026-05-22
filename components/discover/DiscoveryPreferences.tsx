@@ -4,7 +4,7 @@ import { GymCrushSliderMarker } from "@/components/ui/GymCrushSliderMarker"
 import { Select } from "@/components/ui/Select"
 import { useSearchGyms, useGymById } from "@/lib/api/gyms"
 import { useProfile } from "@/lib/api/profiles"
-import { kmToMiles, milesToKm, usesMiles } from "@/lib/utils/locale"
+import { milesToKm, usesMiles } from "@/lib/utils/locale"
 import {
   borderRadius,
   colors,
@@ -64,6 +64,8 @@ interface DiscoveryPreferencesContentProps {
   onGenderChange: (gender: DiscoveryPreferencesData["gender"]) => void
   ageRange: [number, number] | null
   onAgeRangeChange: (range: [number, number] | null) => void
+  /** Live distance (miles) sourced from parent's `filters.distance`. Mirrors ageRange. */
+  currentMaxDistanceMiles: number | null
   gymCrushModeEnabled: boolean
 }
 
@@ -89,18 +91,29 @@ export function DiscoveryPreferencesContent({
   onGenderChange,
   ageRange,
   onAgeRangeChange,
+  currentMaxDistanceMiles,
   gymCrushModeEnabled,
 }: DiscoveryPreferencesContentProps) {
   const insets = useSafeAreaInsets()
-  const [preferences, setPreferences] =
-    useState<DiscoveryPreferencesData>(DEFAULT_PREFERENCES)
+  // Initialize from the live prop so the first render already shows the parent's
+  // current distance value. Avoids the race where the async load effect overwrote
+  // a stale default after the modal had already painted.
+  const [preferences, setPreferences] = useState<DiscoveryPreferencesData>({
+    ...DEFAULT_PREFERENCES,
+    maxDistance:
+      currentMaxDistanceMiles !== undefined
+        ? currentMaxDistanceMiles
+        : DEFAULT_PREFERENCES.maxDistance,
+  })
   const [gymSearchQuery, setGymSearchQuery] = useState("")
   const [_selectedGym, setSelectedGym] = useState<Gym | null>(null)
   const { data: currentProfile } = useProfile()
 
-  // Local slider state so drag doesn't reset when effect overwrites preferences
+  // Local slider state so drag doesn't reset when prop sync overwrites preferences
   const [localDistance, setLocalDistance] = useState<number | null>(
-    DEFAULT_PREFERENCES.maxDistance
+    currentMaxDistanceMiles !== undefined
+      ? currentMaxDistanceMiles
+      : DEFAULT_PREFERENCES.maxDistance
   )
   const isDraggingRef = useRef(false)
 
@@ -130,25 +143,12 @@ export function DiscoveryPreferencesContent({
         )
       }
 
-      // Override maxDistance from backend if available; allow blank (null)
-      if (currentProfile?.discovery_preferences) {
-        const discoveryPrefs = currentProfile.discovery_preferences as any
-        const maxDistanceKm = discoveryPrefs?.max_distance
-
-        if (
-          maxDistanceKm !== undefined &&
-          maxDistanceKm !== null &&
-          maxDistanceKm > 0
-        ) {
-          const useMiles = usesMiles()
-          const miles = useMiles
-            ? Math.ceil(kmToMiles(maxDistanceKm))
-            : Math.ceil(maxDistanceKm)
-          loadedPrefs.maxDistance = Math.min(MAX_DISTANCE_MILES, Math.max(MIN_DISTANCE_MILES, miles))
-        } else {
-          loadedPrefs.maxDistance = null
-        }
-      }
+      // maxDistance comes from the parent via `currentMaxDistanceMiles` prop
+      // (initialized into state at component construction). Preserve whatever
+      // was set there instead of overwriting from AsyncStorage/profile, which
+      // caused a race where the modal showed a stale value on first open after
+      // the top-level Discover slider had been moved.
+      loadedPrefs.maxDistance = preferences.maxDistance
 
       setPreferences(loadedPrefs)
 
