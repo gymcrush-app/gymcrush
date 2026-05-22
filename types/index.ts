@@ -45,7 +45,6 @@ export interface MatchWithProfile extends Match {
 export interface ProfileWithScore extends Profile {
   engagement_score: number;
   likes_received: number;
-  crush_received: number;
-  matches_count: number;
-  first_messages_received: number;
+  comment_likes_received: number;
+  gems_received: number;
 }

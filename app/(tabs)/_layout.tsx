@@ -28,8 +28,11 @@ export default function TabLayout() {
       queryKey: ['messageRequests', userId],
       queryFn: () => fetchMessageRequests(userId),
     });
+    // Best-effort prefetch with no filters — when the user has no age/gender
+    // prefs set, this cache entry is reused by the Gym Gems screen. Otherwise
+    // the screen's own filtered fetch supersedes.
     queryClient.prefetchQuery({
-      queryKey: ['gymGems', userId, DEFAULT_GYM_GEMS_DISTANCE_KM],
+      queryKey: ['gymGems', userId, DEFAULT_GYM_GEMS_DISTANCE_KM, null, null, null],
       queryFn: () => fetchGymGems(DEFAULT_GYM_GEMS_DISTANCE_KM),
     });
     queryClient.prefetchQuery({

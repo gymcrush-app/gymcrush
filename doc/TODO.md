@@ -79,7 +79,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [x] Cookie Policy → `https://gymcrush.com/cookie-policy` (live; added new row in settings)
   - [x] `https://gymcrush.com/community-guidelines` live (2026-05-22) — required for App Review on UGC/dating apps
   - [x] Help & Support → `mailto:support@gymcrush.com` (subject prefilled). Inbox must exist before submission.
-  - [ ] **CLIENT:** confirm `support@gymcrush.com` inbox is monitored (or swap to a different address)
+  - [x] `support@gymcrush.com` inbox monitored — confirmed by client 2026-05-22
   - [ ] Verify `APP_STORE_ID` (`6762858426`) and `ANDROID_PACKAGE` constants once the app is live in stores so Rate links open the correct review sheets
 
 - [x] **Versioning + EAS production config** (2026-05-21)
@@ -154,6 +154,8 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
 - [x] **Button-tap feedback animation (Discover FAB)** — spring scale (0.88 → 1) + glow ring overlay on Heart/Gem/X tap for the "endorphin hit" moment. Each FAB has its own glow color (heart=primary, gem=blue, X=red).
 - [ ] **Keyboard-driven actions for accessibility (Discover)** — wire hardware keyboard shortcuts (e.g. ←/→/↑) to X/Heart/Gem for external-keyboard users. Not currently an app-wide pattern; deferred until broader a11y pass.
 - [ ] **Confirm with client: does a Gym Gem count as a like?** — Currently the Discover Gem FAB sends a gym gem via `useGiveGymGem` with no match-check. If gems should also match people (like a "super-like"), we'd need to either (a) also insert a like row server-side when a gem is given, or (b) trigger `useCheckMatch` on gem send. If client confirms gems should trigger matches, wire a MatchModal path through `handleSendGemMessage` in `app/(tabs)/discover.tsx`.
+
+- [x] **Gym Gems engagement formula v2 + age/gender filters** (migration 00045, 2026-05-22). Old formula counted derived signals (matches, first messages received in matches) and a dead column (crush_received — no UI produces is_crush_signal=true post-CrushSignalButton removal). New formula: `likes_received + 0.5 * comment_likes_received + 3 * gems_received` where `comment_likes_received` counts inbound `messages` with `reaction_type IS NOT NULL` (like-with-comment from Discover) and `gems_received` counts inbound `gem_gifts`. Gems weighted 3x because they're 1/day per giver. Same age + gender filters as Discover now apply (sourced from `profiles.discovery_preferences`). `ProfileWithScore` type updated; `useGymGems` + prefetcher pass filters through.
 
 ---
 

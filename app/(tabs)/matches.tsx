@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Text } from "@/components/ui/Text"
 import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
-import { useGymGems } from "@/lib/api/gymGems"
+import { useGymGems, type GymGemsFilters } from "@/lib/api/gymGems"
 import { useGymsByIds } from "@/lib/api/gyms"
+import { useProfile } from "@/lib/api/profiles"
 import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
 import { toast } from "@/lib/toast"
 import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
@@ -38,11 +39,30 @@ export default function GymGemsScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { openUserProfile } = useUserProfileModal()
+  const { data: profile } = useProfile()
+
+  // Honor the same age + gender prefs as Discover, sourced from the user's
+  // saved discovery_preferences. Stored shape is snake_case JSON.
+  const gymGemsFilters = useMemo<GymGemsFilters>(() => {
+    const prefs = (profile?.discovery_preferences as Record<string, unknown> | null) ?? {}
+    const minAgeRaw = prefs.min_age
+    const maxAgeRaw = prefs.max_age
+    const gendersRaw = prefs.genders
+    return {
+      minAge: typeof minAgeRaw === "number" ? minAgeRaw : null,
+      maxAge: typeof maxAgeRaw === "number" ? maxAgeRaw : null,
+      genders:
+        Array.isArray(gendersRaw) && gendersRaw.length > 0
+          ? (gendersRaw as string[])
+          : null,
+    }
+  }, [profile?.discovery_preferences])
+
   const {
     data: gems = [],
     isLoading,
     error,
-  } = useGymGems(GYM_GEMS_RADIUS_MILES)
+  } = useGymGems(GYM_GEMS_RADIUS_MILES, gymGemsFilters)
   const { hasGemToday } = useDailyGem()
   const giveGemMutation = useGiveGymGem()
   const [pendingToUserId, setPendingToUserId] = useState<string | null>(null)

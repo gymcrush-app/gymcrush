@@ -491,7 +491,7 @@ function AgeRangeSection({
           min={MIN}
           max={MAX}
           step={1}
-          sliderLength={Dimensions.get("window").width - spacing[4] * 2}
+          sliderLength={Dimensions.get("window").width - spacing[4] * 2 - spacing[2] * 2}
           selectedStyle={styles.distanceSelectedTrack}
           unselectedStyle={styles.distanceUnselectedTrack}
           trackStyle={styles.distanceTrack}
@@ -569,9 +569,11 @@ const styles = StyleSheet.create({
   },
   ageSliderWrap: {
     marginTop: spacing[2],
+    paddingLeft: spacing[2],
   },
   distanceSliderWrap: {
     marginTop: spacing[2],
+    paddingLeft: spacing[2],
   },
   distanceSliderValue: {
     fontSize: fontSize.xl,
