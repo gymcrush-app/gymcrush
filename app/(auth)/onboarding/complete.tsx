@@ -18,6 +18,7 @@ import { resolveHomeGym } from '@/lib/utils/resolveHomeGym';
 import { uploadProfilePhotos } from '@/lib/storage/uploadProfilePhoto';
 import { insertProfilePrompts } from '@/lib/api/prompts';
 import { identify, track } from '@/lib/utils/analytics';
+import * as Sentry from '@sentry/react-native';
 import { PROFILE_COLUMNS } from '@/constants';
 import { gradients, shadows, colors, fontDisplay, spacing, borderRadius, fontSize, fontFamily } from '@/theme';
 import { duration } from '@/theme/tokens';
@@ -84,8 +85,23 @@ export default function OnboardingComplete() {
       if (data.selectedGyms.length > 0) {
         if (__DEV__) console.log('[complete] selectedGyms:', data.selectedGyms);
         homeGymId = await resolveHomeGym(data.selectedGyms[0]);
-        if (__DEV__ && !homeGymId) {
-          console.warn('[complete] resolveHomeGym returned null — gym will not be set');
+        if (!homeGymId) {
+          // User picked a gym during onboarding but resolution failed — fires
+          // when the place lookup or insert_gym_with_location RPC silently
+          // dropped the selection. Tracking in Sentry so prod regressions
+          // (e.g. another Places API key restriction issue) surface instead
+          // of giving users empty discover feeds with no signal.
+          Sentry.captureMessage(
+            '[onboarding] resolveHomeGym returned null — gym not set',
+            {
+              level: 'warning',
+              extra: {
+                userId: user.id,
+                selectedGymPayload: data.selectedGyms[0]?.slice(0, 200),
+              },
+            },
+          );
+          if (__DEV__) console.warn('[complete] resolveHomeGym returned null — gym will not be set');
         }
       } else if (__DEV__) {
         console.log('[complete] No gyms selected');

@@ -87,7 +87,7 @@ Single prioritized list. Work top-to-bottom; delete items as they’re completed
   - [x] iOS build number — `autoIncrement: true` in `eas.json` production profile, EAS Cloud manages it
   - [x] All six `EXPO_PUBLIC_*` vars confirmed set in EAS production: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SENTRY_DSN`, `MIXPANEL_TOKEN`, `GOOGLE_PLACES_API_KEY`, `RC_IOS_KEY`. `SENTRY_AUTH_TOKEN` also set (build-time sourcemap upload).
 
-- [ ] **Onboarding doesn't persist home_gym_id** (caught during 2026-05-22 smoke test) — fresh signup completes onboarding with Uplifted Gym selected, but `profiles.home_gym_id` ends up `NULL`. Setting via Edit Profile after onboarding works. Likely bug in `mapOnboardingDataToProfile` or `resolveHomeGym` flow in `app/(auth)/onboarding/complete.tsx`. Discover still works for those users because `useSyncLastLocation` picks up GPS as the alternate ref location, but profile view shows `—` for gym until manually re-set.
+- [x] **Onboarding home_gym_id bug** (2026-05-22) — root cause was the Google Places API bundle-ID restriction blocking autocomplete + place-details fetches during onboarding (fixed in commit `3fa38e8` by adding `X-Ios-Bundle-Identifier` header). With Places working, fresh signups now correctly resolve + save `home_gym_id` (verified with a new test signup that produced `gym_name: "Uplifted Gym"`). Added Sentry captures in `onboarding/complete.tsx` (warning when resolveHomeGym returns null despite a selection) and in `lib/utils/resolveHomeGym.ts` (exception capture in catch + RPC-error branches) so any future regression surfaces in prod instead of silently dropping the gym.
 
 - [x] **Notifications end-to-end**
   - [x] Permission prompts + token registration (useNotifications hook)

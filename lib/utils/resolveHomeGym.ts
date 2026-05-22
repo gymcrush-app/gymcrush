@@ -4,6 +4,7 @@
  * RPC (SECURITY DEFINER — bypasses RLS).
  */
 
+import * as Sentry from '@sentry/react-native';
 import { supabase } from '@/lib/supabase';
 
 export interface SelectedGymPayload {
@@ -85,6 +86,10 @@ export async function resolveHomeGym(selectedGymJson: string): Promise<string | 
     );
 
     if (rpcError) {
+      Sentry.captureException(rpcError, {
+        tags: { area: 'resolveHomeGym', stage: 'insert_gym_with_location' },
+        extra: { googlePlaceId, name, address },
+      });
       if (__DEV__) console.warn('[resolveHomeGym] RPC error:', rpcError);
       return null;
     }
@@ -92,6 +97,10 @@ export async function resolveHomeGym(selectedGymJson: string): Promise<string | 
     if (__DEV__) console.log('[resolveHomeGym] Created gym:', gymId);
     return gymId;
   } catch (err) {
+    Sentry.captureException(err, {
+      tags: { area: 'resolveHomeGym', stage: 'parse_or_lookup' },
+      extra: { selectedGymJsonPreview: selectedGymJson?.slice(0, 200) },
+    });
     if (__DEV__) console.warn('[resolveHomeGym] Error:', err);
     return null;
   }
