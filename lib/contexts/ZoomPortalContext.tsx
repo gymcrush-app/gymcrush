@@ -3,19 +3,19 @@ import { Image } from "expo-image"
 import React, { createContext, useCallback, useContext, useState } from "react"
 import { Dimensions, StyleSheet, View } from "react-native"
 import Animated, {
+  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
   type SharedValue,
 } from "react-native-reanimated"
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window")
 
 const ZOOM_BACKDROP_MAX_OPACITY = 0.9
-const ZOOM_SPRING_CONFIG = { damping: 40, stiffness: 300 }
 
 interface ZoomLayout {
   x: number
@@ -77,16 +77,20 @@ export function ZoomPortalProvider({ children }: { children: React.ReactNode }) 
     setPortal(state)
   }, [])
 
+  const dismissPortal = useCallback(() => setPortal(null), [])
+
   const endZoom = useCallback(() => {
-    overlayTranslateX.value = withSpring(0, ZOOM_SPRING_CONFIG)
-    overlayTranslateY.value = withSpring(0, ZOOM_SPRING_CONFIG)
-    overlayScale.value = withSpring(1, ZOOM_SPRING_CONFIG, (finished) => {
+    const cfg = { duration: 150, easing: Easing.out(Easing.cubic) }
+    overlayTranslateX.value = withTiming(0, cfg)
+    overlayTranslateY.value = withTiming(0, cfg)
+    overlayScale.value = withTiming(1, cfg, (finished) => {
+      "worklet"
       if (finished) {
         isZoomed.value = false
-        runOnJS(setPortal)(null)
+        runOnJS(dismissPortal)()
       }
     })
-  }, [])
+  }, [dismissPortal])
 
   const backdropStyle = useAnimatedStyle(() => {
     if (overlayScale.value <= 1) return { opacity: 0 }

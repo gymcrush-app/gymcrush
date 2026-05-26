@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/authStore';
 import { filterBadWords } from '@/lib/utils/filterBadWords';
 import { track } from '@/lib/utils/analytics';
 import { useLike } from './matches';
+import { PROFILE_COLUMNS } from '@/constants';
 import type { Message, MatchWithProfile, Profile } from '@/types';
 
 /** Match-based thread in Chat (existing behavior). */
@@ -42,8 +43,8 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
     .from('matches')
     .select(`
       *,
-      user1:profiles!matches_user1_id_fkey(*),
-      user2:profiles!matches_user2_id_fkey(*)
+      user1:profiles!matches_user1_id_fkey(${PROFILE_COLUMNS}),
+      user2:profiles!matches_user2_id_fkey(${PROFILE_COLUMNS})
     `)
     .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
 
@@ -78,7 +79,7 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
       : Promise.resolve({ data: [] as any[], error: null as any }),
     supabase
       .from('messages')
-      .select('*, sender:profiles!messages_sender_id_fkey(*)')
+      .select(`*, sender:profiles!messages_sender_id_fkey(${PROFILE_COLUMNS})`)
       .eq('to_user_id', userId)
       .is('match_id', null)
       .not('gem_gift_id', 'is', null)
@@ -550,7 +551,7 @@ export async function fetchMessageRequests(userId: string): Promise<MessageReque
       .eq('user_id', userId),
     supabase
       .from('messages')
-      .select('*, sender:profiles!messages_sender_id_fkey(*)')
+      .select(`*, sender:profiles!messages_sender_id_fkey(${PROFILE_COLUMNS})`)
       .eq('to_user_id', userId)
       .is('match_id', null)
       .order('created_at', { ascending: false }),

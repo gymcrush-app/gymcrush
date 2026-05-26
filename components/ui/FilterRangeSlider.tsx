@@ -3,7 +3,7 @@ import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import { GymCrushSliderMarker } from '@/components/ui/GymCrushSliderMarker';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Dimensions, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 interface FilterRangeSliderProps {
   value: [number, number] | null;
@@ -63,9 +63,11 @@ export function FilterRangeSliderContent({
   const [minValue, setMinValue] = useState(value[0]);
   const [maxValue, setMaxValue] = useState(value[1]);
   const isDraggingRef = useRef(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
-  const sliderLength =
-    Dimensions.get('window').width - (spacing[4] * 2 + spacing[2] * 2 + spacing[8] * 2);
+  const sliderLength = containerWidth > 0
+    ? containerWidth - spacing[2] * 2
+    : 0;
 
   useEffect(() => {
     if (!isDraggingRef.current) {
@@ -127,30 +129,37 @@ export function FilterRangeSliderContent({
         </Pressable>
       </View>
 
-      <View style={styles.sliderContent}>
+      <View
+        style={styles.sliderContent}
+        onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+      >
         <Text style={styles.currentValue}>{minValue} - {displayMax}</Text>
 
-        <View style={styles.multiSliderContainer}>
-          <MultiSlider
-            values={[minValue, maxValue]}
-            onValuesChange={handleValuesChange}
-            onValuesChangeStart={handleValuesChangeStart}
-            onValuesChangeFinish={handleValuesChangeFinish}
-            min={min}
-            max={max}
-            step={1}
-            sliderLength={sliderLength}
-            selectedStyle={styles.selectedTrack}
-            unselectedStyle={styles.unselectedTrack}
-            trackStyle={styles.track}
-            customMarker={GymCrushSliderMarker}
-          />
-        </View>
+        {sliderLength > 0 && (
+          <>
+            <View style={styles.multiSliderContainer}>
+              <MultiSlider
+                values={[minValue, maxValue]}
+                onValuesChange={handleValuesChange}
+                onValuesChangeStart={handleValuesChangeStart}
+                onValuesChangeFinish={handleValuesChangeFinish}
+                min={min}
+                max={max}
+                step={1}
+                sliderLength={sliderLength}
+                selectedStyle={styles.selectedTrack}
+                unselectedStyle={styles.unselectedTrack}
+                trackStyle={styles.track}
+                customMarker={GymCrushSliderMarker}
+              />
+            </View>
 
-        <View style={styles.rangeLabels}>
-          <Text style={styles.rangeLabel}>{min}</Text>
-          <Text style={styles.rangeLabel}>{max}+</Text>
-        </View>
+            <View style={styles.rangeLabels}>
+              <Text style={styles.rangeLabel}>{min}</Text>
+              <Text style={styles.rangeLabel}>{max}+</Text>
+            </View>
+          </>
+        )}
       </View>
     </View>
   );

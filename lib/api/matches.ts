@@ -6,6 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
+import { PROFILE_COLUMNS } from '@/constants';
 import type { Match, MatchWithProfile } from '@/types';
 
 export function useLike() {
@@ -79,8 +80,8 @@ export function useMatches() {
         .from('matches')
         .select(`
           *,
-          user1:profiles!matches_user1_id_fkey(*),
-          user2:profiles!matches_user2_id_fkey(*)
+          user1:profiles!matches_user1_id_fkey(${PROFILE_COLUMNS}),
+          user2:profiles!matches_user2_id_fkey(${PROFILE_COLUMNS})
         `)
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
       
@@ -140,8 +141,8 @@ export function useMatchById(matchId: string) {
         .from('matches')
         .select(`
           *,
-          user1:profiles!matches_user1_id_fkey(*),
-          user2:profiles!matches_user2_id_fkey(*)
+          user1:profiles!matches_user1_id_fkey(${PROFILE_COLUMNS}),
+          user2:profiles!matches_user2_id_fkey(${PROFILE_COLUMNS})
         `)
         .eq('id', matchId)
         .single();

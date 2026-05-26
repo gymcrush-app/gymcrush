@@ -190,8 +190,8 @@ export const PhotoCarousel = forwardRef<PhotoCarouselRef, PhotoCarouselProps>(
               style={{ width, height }}
               contentFit="cover"
               cachePolicy="memory-disk"
-              recyclingKey={photo}
-              transition={200}
+              recyclingKey={index === 0 ? undefined : photo}
+              transition={index === 0 ? 0 : 200}
               priority={index === 0 ? "high" : "normal"}
             />
           ))}

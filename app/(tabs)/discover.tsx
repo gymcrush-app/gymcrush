@@ -1254,13 +1254,13 @@ export default function DiscoverScreen() {
       setIsTransitioning(true)
       const finish = () => {
         handleSwipe(action)
-        // Entry animation runs via ProfileView's profile-change effect; clear
-        // the guard on the next tick so re-tap is blocked until after the
-        // new profile has had a chance to mount.
         setTimeout(() => setIsTransitioning(false), 0)
       }
       if (profileViewRef.current) {
-        profileViewRef.current.runExitAnimation(finish)
+        profileViewRef.current.runExitAnimation(
+          finish,
+          action === "pass" ? "down" : "up",
+        )
       } else {
         finish()
       }

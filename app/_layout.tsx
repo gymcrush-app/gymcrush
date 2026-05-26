@@ -184,6 +184,13 @@ function AuthStateChangeHandler({ children }: { children: React.ReactNode }) {
 
       prevUserIdRef.current = nextUserId;
 
+      const needsProfileFetch =
+        !!session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED');
+
+      if (needsProfileFetch) {
+        useAuthStore.setState({ isLoading: true, authResolved: false });
+      }
+
       setSession(session);
 
       if (event === 'PASSWORD_RECOVERY') {

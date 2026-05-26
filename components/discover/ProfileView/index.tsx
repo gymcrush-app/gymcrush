@@ -72,8 +72,8 @@ interface ProfileViewProps {
 }
 
 export interface ProfileViewHandle {
-  /** Play the exit animation (fade + slide up). onComplete fires after. */
-  runExitAnimation: (onComplete: () => void) => void
+  /** Play the exit animation. direction defaults to "up" (like); "down" for pass. */
+  runExitAnimation: (onComplete: () => void, direction?: "up" | "down") => void
 }
 
 export const ProfileView = React.forwardRef<
@@ -144,12 +144,9 @@ export const ProfileView = React.forwardRef<
   const opacity = useSharedValue(1)
 
   React.useImperativeHandle(ref, () => ({
-    runExitAnimation: (onComplete: () => void) => {
-      // Card flies fully off the top of the screen. Full opacity held so
-      // the user sees the card leave rather than dissolve. Easing.in gives
-      // a "gathers speed" feel (accelerates toward the exit).
+    runExitAnimation: (onComplete: () => void, direction: "up" | "down" = "up") => {
       translateY.value = withTiming(
-        -SCREEN_HEIGHT,
+        direction === "down" ? SCREEN_HEIGHT : -SCREEN_HEIGHT,
         { duration: 320, easing: Easing.in(Easing.cubic) },
         (finished) => {
           "worklet"
