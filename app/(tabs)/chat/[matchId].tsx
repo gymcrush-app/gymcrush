@@ -98,7 +98,7 @@ export default function ChatScreen() {
         reason: 'inappropriate',
       });
       toast({ preset: 'done', title: 'User reported & blocked', message: "You won't see this person again." });
-      router.back();
+      if (router.canGoBack()) router.back();
     } catch (error: any) {
       toast({ preset: 'error', title: 'Report failed', message: error?.message || 'Please try again.' });
     }
@@ -183,18 +183,24 @@ export default function ChatScreen() {
         }}
         scrollEventThrottle={400}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIcon}>
-              <MessageSquare size={48} color={colors.mutedForeground} />
+          loading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
-            <Text style={styles.emptyTitle}>No messages yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Start the conversation!
-            </Text>
-          </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIcon}>
+                <MessageSquare size={48} color={colors.mutedForeground} />
+              </View>
+              <Text style={styles.emptyTitle}>No messages yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Start the conversation!
+              </Text>
+            </View>
+          )
         }
       />
-      <ChatInput onSend={handleSend} disabled={loading} />
+      <ChatInput onSend={handleSend} />
     </KeyboardAvoidingView>
   );
 }

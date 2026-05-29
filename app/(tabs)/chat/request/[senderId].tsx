@@ -65,8 +65,10 @@ export default function RequestDetailScreen() {
           const { data } = await supabase
             .from('matches')
             .select('id')
-            .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-            .or(`user1_id.eq.${senderId},user2_id.eq.${senderId}`)
+            .or(
+              `and(user1_id.eq.${user.id},user2_id.eq.${senderId}),` +
+              `and(user1_id.eq.${senderId},user2_id.eq.${user.id})`
+            )
             .maybeSingle();
           if (data) {
             match = data;
@@ -76,14 +78,14 @@ export default function RequestDetailScreen() {
         if (match) {
           await migrateMutation.mutateAsync({ senderId, matchId: match.id });
           setAcceptedMatchId(match.id);
-          // Ensure Messages tab list refetches so the new conversation appears
+          setAcceptingInProgress(false);
           if (user?.id) {
             queryClient.invalidateQueries({ queryKey: ['conversations', user.id] });
             queryClient.invalidateQueries({ queryKey: ['messageRequests', user.id] });
           }
         } else {
           setAcceptingInProgress(false);
-          router.back();
+          if (router.canGoBack()) router.back();
         }
       } catch (e) {
         setAcceptingInProgress(false);
@@ -101,7 +103,7 @@ export default function RequestDetailScreen() {
     if (!senderId) return;
     try {
       await declineMutation.mutateAsync({ senderId });
-      router.back();
+      if (router.canGoBack()) router.back();
     } catch (e) {
       toast({
         preset: 'error',

@@ -8,6 +8,7 @@ import { useConversations, useMessageRequests } from "@/lib/api/messages"
 import { useBlockedUserIds } from "@/lib/api/safety"
 import { useUserProfileModal } from "@/lib/contexts/UserProfileModalContext"
 import { useAuthStore } from "@/lib/stores/authStore"
+import { useQueryClient } from "@tanstack/react-query"
 import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { FlashList } from "@shopify/flash-list"
@@ -22,6 +23,7 @@ export default function ChatListScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const user = useAuthStore((s) => s.user)
+  const queryClient = useQueryClient()
   const { openUserProfile } = useUserProfileModal()
   const [activeTab, setActiveTab] = useState<TabType>("messages")
   const {
@@ -40,28 +42,28 @@ export default function ChatListScreen() {
   const { data: blockedUserIds = [] } = useBlockedUserIds()
   const blockedSet = useMemo(() => new Set(blockedUserIds), [blockedUserIds])
 
-  // Split conversations into matches with messages and without messages
-  const { matchesWithMessages, matchesWithoutMessages } = useMemo(() => {
+  // Top row shows every mutual match (silent + active); vertical list shows
+  // matches that have at least one message (plus the gem_inbox row).
+  const { matchesWithMessages, allMatches } = useMemo(() => {
     const withMessages: Conversation[] = []
-    const withoutMessages: ConversationMatch[] = []
+    const matches: ConversationMatch[] = []
 
     conversations.filter((c) => c.kind === 'gem_inbox' || !blockedSet.has(c.otherUser.id)).forEach((conv) => {
       if (conv.kind === "gem_inbox") {
         withMessages.push(conv)
         return
       }
+      matches.push(conv)
       if (conv.lastMessage) {
         withMessages.push(conv)
-      } else {
-        withoutMessages.push(conv)
       }
     })
 
     return {
       matchesWithMessages: withMessages,
-      matchesWithoutMessages: withoutMessages,
+      allMatches: matches,
     }
-  }, [conversations])
+  }, [conversations, blockedSet])
 
   // When the topmost conversation changes (e.g. user just sent a message and
   // the thread bumped to position 0), snap the list to the top so the user
@@ -91,16 +93,21 @@ export default function ChatListScreen() {
         openUserProfile(item.otherUser.id)
         return
       }
+      queryClient.setQueryData(['match', item.id], item)
       router.push({ pathname: "/(tabs)/chat/[matchId]", params: { matchId: item.id } })
     },
-    [router, openUserProfile],
+    [router, openUserProfile, queryClient],
   )
 
   const onPressMatch = useCallback(
     (matchId: string) => {
+      const conv = conversations.find(
+        (c): c is ConversationMatch => c.kind !== "gem_inbox" && c.id === matchId,
+      )
+      if (conv) queryClient.setQueryData(['match', matchId], conv)
       router.push({ pathname: "/(tabs)/chat/[matchId]", params: { matchId } })
     },
-    [router],
+    [router, conversations, queryClient],
   )
 
   const onPressRequest = useCallback(
@@ -170,12 +177,12 @@ export default function ChatListScreen() {
         <Text style={styles.headerTitle}>Chat</Text>
       </View>
 
-      {/* New Matches Section - Always visible at top */}
-      {matchesWithoutMessages.length > 0 && (
+      {/* Matches carousel — every mutual match, silent or active */}
+      {allMatches.length > 0 && (
         <View style={styles.newMatchesSection}>
           <Text style={styles.sectionTitle}>Gym Crushes</Text>
           <FlashList
-            data={matchesWithoutMessages}
+            data={allMatches}
             renderItem={renderAvatarItem}
             keyExtractor={(item) => item.id}
             horizontal
@@ -265,7 +272,7 @@ export default function ChatListScreen() {
 
               {/* Show empty state if no matches at all */}
               {matchesWithMessages.length === 0 &&
-                matchesWithoutMessages.length === 0 &&
+                allMatches.length === 0 &&
                 !isLoading && (
                   <EmptyState
                     icon={

@@ -76,7 +76,7 @@ export function OnboardingContainer({
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardAvoidingView}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+          keyboardVerticalOffset={0}
         >
           <View style={styles.container}>
             {/* Header with back button and progress */}

@@ -26,6 +26,12 @@ export default function ProfileLayout() {
         }}
       />
       <Stack.Screen
+        name="support"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="playground"
         options={{
           title: 'Demo playground',

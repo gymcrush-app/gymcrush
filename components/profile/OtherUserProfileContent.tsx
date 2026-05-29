@@ -5,15 +5,21 @@ import { FitnessBadges } from "@/components/profile/FitnessBadges"
 import { ProfileLifestyleBox } from "@/components/profile/ProfileLifestyleBox"
 import { PromptItem } from "@/components/profile/PromptItem"
 import { Text } from "@/components/ui/Text"
+import { useDailyGem, useGiveGymGem } from "@/lib/api/gemGifts"
 import { useGymsByIds } from "@/lib/api/gyms"
 import { useProfile, useProfileById } from "@/lib/api/profiles"
 import { useProfilePrompts } from "@/lib/api/prompts"
+import { toast } from "@/lib/toast"
 import { calculateGymDistance, formatDistanceKmRounded } from "@/lib/utils/distance"
 import { formatIntents } from "@/lib/utils/formatting"
 import { borderRadius, colors, fontSize, fontFamily, spacing } from "@/theme"
 import type { FitnessDiscipline, Intent } from "@/types/onboarding"
+import type { UserProfileModalMode } from "@/lib/contexts/UserProfileModalContext"
+import MaskedView from "@react-native-masked-view/masked-view"
+import { BlurView } from "expo-blur"
+import { LinearGradient } from "expo-linear-gradient"
 import { Gem, X } from "lucide-react-native"
-import React, { useCallback, useMemo } from "react"
+import React, { useCallback, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Dimensions,
@@ -26,20 +32,26 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window")
 
+const ACTION_BAR_HEIGHT = 96
+
 export interface OtherUserProfileContentProps {
   userId: string
   onBack: () => void
   onOpenImageChat?: () => void
+  mode?: UserProfileModalMode
 }
 
 export function OtherUserProfileContent({
   userId,
   onBack,
   onOpenImageChat,
+  mode = "default",
 }: OtherUserProfileContentProps) {
   const insets = useSafeAreaInsets()
   const { data: profile, isLoading, error } = useProfileById(userId)
   const { data: currentUserProfile } = useProfile()
+
+  const isGymGem = mode === "gym-gem"
 
   const gymIds = useMemo(
     () =>
@@ -87,6 +99,41 @@ export function OtherUserProfileContent({
   const handleOpenImageChat = useCallback(() => {
     (onOpenImageChat ?? onBack)()
   }, [onOpenImageChat, onBack])
+
+  const { hasGemToday } = useDailyGem()
+  const giveGemMutation = useGiveGymGem()
+  const [isGivingGem, setIsGivingGem] = useState(false)
+  const [gemGiven, setGemGiven] = useState(false)
+
+  const handleGiveGem = useCallback(async () => {
+    if (!isGymGem || gemGiven || isGivingGem) return
+    if (!hasGemToday) {
+      toast({ preset: "none", title: "Come back tomorrow for your next gem" })
+      return
+    }
+    setIsGivingGem(true)
+    try {
+      const result = await giveGemMutation.mutateAsync({ toUserId: userId })
+      if (!result.ok && result.error) {
+        toast({
+          preset: "error",
+          title:
+            result.error === "no_gem_available" ? "No gem left today" : result.error,
+        })
+      } else {
+        setGemGiven(true)
+        setTimeout(() => onBack(), 600)
+      }
+    } catch (err: any) {
+      toast({
+        preset: "error",
+        title: "Failed to send gem",
+        message: err?.message || "Please try again.",
+      })
+    } finally {
+      setIsGivingGem(false)
+    }
+  }, [isGymGem, gemGiven, isGivingGem, hasGemToday, giveGemMutation, userId, onBack])
 
   const closeButton = (
     <View style={styles.header}>
@@ -141,6 +188,17 @@ export function OtherUserProfileContent({
 
   const imageHeight = SCREEN_WIDTH * (1350 / 1080) - 30
 
+  const scrollBottomPad = isGymGem ? ACTION_BAR_HEIGHT + spacing[6] : 0
+
+  const gemButtonLabel = gemGiven
+    ? "Gem Given ✦"
+    : isGivingGem
+      ? "Sending…"
+      : "✦ Give Gym Gem"
+  const gemButtonTextStyles: any[] = [styles.gemButtonText]
+  if (gemGiven) gemButtonTextStyles.push(styles.gemButtonTextGiven)
+  else if (!hasGemToday) gemButtonTextStyles.push(styles.gemButtonTextInactive)
+
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -149,6 +207,7 @@ export function OtherUserProfileContent({
       {closeButton}
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: scrollBottomPad }}
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
@@ -156,6 +215,7 @@ export function OtherUserProfileContent({
           photos={profile.photo_urls || []}
           imageHeight={imageHeight}
           onOpenImageChat={handleOpenImageChat}
+          showChatBubble={!isGymGem}
           enableZoom
         />
 
@@ -167,13 +227,14 @@ export function OtherUserProfileContent({
             variant="compact"
           />
 
-          {/* Gym Gem badge */}
-          <View style={styles.gymGemRow}>
-            <View style={styles.gymGemBadge}>
-              <Gem size={16} color={colors.primary} />
-              <Text style={styles.gymGemBadgeText}>Gym Gem</Text>
+          {!isGymGem && (
+            <View style={styles.gymGemRow}>
+              <View style={styles.gymGemBadge}>
+                <Gem size={16} color={colors.primary} />
+                <Text style={styles.gymGemBadgeText}>Gym Gem</Text>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* 1. Top prompt (most engaged) */}
           {prompt1 && (
@@ -183,6 +244,7 @@ export function OtherUserProfileContent({
                 answer={prompt1.answer}
                 onPress={() => handlePromptPress(prompt1.title, prompt1.answer)}
                 highlighted
+                showMessageButton={!isGymGem}
               />
             </View>
           )}
@@ -202,6 +264,7 @@ export function OtherUserProfileContent({
               answer={prompt2.answer}
               onPress={() => handlePromptPress(prompt2.title, prompt2.answer)}
               highlighted
+              showMessageButton={!isGymGem}
             />
           )}
 
@@ -222,17 +285,83 @@ export function OtherUserProfileContent({
               answer={prompt3.answer}
               onPress={() => handlePromptPress(prompt3.title, prompt3.answer)}
               highlighted
+              showMessageButton={!isGymGem}
             />
           )}
 
-          {/* Fitness badges */}
-          {disciplines.length > 0 && (
+          {/* Fitness badges — hidden in gym-gem mode */}
+          {!isGymGem && disciplines.length > 0 && (
             <View style={styles.badgesSection}>
               <FitnessBadges disciplines={disciplines} />
             </View>
           )}
         </View>
       </ScrollView>
+
+      {isGymGem && (
+        <View
+          style={[styles.actionBar, { height: ACTION_BAR_HEIGHT + insets.bottom }]}
+          pointerEvents="box-none"
+        >
+          <MaskedView
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+            maskElement={
+              <LinearGradient
+                colors={["rgba(0,0,0,0)", "rgba(0,0,0,1)"]}
+                locations={[0, 0.65]}
+                style={StyleSheet.absoluteFill}
+              />
+            }
+          >
+            <BlurView
+              tint="dark"
+              intensity={45}
+              style={StyleSheet.absoluteFill}
+            />
+          </MaskedView>
+          <LinearGradient
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.55)"]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          <View
+            style={[
+              styles.actionBarInner,
+              { paddingBottom: Math.max(insets.bottom, spacing[3]) },
+            ]}
+          >
+            <Pressable
+              onPress={handleGiveGem}
+              disabled={isGivingGem || gemGiven}
+              style={({ pressed }) => [
+                styles.gemButton,
+                hasGemToday && !gemGiven ? styles.gemButtonActive : styles.gemButtonInactive,
+                gemGiven && styles.gemButtonGiven,
+                pressed && styles.gemButtonPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                gemGiven ? "Gem given" : hasGemToday ? "Give gem" : "No gem available"
+              }
+            >
+              <View style={styles.gemButtonInner}>
+                <Gem
+                  size={20}
+                  color={
+                    gemGiven
+                      ? colors.primary
+                      : hasGemToday
+                        ? colors.primaryForeground
+                        : colors.mutedForeground
+                  }
+                />
+                <Text style={gemButtonTextStyles}>{gemButtonLabel}</Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   )
 }
@@ -300,5 +429,59 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: spacing[4],
+  },
+  actionBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 11,
+  },
+  actionBarInner: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing[6],
+    paddingTop: spacing[3],
+  },
+  gemButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    borderRadius: borderRadius.xl,
+    minHeight: 52,
+  },
+  gemButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  gemButtonInactive: {
+    backgroundColor: colors.muted,
+    opacity: 0.85,
+  },
+  gemButtonGiven: {
+    backgroundColor: colors.muted,
+  },
+  gemButtonPressed: {
+    opacity: 0.9,
+  },
+  gemButtonInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[2],
+  },
+  gemButtonText: {
+    fontSize: fontSize.base,
+    fontFamily: fontFamily.manropeSemibold,
+    color: colors.primaryForeground,
+  },
+  gemButtonTextGiven: {
+    color: colors.primary,
+  },
+  gemButtonTextInactive: {
+    color: colors.mutedForeground,
   },
 })

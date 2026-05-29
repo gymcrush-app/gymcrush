@@ -3,10 +3,11 @@ import type { ProfileWithScore } from '@/types';
 import { Image } from 'expo-image';
 import { borderRadius, colors, fontSize, fontFamily, shadows, spacing } from '@/theme';
 import { Gem } from 'lucide-react-native';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { toast } from '@/lib/toast';
+import { useProfilePrompts } from '@/lib/api/prompts';
 
 /** Total height of the Give Gem button area (padding + margins + minHeight). */
 const GEM_BUTTON_TOTAL_HEIGHT =
@@ -34,7 +35,7 @@ export interface GymGemCardProps {
 
 export const GymGemCard = React.memo(function GymGemCard({
   item,
-  gymName,
+  gymName: _gymName,
   onPress,
   cardHeight,
   hasGemToday = false,
@@ -46,6 +47,15 @@ export const GymGemCard = React.memo(function GymGemCard({
   const photos = item.photo_urls ?? [];
   const hasPhoto = photos.length > 0;
   const photoHeight = cardHeight - GEM_BUTTON_TOTAL_HEIGHT;
+
+  const { data: profilePrompts } = useProfilePrompts(item.id);
+  const topPrompt = useMemo(() => {
+    if (!profilePrompts || profilePrompts.length === 0) return null;
+    const sorted = [...profilePrompts].sort(
+      (a, b) => b.engagement_count - a.engagement_count
+    );
+    return sorted[0] ?? null;
+  }, [profilePrompts]);
 
   const gemButtonScale = useSharedValue(1);
   const gemButtonOpacity = useSharedValue(1);
@@ -106,10 +116,14 @@ export const GymGemCard = React.memo(function GymGemCard({
             <Gem size={20} color={colors.primary} style={styles.gemIcon} />
           </View>
 
-          {gymName ? (
+          {topPrompt ? (
             <View style={styles.bottomBox} pointerEvents="none">
-              <Text style={styles.bottomLabel}>Home gym</Text>
-              <Text style={styles.bottomValue} numberOfLines={1}>{gymName}</Text>
+              <Text style={styles.bottomLabel} numberOfLines={1}>
+                {topPrompt.prompt_text}
+              </Text>
+              <Text style={styles.bottomValue} numberOfLines={2}>
+                {topPrompt.answer}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -247,8 +261,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.mutedForeground,
     marginBottom: spacing[0.5],
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   bottomValue: {
     fontSize: fontSize.base,

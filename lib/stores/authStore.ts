@@ -7,7 +7,7 @@ import { PROFILE_COLUMNS } from '@/constants';
 import type { Database } from '@/types/database';
 import { APP } from '@/theme';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+type Profile = Omit<Database['public']['Tables']['profiles']['Row'], 'last_location' | 'last_location_updated_at'>;
 
 interface AuthState {
   session: Session | null;
@@ -98,9 +98,10 @@ export const useAuthStore = create<AuthState>()(
             console.error('Error fetching profile:', error);
           }
 
-          set({ 
-            profile: profile ?? null,
-            isOnboarded: profile?.is_onboarded ?? false,
+          const typed = profile as Profile | null;
+          set({
+            profile: typed ?? null,
+            isOnboarded: typed?.is_onboarded ?? false,
             isLoading: false,
             authResolved: true,
           });

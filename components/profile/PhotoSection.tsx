@@ -27,6 +27,8 @@ interface PhotoSectionProps {
   showImageCommentTooltip?: boolean;
   onPhotoSwipeTooltipClose?: () => void;
   onImageCommentTooltipClose?: () => void;
+  /** __DEV__ debug only — solid color replaces photos for ghost-image debugging. */
+  debugSolidColor?: string;
 }
 
 export const PhotoSection = React.forwardRef<PhotoCarouselRef, PhotoSectionProps>(({
@@ -40,6 +42,7 @@ export const PhotoSection = React.forwardRef<PhotoCarouselRef, PhotoSectionProps
   showImageCommentTooltip = false,
   onPhotoSwipeTooltipClose,
   onImageCommentTooltipClose,
+  debugSolidColor,
 }, ref) => {
   const useInset = photoWidth < SCREEN_WIDTH;
   const containerStyle = useInset
@@ -65,7 +68,7 @@ export const PhotoSection = React.forwardRef<PhotoCarouselRef, PhotoSectionProps
         backgroundColor="rgba(0,0,0,0.5)"
       >
         <View style={carouselWrapperStyle}>
-          <PhotoCarousel ref={ref} photos={photos} height={imageHeight} width={photoWidth} enableZoom={enableZoom} />
+          <PhotoCarousel ref={ref} photos={photos} height={imageHeight} width={photoWidth} enableZoom={enableZoom} debugSolidColor={debugSolidColor} />
         </View>
       </Tooltip>
 

@@ -85,10 +85,10 @@ const styles = StyleSheet.create({
     gap: spacing[4],
   },
   row: { flexDirection: 'row', justifyContent: 'space-evenly', gap: spacing[4] },
-  cell: { flex: 1, alignItems: 'center' },
+  cell: { flex: 1 },
   iconRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing[1.5],
   },
 });

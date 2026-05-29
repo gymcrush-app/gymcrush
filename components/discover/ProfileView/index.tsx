@@ -58,6 +58,21 @@ const ZOOM_SPRING = { damping: 40, stiffness: 300 }
 const MIN_ZOOM = 1
 const MAX_ZOOM = 4
 
+// === GHOST-IMAGE DEBUG ===
+// Set true to paint discover deck photos as solid colors so you can spot which
+// stack layer flashes during/after swipes. Flip back to false to restore real
+// photos. Only takes effect in __DEV__ builds.
+//   position 0 (front card) → red
+//   position 1 (back card)  → blue
+//   position 2 (preload)    → green (rendered behind the back card)
+// If a non-colored photo flashes, the ghost is NOT in profiles[0..2] — look at
+// modals (MatchModal/CrushUnlockedOverlay/Confetti), the chat sheet header,
+// or expo-image cache eviction.
+const DEBUG_GHOST_TINT = false
+const DEBUG_COLOR_TOP = "#ff3b30" // red
+const DEBUG_COLOR_BACK = "#0a84ff" // blue
+const DEBUG_COLOR_THIRD = "#34c759" // green
+
 interface ProfileViewProps {
   profiles: Profile[]
   showPhotoSwipeTooltip?: boolean
@@ -95,6 +110,11 @@ export const ProfileView = React.forwardRef<
 ) {
   const topProfile = profiles[0]
   const nextProfile = profiles[1]
+  const thirdProfile = profiles[2]
+  const debugTintActive = __DEV__ && DEBUG_GHOST_TINT
+  const debugTintTop = debugTintActive ? DEBUG_COLOR_TOP : undefined
+  const debugTintBack = debugTintActive ? DEBUG_COLOR_BACK : undefined
+  const debugTintThird = debugTintActive ? DEBUG_COLOR_THIRD : undefined
   const { data: profileGym } = useGymById(topProfile?.home_gym_id || "")
   const { data: profilePrompts } = useProfilePrompts(topProfile?.id)
 
@@ -271,19 +291,14 @@ export const ProfileView = React.forwardRef<
     opacity: opacity.value,
   }))
 
-  // Back card subtly grows + brightens as the front card moves away, so the
-  // next profile feels like it's "rising" to take the front position.
-  const BACK_CARD_RISE_THRESHOLD = SCREEN_HEIGHT * 0.15
-  const animatedBackCardStyle = useAnimatedStyle(() => {
-    const progress = Math.min(
-      1,
-      Math.abs(translateY.value) / BACK_CARD_RISE_THRESHOLD,
-    )
-    return {
-      transform: [{ scale: 0.95 + 0.05 * progress }],
-      opacity: 0.9 + 0.1 * progress,
-    }
-  })
+  // Back card stays mounted (so expo-image warms its cache for the next
+  // profile) but invisible. Otherwise it would peek through during the
+  // front-card exit animation and read as a "ghost" frame — see
+  // 2026-05-29 transition cleanup. New front card snaps to visible after
+  // index advance and exit completes.
+  const animatedBackCardStyle = useAnimatedStyle(() => ({
+    opacity: 0,
+  }))
 
   // --- Reset on profile change ---
   // First mount snaps in without animation; subsequent changes run the
@@ -437,6 +452,37 @@ export const ProfileView = React.forwardRef<
     <View style={styles.container}>
       <View style={styles.stackContainer}>
         {/* Back card (next profile peeking) — visible as the front card exits */}
+        {/* DEV-only third card so we can see if profiles[2] is the ghost source. */}
+        {debugTintActive && thirdProfile ? (
+          <View
+            pointerEvents="none"
+            style={[styles.backCard, { zIndex: -1 }]}
+          >
+            <View style={styles.nameRow}>
+              <ProfileHeader
+                displayName={thirdProfile.display_name}
+                age={thirdProfile.age}
+                distanceKm={null}
+                variant="compact"
+              />
+            </View>
+            <View
+              style={[styles.photoWrapper, { height: effectiveImageHeight }]}
+            >
+              <PhotoSection
+                key={thirdProfile.id}
+                photos={thirdProfile.photo_urls}
+                imageHeight={effectiveImageHeight}
+                photoWidth={DISCOVER_PHOTO_WIDTH}
+                onOpenImageChat={() => {}}
+                showPhotoSwipeTooltip={false}
+                showImageCommentTooltip={false}
+                debugSolidColor={debugTintThird}
+              />
+            </View>
+          </View>
+        ) : null}
+
         {nextProfile ? (
           <Animated.View
             pointerEvents="none"
@@ -461,6 +507,7 @@ export const ProfileView = React.forwardRef<
                 onOpenImageChat={() => {}}
                 showPhotoSwipeTooltip={false}
                 showImageCommentTooltip={false}
+                debugSolidColor={debugTintBack}
               />
             </View>
           </Animated.View>
@@ -509,6 +556,7 @@ export const ProfileView = React.forwardRef<
                     showImageCommentTooltip={showImageCommentTooltip}
                     onPhotoSwipeTooltipClose={onPhotoSwipeTooltipClose}
                     onImageCommentTooltipClose={onImageCommentTooltipClose}
+                    debugSolidColor={debugTintTop}
                   />
                 </View>
 

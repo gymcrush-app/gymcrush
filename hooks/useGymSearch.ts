@@ -175,7 +175,7 @@ export function useGymSearch(): UseGymSearchResult {
       setResults([]);
       setIsLoading(false);
     }
-  }, []);
+  }, [location]);
 
   const clearResults = useCallback(() => {
     // Cancel any in-flight requests

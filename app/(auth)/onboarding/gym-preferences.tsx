@@ -1,6 +1,5 @@
 import { FloatingActionButton } from '@/components/onboarding/FloatingActionButton';
 import { OnboardingContainer } from '@/components/onboarding/OnboardingContainer';
-import { Switch } from '@/components/ui/Switch';
 import { useOnboardingStore } from '@/lib/stores/onboardingStore';
 import { track } from '@/lib/utils/analytics';
 import { borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
@@ -25,7 +24,7 @@ export default function OnboardingGymPreferences() {
   };
 
   return (
-    <OnboardingContainer currentStep={10} totalSteps={14} showBack={true}>
+    <OnboardingContainer currentStep={8} totalSteps={12} showBack={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>
@@ -75,21 +74,6 @@ export default function OnboardingGymPreferences() {
               </View>
             </View>
 
-            {/* Show Status Publicly */}
-            <View style={styles.switchCard}>
-              <View style={styles.switchText}>
-                <Text style={styles.switchLabel}>
-                  Show status publicly
-                </Text>
-                <Text style={styles.switchDescription}>
-                  Let others see your approach preference
-                </Text>
-              </View>
-              <Switch
-                value={data.showStatusPublicly}
-                onValueChange={(checked) => updateData({ showStatusPublicly: checked })}
-              />
-            </View>
           </View>
         </View>
 
@@ -157,29 +141,6 @@ const styles = StyleSheet.create({
     color: colors.foreground,
   },
   optionDescription: {
-    fontSize: fontSize.sm,
-    color: colors.mutedForeground,
-    marginTop: spacing[1],
-  },
-  switchCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing[4],
-    borderRadius: borderRadius.xl,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  switchText: {
-    flex: 1,
-    marginRight: spacing[4],
-  },
-  switchLabel: {
-    fontFamily: fontFamily.manropeMedium,
-    color: colors.foreground,
-  },
-  switchDescription: {
     fontSize: fontSize.sm,
     color: colors.mutedForeground,
     marginTop: spacing[1],

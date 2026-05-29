@@ -15,16 +15,18 @@ function parseGymGemsRow(row: {
   profile: unknown;
   engagement_score: number;
   likes_received: number;
-  comment_likes_received: number;
-  gems_received: number;
+  crush_received: number;
+  first_messages_received: number;
+  matches_count: number;
 }): ProfileWithScore {
   const profile = row.profile as Profile;
   return {
     ...profile,
     engagement_score: Number(row.engagement_score),
     likes_received: Number(row.likes_received),
-    comment_likes_received: Number(row.comment_likes_received),
-    gems_received: Number(row.gems_received),
+    crush_received: Number(row.crush_received),
+    first_messages_received: Number(row.first_messages_received),
+    matches_count: Number(row.matches_count),
   };
 }
 

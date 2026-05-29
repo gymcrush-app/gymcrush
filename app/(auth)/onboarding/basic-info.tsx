@@ -190,7 +190,7 @@ export default function OnboardingBasicInfo() {
   const handleSubmit = () => {
     if (validate()) {
       track('onboarding_step_completed', { step: 'basic-info', index: 0 });
-      (navigation as any).navigate('religion');
+      (navigation as any).navigate('vices');
     }
   };
 
@@ -206,7 +206,7 @@ export default function OnboardingBasicInfo() {
   return (
     <OnboardingContainer
       currentStep={1}
-      totalSteps={13}
+      totalSteps={12}
       showBack={false}
       showClose={true}
       onClose={async () => {

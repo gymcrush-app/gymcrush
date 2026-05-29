@@ -14,6 +14,7 @@ import type { Visibility } from '@/types';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import {
+  Bug,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -44,7 +45,6 @@ const PRIVACY_URL = 'https://gymcrush.com/privacy';
 const TERMS_URL = 'https://gymcrush.com/terms';
 const COOKIE_POLICY_URL = 'https://gymcrush.com/cookie-policy';
 const COMMUNITY_GUIDELINES_URL = 'https://gymcrush.com/community-guidelines';
-const SUPPORT_EMAIL = 'support@gymcrush.com';
 const APP_STORE_ID = '6762858426';
 const ANDROID_PACKAGE = 'com.gymcrush.app';
 const APP_STORE_REVIEW_URL = `itms-apps://itunes.apple.com/app/id${APP_STORE_ID}?action=write-review`;
@@ -87,11 +87,14 @@ export default function SettingsScreen() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
 
-  const appVersion = Constants.expoConfig?.version ?? '0.0.0';
-  const buildNumber = Platform.select({
-    ios: Constants.expoConfig?.ios?.buildNumber,
-    android: String(Constants.expoConfig?.android?.versionCode ?? ''),
-  });
+  const appVersion =
+    Constants.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '0.0.0';
+  const buildNumber =
+    Constants.nativeBuildVersion ??
+    Platform.select({
+      ios: Constants.expoConfig?.ios?.buildNumber,
+      android: String(Constants.expoConfig?.android?.versionCode ?? ''),
+    });
 
   const openURL = async (url: string) => {
     try {
@@ -143,8 +146,11 @@ export default function SettingsScreen() {
   };
 
   const handleHelpSupport = () => {
-    const subject = encodeURIComponent('GymCrush support');
-    openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}`);
+    router.push({ pathname: '/(tabs)/profile/support', params: { kind: 'question' } });
+  };
+
+  const handleReportBug = () => {
+    router.push({ pathname: '/(tabs)/profile/support', params: { kind: 'bug' } });
   };
 
   const visibility: Visibility = profile?.is_visible ? 'visible' : 'paused';
@@ -320,6 +326,11 @@ export default function SettingsScreen() {
               icon={<HelpCircle size={18} color={colors.foreground} />}
               label="Help & Support"
               onPress={handleHelpSupport}
+            />
+            <SettingsLinkRow
+              icon={<Bug size={18} color={colors.foreground} />}
+              label="Report a Bug"
+              onPress={handleReportBug}
             />
             <SettingsLinkRow
               icon={<Star size={18} color={colors.foreground} />}

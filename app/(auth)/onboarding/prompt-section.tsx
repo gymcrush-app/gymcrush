@@ -7,10 +7,11 @@ import { track } from '@/lib/utils/analytics';
 import { APP, borderRadius, colors, fontSize, fontFamily, spacing } from '@/theme';
 import type { PromptAnswer } from '@/types/onboarding';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { OnboardingScrollContext } from '@/components/onboarding/OnboardingContainer';
 
-const TOTAL_STEPS = 14;
+const TOTAL_STEPS = 12;
 const TOTAL_PROMPT_SCREENS = 3;
 
 export default function PromptSectionScreen() {
@@ -36,6 +37,7 @@ export default function PromptSectionScreen() {
   );
   const [answer, setAnswer] = useState(existingAnswer?.answer ?? '');
   const textareaRef = useRef<TextInput>(null);
+  const scrollRef = useContext(OnboardingScrollContext);
 
   // Reset state when navigating to a different prompt slot
   const prevSlotIdx = useRef(slotIdx);
@@ -78,11 +80,18 @@ export default function PromptSectionScreen() {
     }
   }, [selectedPromptId, sections, usedPromptIds]);
 
+  const scrollTextareaIntoView = useCallback(() => {
+    scrollRef?.current?.scrollToEnd({ animated: true });
+  }, [scrollRef]);
+
   const handleSelectPrompt = useCallback((promptId: string) => {
     setSelectedPromptId(promptId);
     setAnswer('');
-    setTimeout(() => textareaRef.current?.focus(), 100);
-  }, []);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      scrollTextareaIntoView();
+    }, 150);
+  }, [scrollTextareaIntoView]);
 
   const canContinue = !!selectedPromptId && !!selectedThemeId && answer.trim().length > 0;
 
@@ -108,7 +117,7 @@ export default function PromptSectionScreen() {
     }
   }, [canContinue, selectedPromptId, selectedThemeId, answer, data.prompts, updateData, slotIdx, navigation]);
 
-  const currentStep = 10 + slotIdx;
+  const currentStep = 9 + slotIdx;
 
   if (isLoading || !sections) {
     return (
@@ -122,40 +131,44 @@ export default function PromptSectionScreen() {
 
   return (
     <OnboardingContainer currentStep={currentStep} totalSteps={TOTAL_STEPS} showBack={true}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.title}>Pick a theme & question</Text>
-          <Text style={styles.subtitle}>
-            Answer {slotIdx + 1} of {TOTAL_PROMPT_SCREENS} prompts
-          </Text>
-        </View>
+      <View style={styles.content}>
+        {!selectedPromptId && (
+          <>
+            <View style={styles.header}>
+              <Text style={styles.title}>Pick a theme & question</Text>
+              <Text style={styles.subtitle}>
+                Answer {slotIdx + 1} of {TOTAL_PROMPT_SCREENS} prompts
+              </Text>
+            </View>
 
-        {/* Theme selector */}
-        <View style={styles.themesWrap}>
-          {sections.map((section) => {
-            const isSelected = selectedThemeId === section.id;
-            return (
-              <Pressable
-                key={section.id}
-                onPress={() => handleSelectTheme(section.id)}
-                style={[
-                  styles.themeButton,
-                  isSelected && styles.themeButtonSelected,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.themeButtonText,
-                    isSelected && styles.themeButtonTextSelected,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {section.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+            {/* Theme selector */}
+            <View style={styles.themesWrap}>
+              {sections.map((section) => {
+                const isSelected = selectedThemeId === section.id;
+                return (
+                  <Pressable
+                    key={section.id}
+                    onPress={() => handleSelectTheme(section.id)}
+                    style={[
+                      styles.themeButton,
+                      isSelected && styles.themeButtonSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.themeButtonText,
+                        isSelected && styles.themeButtonTextSelected,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {section.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         {/* Questions list — show only selected prompt when one is chosen */}
         {selectedThemeId && (
@@ -207,9 +220,10 @@ export default function PromptSectionScreen() {
             maxLength={APP.MAX_ONBOARDING_PROMPT_ANSWER_LENGTH}
             showCharCount
             style={styles.textarea}
+            onFocus={scrollTextareaIntoView}
           />
         )}
-      </ScrollView>
+      </View>
 
       <FloatingActionButton onPress={handleNext} disabled={!canContinue}>
         {slotIdx < TOTAL_PROMPT_SCREENS - 1 ? 'Next' : 'Continue'}
@@ -219,12 +233,8 @@ export default function PromptSectionScreen() {
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   content: {
     gap: spacing[6],
-    paddingBottom: spacing[24],
   },
   loadingContainer: {
     flex: 1,

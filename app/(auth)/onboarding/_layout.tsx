@@ -8,8 +8,6 @@ export default function OnboardingLayout() {
     }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="basic-info" />
-      <Stack.Screen name="religion" />
-      <Stack.Screen name="ethnicity" />
       <Stack.Screen name="vices" />
       <Stack.Screen name="kids" />
       <Stack.Screen name="intent" />

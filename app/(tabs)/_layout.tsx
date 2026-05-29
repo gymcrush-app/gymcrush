@@ -22,7 +22,7 @@ export default function TabLayout() {
     if (!userId) return;
     queryClient.prefetchQuery({
       queryKey: ['conversations', userId],
-      queryFn: () => fetchConversations(userId),
+      queryFn: () => fetchConversations(userId, queryClient),
     });
     queryClient.prefetchQuery({
       queryKey: ['messageRequests', userId],

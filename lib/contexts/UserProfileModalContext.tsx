@@ -3,13 +3,21 @@ import { fetchProfilePrompts } from "@/lib/api/prompts"
 import React, { createContext, useCallback, useContext, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
+export type UserProfileModalMode = "default" | "gym-gem"
+
+interface OpenOptions {
+  mode?: UserProfileModalMode
+}
+
 interface UserProfileModalContextValue {
   /** Open the modal for the given user id (from any tab: Discover, Matches, Chat). */
-  openUserProfile: (userId: string) => void
+  openUserProfile: (userId: string, options?: OpenOptions) => void
   /** Close the modal; user returns to the screen they were on. */
   closeUserProfile: () => void
   /** Currently shown user id, or null when modal is closed. */
   userId: string | null
+  /** Current mode for the open modal. */
+  mode: UserProfileModalMode
 }
 
 const UserProfileModalContext = createContext<
@@ -22,10 +30,12 @@ export function UserProfileModalProvider({
   children: React.ReactNode
 }) {
   const [userId, setUserId] = useState<string | null>(null)
+  const [mode, setMode] = useState<UserProfileModalMode>("default")
   const queryClient = useQueryClient()
 
   const openUserProfile = useCallback(
-    (id: string) => {
+    (id: string, options?: OpenOptions) => {
+      setMode(options?.mode ?? "default")
       // Show modal immediately (with loading spinner) — don't block on fetch
       setUserId(id)
       // Fire prefetches in parallel so data is ready when modal renders
@@ -51,6 +61,7 @@ export function UserProfileModalProvider({
     openUserProfile,
     closeUserProfile,
     userId,
+    mode,
   }
 
   return (

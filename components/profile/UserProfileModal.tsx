@@ -14,7 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context"
  * access to the same React Query client.
  */
 export function UserProfileModal() {
-  const { userId, closeUserProfile } = useUserProfileModal()
+  const { userId, mode, closeUserProfile } = useUserProfileModal()
   const queryClient = useQueryClient()
   const isOpenRef = useRef(false)
   isOpenRef.current = userId !== null
@@ -45,6 +45,7 @@ export function UserProfileModal() {
                   <OtherUserProfileContent
                     key={userId}
                     userId={userId}
+                    mode={mode}
                     onBack={closeUserProfile}
                     onOpenImageChat={closeUserProfile}
                   />

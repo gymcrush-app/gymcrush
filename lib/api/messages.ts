@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useAuthStore } from '../stores/authStore';
@@ -6,7 +6,7 @@ import { filterBadWords } from '@/lib/utils/filterBadWords';
 import { track } from '@/lib/utils/analytics';
 import { useLike } from './matches';
 import { PROFILE_COLUMNS } from '@/constants';
-import type { Message, MatchWithProfile, Profile } from '@/types';
+import type { Message, MatchWithProfile, ClientProfile } from '@/types';
 
 /** Match-based thread in Chat (existing behavior). */
 export type ConversationMatch = MatchWithProfile & {
@@ -23,7 +23,7 @@ export type ConversationMatch = MatchWithProfile & {
 export type ConversationGemInbox = {
   kind: 'gem_inbox';
   rowId: string;
-  otherUser: Profile;
+  otherUser: ClientProfile;
   lastMessage: Message;
   unreadCount: number;
 };
@@ -37,7 +37,10 @@ export type Conversation = ConversationMatch | ConversationGemInbox;
  * Reusable conversations fetcher — used by useConversations and the
  * tabs-layout prefetcher (so the inbox is warm before the user taps Crushes).
  */
-export async function fetchConversations(userId: string): Promise<Conversation[]> {
+export async function fetchConversations(
+  userId: string,
+  queryClient?: QueryClient,
+): Promise<Conversation[]> {
   // Fetch matches with user profiles
   const { data: matches, error: matchesError } = await supabase
     .from('matches')
@@ -95,6 +98,7 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
 
   const lastMessageByMatch = new Map<string, Message>();
   const unreadByMatch = new Map<string, number>();
+  const messagesByMatch = new Map<string, Message[]>();
   for (const msg of threadMessages) {
     const matchId = msg.match_id as string;
     if (!matchId) continue;
@@ -103,6 +107,25 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
     }
     if (msg.sender_id !== userId && !msg.read_at) {
       unreadByMatch.set(matchId, (unreadByMatch.get(matchId) || 0) + 1);
+    }
+    let bucket = messagesByMatch.get(matchId);
+    if (!bucket) {
+      bucket = [];
+      messagesByMatch.set(matchId, bucket);
+    }
+    bucket.push(msg as Message);
+  }
+
+  // Seed per-match infinite-query cache so useChat finds fresh data and skips
+  // the redundant fetch on entry. Messages were fetched DESC above, so reverse
+  // to ASC (oldest → newest) to match useChat's page shape.
+  if (queryClient) {
+    for (const [matchId, msgs] of messagesByMatch) {
+      const asc = [...msgs].reverse();
+      queryClient.setQueryData(['messages', matchId], {
+        pages: [{ messages: asc, nextPage: undefined }],
+        pageParams: [0],
+      });
     }
   }
 
@@ -128,7 +151,7 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
   const gemSendersSeen = new Set<string>();
   const gemInbox: ConversationGemInbox[] = [];
   for (const row of gemMsgRows || []) {
-    const sender = row.sender as Profile | null;
+    const sender = row.sender as ClientProfile | null;
     if (!sender?.id) continue;
     if (matchPartnerIds.has(sender.id)) continue;
     if (gemSendersSeen.has(sender.id)) continue;
@@ -168,7 +191,7 @@ export function useConversations() {
 
   const query = useQuery({
     queryKey: ['conversations', user?.id],
-    queryFn: () => fetchConversations(user!.id),
+    queryFn: () => fetchConversations(user!.id, queryClient),
     enabled: !!user,
   });
 
@@ -534,7 +557,7 @@ export function useMarkAsRead() {
 }
 
 export type MessageRequest = {
-  sender: Profile;
+  sender: ClientProfile;
   lastMessage: Message;
   unreadCount: number;
 };
@@ -582,20 +605,19 @@ export async function fetchMessageRequests(userId: string): Promise<MessageReque
     if (ignoredSenderIds.has(senderId)) continue;
     if (matchedPartnerIds.has(senderId)) continue;
 
-    let request = requestsBySender.get(senderId);
-    if (!request) {
-      request = {
-        sender: msg.sender,
+    const existing = requestsBySender.get(senderId);
+    if (!existing) {
+      requestsBySender.set(senderId, {
+        sender: msg.sender as ClientProfile,
         lastMessage: msg as Message,
-        unreadCount: 0,
-      };
-      requestsBySender.set(senderId, request);
-    } else if (
-      new Date(msg.created_at ?? 0) > new Date(request.lastMessage.created_at ?? 0)
-    ) {
-      request.lastMessage = msg as Message;
+        unreadCount: msg.read_at ? 0 : 1,
+      });
+    } else {
+      if (new Date(msg.created_at ?? 0) > new Date(existing.lastMessage.created_at ?? 0)) {
+        existing.lastMessage = msg as Message;
+      }
+      if (!msg.read_at) existing.unreadCount += 1;
     }
-    if (!msg.read_at) request.unreadCount += 1;
   }
 
   return Array.from(requestsBySender.values()).sort((a, b) => {

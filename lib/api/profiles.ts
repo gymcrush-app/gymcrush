@@ -50,16 +50,16 @@ export function useDiscoverProfiles(
           p_min_age:
             typeof preferences?.minAge === 'number' && !isNaN(preferences.minAge)
               ? preferences.minAge
-              : null,
+              : undefined,
           p_max_age:
             typeof preferences?.maxAge === 'number' && !isNaN(preferences.maxAge)
               ? preferences.maxAge
-              : null,
+              : undefined,
           p_genders:
             preferences?.genders && Array.isArray(preferences.genders) && preferences.genders.length > 0
               ? preferences.genders
-              : null,
-          p_home_gym_id: null,
+              : undefined,
+          p_home_gym_id: undefined,
           p_skip_distance: false,
         });
         if (error) throw error;
@@ -139,15 +139,15 @@ export function useNearbyProfiles(
           p_min_age:
             typeof preferences?.minAge === 'number' && !isNaN(preferences.minAge)
               ? preferences.minAge
-              : null,
+              : undefined,
           p_max_age:
             typeof preferences?.maxAge === 'number' && !isNaN(preferences.maxAge)
               ? preferences.maxAge
-              : null,
+              : undefined,
           p_genders:
             preferences?.genders && Array.isArray(preferences.genders) && preferences.genders.length > 0
               ? preferences.genders
-              : null,
+              : undefined,
           p_home_gym_id: gymId,
           p_skip_distance: true,
         });

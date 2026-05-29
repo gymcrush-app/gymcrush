@@ -144,13 +144,18 @@ export default function GymGemsScreen() {
 
   const [listHeight, setListHeight] = useState(0)
 
+  const handleOpenGymGemProfile = useCallback(
+    (id: string) => openUserProfile(id, { mode: "gym-gem" }),
+    [openUserProfile],
+  )
+
   const renderItem = useCallback(
     ({ item }: { item: ProfileWithScore }) => (
       <View style={styles.cardWrapper}>
         <GymGemCard
           item={item}
           gymName={getGymName(item.home_gym_id)}
-          onPress={openUserProfile}
+          onPress={handleOpenGymGemProfile}
           cardHeight={listHeight}
           cardWidth={CARD_WIDTH}
           hasGemToday={hasGemToday}
@@ -161,7 +166,7 @@ export default function GymGemsScreen() {
     ),
     [
       getGymName,
-      openUserProfile,
+      handleOpenGymGemProfile,
       listHeight,
       hasGemToday,
       pendingToUserId,

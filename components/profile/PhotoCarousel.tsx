@@ -36,6 +36,8 @@ interface PhotoCarouselProps {
   width?: number
   /** Enable pinch-to-zoom (requires ZoomPortalProvider ancestor). Default false. */
   enableZoom?: boolean
+  /** __DEV__ debug only — replace each photo with a solid color block so we can identify which deck layer is flashing during swipes. */
+  debugSolidColor?: string
 }
 
 const styles = StyleSheet.create({
@@ -71,7 +73,7 @@ const styles = StyleSheet.create({
 })
 
 export const PhotoCarousel = forwardRef<PhotoCarouselRef, PhotoCarouselProps>(
-  function PhotoCarousel({ photos, height = 400, width = SCREEN_WIDTH, enableZoom = false }, ref) {
+  function PhotoCarousel({ photos, height = 400, width = SCREEN_WIDTH, enableZoom = false, debugSolidColor }, ref) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const scrollViewRef = useRef<ScrollView>(null)
     const containerRef = useAnimatedRef<Animated.View>()
@@ -183,18 +185,28 @@ export const PhotoCarousel = forwardRef<PhotoCarouselRef, PhotoCarouselProps>(
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {photos.map((photo, index) => (
-            <Image
-              key={photo}
-              source={{ uri: photo }}
-              style={{ width, height }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              recyclingKey={index === 0 ? undefined : photo}
-              transition={index === 0 ? 0 : 200}
-              priority={index === 0 ? "high" : "normal"}
-            />
-          ))}
+          {photos.map((photo, index) => {
+            if (__DEV__ && debugSolidColor) {
+              return (
+                <View
+                  key={photo}
+                  style={{ width, height, backgroundColor: debugSolidColor }}
+                />
+              )
+            }
+            return (
+              <Image
+                key={photo}
+                source={{ uri: photo }}
+                style={{ width, height }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={index === 0 ? undefined : photo}
+                transition={index === 0 ? 0 : 200}
+                priority={index === 0 ? "high" : "normal"}
+              />
+            )
+          })}
         </ScrollView>
         {photos.length > 1 && (
           <>

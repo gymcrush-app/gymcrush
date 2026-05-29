@@ -8,6 +8,7 @@ import type { Database } from './database';
 
 // Database types
 export type Profile = Database['public']['Tables']['profiles']['Row'];
+export type ClientProfile = Omit<Profile, 'last_location' | 'last_location_updated_at'>;
 export type Gym = Database['public']['Tables']['gyms']['Row'];
 export type Like = Database['public']['Tables']['likes']['Row'];
 export type Match = Database['public']['Tables']['matches']['Row'];
@@ -36,7 +37,7 @@ export interface DiscoveryPreferences {
 }
 
 export interface MatchWithProfile extends Match {
-  otherUser: Profile;
+  otherUser: ClientProfile;
   lastMessage?: Message;
   unreadCount?: number;
 }
@@ -45,6 +46,7 @@ export interface MatchWithProfile extends Match {
 export interface ProfileWithScore extends Profile {
   engagement_score: number;
   likes_received: number;
-  comment_likes_received: number;
-  gems_received: number;
+  crush_received: number;
+  first_messages_received: number;
+  matches_count: number;
 }
